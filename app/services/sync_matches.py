@@ -31,14 +31,17 @@ def sync_matches_for_today(db: Session, settings: Settings) -> dict:
     """
     client = FootballDataClient(settings)
     today = _local_today(settings.app_timezone)
-    date_to = today + timedelta(days=1)
+    # football-data v4: dateTo is EXCLUSIVE, so +2 days includes today + tomorrow
+    date_to_exclusive = today + timedelta(days=2)
 
     upserted = 0
     errors: list[str] = []
 
     for code in settings.competition_codes:
         try:
-            raw_matches = client.get_matches_for_competition(code, today, date_to)
+            raw_matches = client.get_matches_for_competition(
+                code, today, date_to_exclusive
+            )
         except FootballDataError as exc:
             errors.append(f"{code}: {exc}")
             continue
@@ -48,14 +51,16 @@ def sync_matches_for_today(db: Session, settings: Settings) -> dict:
                 upserted += 1
 
         # Be polite to free-tier rate limits between competitions
-        # (tiny pause is enough while learning)
         import time
 
         time.sleep(1.5)
 
     db.commit()
 
-    message = f"Upserted {upserted} match row(s) for {today} → {date_to}."
+    message = (
+        f"Upserted {upserted} match row(s) for {today} "
+        f"(dateTo exclusive={date_to_exclusive})."
+    )
     if errors:
         message += " Some competitions failed: " + "; ".join(errors)
 
