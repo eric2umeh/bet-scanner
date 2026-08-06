@@ -22,7 +22,7 @@ class Base(DeclarativeBase):
 settings = get_settings()
 
 engine = create_engine(
-    settings.database_url,
+    settings.sqlalchemy_database_url,
     # echo=True prints SQL — useful while learning, noisy in production
     echo=settings.debug,
     pool_pre_ping=True,

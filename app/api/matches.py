@@ -34,6 +34,7 @@ def list_todays_matches(
     Learning note:
     - Kickoff is stored in UTC
     - 'Today' for a Lagos user is a local calendar day, not UTC midnight
+    - Pre-season / quiet days correctly return []
     """
     tz = ZoneInfo(settings.app_timezone)
     local_now = datetime.now(tz)
@@ -46,6 +47,26 @@ def list_todays_matches(
     stmt = (
         select(Match)
         .where(Match.kickoff_at >= start_utc, Match.kickoff_at < end_utc)
+        .order_by(Match.kickoff_at.asc())
+    )
+    return list(db.scalars(stmt))
+
+
+@router.get("/upcoming", response_model=list[MatchOut])
+def list_upcoming_matches(
+    days: int = 14,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> list[Match]:
+    """Return matches from now through the next N days (default 14)."""
+    days = max(1, min(days, 60))
+    tz = ZoneInfo(settings.app_timezone)
+    now = datetime.now(tz).astimezone(ZoneInfo("UTC"))
+    end = now + timedelta(days=days)
+
+    stmt = (
+        select(Match)
+        .where(Match.kickoff_at >= now, Match.kickoff_at < end)
         .order_by(Match.kickoff_at.asc())
     )
     return list(db.scalars(stmt))

@@ -23,16 +23,15 @@ def _local_today(tz_name: str) -> date:
 
 def sync_matches_for_today(db: Session, settings: Settings) -> dict:
     """
-    Sync today's (+ tomorrow's) matches for configured competitions.
+    Sync upcoming matches for configured competitions.
 
-    Why tomorrow too?
-    - Kickoffs after midnight UTC can still be "today" in Lagos
-    - Gives the app fixtures ready ahead of time
+    Window: today → today + sync_days_ahead (default 14).
+    football-data v4: dateTo is EXCLUSIVE, so we add +1 to the window end.
     """
     client = FootballDataClient(settings)
     today = _local_today(settings.app_timezone)
-    # football-data v4: dateTo is EXCLUSIVE, so +2 days includes today + tomorrow
-    date_to_exclusive = today + timedelta(days=2)
+    days = max(1, settings.sync_days_ahead)
+    date_to_exclusive = today + timedelta(days=days + 1)
 
     upserted = 0
     errors: list[str] = []

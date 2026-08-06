@@ -29,6 +29,21 @@ class Settings(BaseSettings):
     football_data_api_key: str = ""
     football_competitions: str = "PL,PD,SA,BL1,FL1"
     app_timezone: str = "Africa/Lagos"
+    # How many days ahead to pull fixtures (today is often empty midweek / pre-season)
+    sync_days_ahead: int = 21
+
+    @property
+    def sqlalchemy_database_url(self) -> str:
+        """
+        Supabase/Neon paste URLs as postgresql://...
+        SQLAlchemy needs postgresql+psycopg://... for the psycopg v3 driver.
+        """
+        url = self.database_url.strip().strip('"').strip("'")
+        if url.startswith("postgres://"):
+            return "postgresql+psycopg://" + url[len("postgres://") :]
+        if url.startswith("postgresql://"):
+            return "postgresql+psycopg://" + url[len("postgresql://") :]
+        return url
 
     @property
     def competition_codes(self) -> list[str]:
