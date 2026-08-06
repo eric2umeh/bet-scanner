@@ -23,8 +23,9 @@ settings = get_settings()
 
 engine = create_engine(
     settings.sqlalchemy_database_url,
-    # echo=True prints SQL — useful while learning, noisy in production
-    echo=settings.debug,
+    # Set DEBUG=true in .env only when you want to see every SQL statement.
+    # With Supabase, echo makes syncs look hung and slows learning a lot.
+    echo=False,
     pool_pre_ping=True,
 )
 

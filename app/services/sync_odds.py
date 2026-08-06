@@ -5,6 +5,10 @@ Learning note:
 - Odds change over time → we INSERT new rows (snapshots), we don't overwrite history.
 - Each Odd row points at a Match via match_id.
 - If The Odds API event is new, we also create a Match row (provider=the-odds-api).
+
+Performance note (Supabase):
+- Remote DB + many bookmaker quotes = slow if we query once per quote.
+- We cache matches in memory and commit in small batches to avoid statement timeouts.
 """
 
 from datetime import datetime, timezone
@@ -16,6 +20,9 @@ from app.models import Odd
 from app.providers.base import FixtureMatch, OddQuote
 from app.providers.the_odds_api import TheOddsApiError, TheOddsApiProvider
 from app.services.match_store import upsert_fixture
+
+# Keep batches small for Supabase free-tier statement timeouts
+ODDS_BATCH_SIZE = 200
 
 
 def sync_odds(db: Session, settings: Settings) -> dict:
@@ -31,17 +38,30 @@ def sync_odds(db: Session, settings: Settings) -> dict:
             "ok": False,
         }
 
+    print(f"[odds-sync] fetched {len(quotes)} quote(s)")
+
+    # --- Pass 1: ensure one Match per event (commit after each new match) ---
+    match_cache: dict[tuple[str, str], int] = {}
+    for quote in quotes:
+        key = (quote.provider, quote.external_match_id)
+        if key in match_cache:
+            continue
+        match = _ensure_match(db, quote)
+        db.commit()  # release locks quickly on remote Postgres
+        match_cache[key] = match.id
+
+    print(f"[odds-sync] ensured {len(match_cache)} match(es)")
+
+    # --- Pass 2: insert odd snapshots in batches ---
     inserted = 0
-    match_ids: set[int] = set()
     captured_at = datetime.now(timezone.utc)
+    batch: list[Odd] = []
 
     for quote in quotes:
-        match = _ensure_match(db, quote)
-        match_ids.add(match.id)
-
-        db.add(
+        match_id = match_cache[(quote.provider, quote.external_match_id)]
+        batch.append(
             Odd(
-                match_id=match.id,
+                match_id=match_id,
                 bookmaker=quote.bookmaker,
                 market=quote.market,
                 selection=quote.selection,
@@ -49,15 +69,23 @@ def sync_odds(db: Session, settings: Settings) -> dict:
                 captured_at=quote.captured_at or captured_at,
             )
         )
-        inserted += 1
+        if len(batch) >= ODDS_BATCH_SIZE:
+            db.add_all(batch)
+            db.commit()
+            inserted += len(batch)
+            print(f"[odds-sync] committed {inserted}/{len(quotes)} odds")
+            batch = []
 
-    db.commit()
+    if batch:
+        db.add_all(batch)
+        db.commit()
+        inserted += len(batch)
 
     return {
         "inserted": inserted,
-        "matches_touched": len(match_ids),
+        "matches_touched": len(match_cache),
         "message": (
-            f"Inserted {inserted} odd snapshot(s) across {len(match_ids)} match(es). "
+            f"Inserted {inserted} odd snapshot(s) across {len(match_cache)} match(es). "
             "Free tier: watch x-requests-remaining in server logs."
         ),
         "ok": True,
