@@ -32,3 +32,4 @@ class SyncResult(BaseModel):
     competitions: list[str]
     upserted: int
     message: str
+    providers: list[str] = []

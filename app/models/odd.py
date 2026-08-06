@@ -1,8 +1,10 @@
 """
 Odd = a price snapshot for one market on one match.
 
-We keep this table ready even before we wire odds APIs.
-Later: SportyBet / Bet9ja / aggregators write rows here over time.
+Learning note:
+- We INSERT new rows when odds change (history), we don't overwrite.
+- Phase 2 source: The Odds API (free) → UK/EU books.
+- Later sources can be SportyBet / Bet9ja adapters writing the SAME table.
 """
 
 from datetime import datetime

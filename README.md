@@ -140,27 +140,65 @@ Later you will schedule this with cron / a hosted cron worker.
 
 ---
 
-## What you should understand after Phase 1
+## Phase 2 — multi-provider fixtures + odds
 
-| Concept | Where it lives |
+We do **not** depend on only football-data.org.
+
+| Provider | Free? | Role |
+|---|---|---|
+| [football-data.org](https://www.football-data.org/) | Yes | Big-league calendars |
+| [API-Football](https://dashboard.api-football.com/) | Yes (~100 req/day) | **Today + tomorrow** fixtures (incl. live) |
+| [The Odds API](https://the-odds-api.com/) | Yes (~500 req/month) | Bookmaker **1X2 odds** snapshots |
+
+Architecture (scalable later for SportyBet/Bet9ja):
+
+```
+providers/   → talk to external APIs, return shared shapes
+services/    → save into Postgres
+api/         → expose HTTP endpoints
+```
+
+### Extra keys for Phase 2
+
+Add to `.env` (placeholders were appended if missing):
+
+```env
+API_FOOTBALL_KEY=...
+ODDS_API_KEY=...
+FIXTURE_PROVIDERS=football-data,api-football
+```
+
+### Phase 2 endpoints
+
+1. `POST /matches/sync` — runs all enabled fixture providers  
+2. `GET /matches/today` — after API-Football, useful for “on now / later today”  
+3. `POST /odds/sync` — fill `odds` table (don't spam; free monthly quota)  
+4. `GET /odds/latest` — read recent snapshots  
+
+```bash
+python scripts/sync_odds.py
+```
+
+### What to open while learning (Phase 2)
+
+| Concept | File |
 |---|---|
-| Env config | `app/config.py` |
-| DB models | `app/models/` |
-| External API call | `app/services/football_data.py` |
-| Upsert / sync | `app/services/sync_matches.py` |
-| HTTP endpoint | `app/api/matches.py` |
-| Cron script | `scripts/sync_matches.py` |
-
-If a match day has no games in your competitions, `/matches/today` will correctly return `[]`.
+| Shared shapes | `app/providers/base.py` |
+| football-data provider | `app/providers/football_data.py` |
+| today/tomorrow provider | `app/providers/api_football.py` |
+| odds provider | `app/providers/the_odds_api.py` |
+| save matches | `app/services/match_store.py` |
+| odds sync | `app/services/sync_odds.py` |
+| odds HTTP | `app/api/odds.py` |
 
 ---
 
-## Phase roadmap (so you know what “next” means)
+## Phase roadmap
 
 | Phase | Goal |
 |---|---|
-| **1 (now)** | Fixtures in DB + `/matches/today` + daily sync |
-| 2 | Odds snapshots into `odds` |
+| 1 | Fixtures in DB + `/matches/today` + daily sync |
+| **2 (now)** | Multi-provider fixtures + odds snapshots |
 | 3 | Simple ranking / risk profiles → write `tips` |
 | 4 | Telegram or web UI |
 | 5 | Auto-settle tips + performance history |

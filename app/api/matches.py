@@ -1,9 +1,10 @@
 """
 Match endpoints.
 
-Try these in Postman / browser after the server is running:
-  GET  http://127.0.0.1:8000/matches/today
-  POST http://127.0.0.1:8000/matches/sync   (pull from football-data.org)
+Try these in /docs:
+  GET  /matches/today
+  GET  /matches/upcoming
+  POST /matches/sync          ← runs all enabled fixture providers
 """
 
 from datetime import datetime, timedelta
@@ -16,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import Match
+from app.providers.api_football import ApiFootballError
 from app.schemas.match import MatchOut, SyncResult
 from app.services.football_data import FootballDataError
 from app.services.sync_matches import sync_matches_for_today
@@ -31,10 +33,8 @@ def list_todays_matches(
     """
     Return matches whose kickoff falls on 'today' in APP_TIMEZONE.
 
-    Learning note:
-    - Kickoff is stored in UTC
-    - 'Today' for a Lagos user is a local calendar day, not UTC midnight
-    - Pre-season / quiet days correctly return []
+    Tip: after enabling API-Football, this is much more useful for
+    "what's happening now / later today".
     """
     tz = ZoneInfo(settings.app_timezone)
     local_now = datetime.now(tz)
@@ -78,13 +78,15 @@ def sync_matches(
     settings: Settings = Depends(get_settings),
 ) -> SyncResult:
     """
-    Manually trigger the same job the daily cron will run.
+    Pull fixtures from every provider listed in FIXTURE_PROVIDERS.
 
-    Useful while learning — call this from Postman before GET /matches/today.
+    Current free providers:
+      - football-data  (big leagues calendar)
+      - api-football   (today + tomorrow)
     """
     try:
         result = sync_matches_for_today(db, settings)
-    except FootballDataError as exc:
+    except (FootballDataError, ApiFootballError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return SyncResult(**result)

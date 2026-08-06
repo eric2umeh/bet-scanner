@@ -7,7 +7,7 @@ Less ideal for: "every match worldwide today" (free tier is competition-scoped).
 Docs: https://docs.football-data.org/general/v4/index.html
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from dateutil import parser as date_parser
