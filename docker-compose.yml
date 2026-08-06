@@ -1,0 +1,19 @@
+# Local Postgres for development.
+# Run: docker compose up -d
+# Stop: docker compose down
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bet-scanner-db
+    environment:
+      POSTGRES_USER: betscanner
+      POSTGRES_PASSWORD: betscanner
+      POSTGRES_DB: betscanner
+    ports:
+      - "5432:5432"
+    volumes:
+      - bet_scanner_pg:/var/lib/postgresql/data
+
+volumes:
+  bet_scanner_pg:

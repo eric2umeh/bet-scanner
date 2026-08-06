@@ -1,0 +1,1 @@
+"""Bet Scanner — football betting decision API (learning project)."""
