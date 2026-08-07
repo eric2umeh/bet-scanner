@@ -53,6 +53,7 @@ def stake_for_profile(
         "safe_double_chance": Decimal("1"),
         "safe_favourite": Decimal("1"),
         "accumulator_flex": Decimal("0.5"),
+        "value_cross_book": Decimal("1"),
     }
     table = {**defaults, **(units_by_profile or {})}
     units = table.get(profile, Decimal("1"))

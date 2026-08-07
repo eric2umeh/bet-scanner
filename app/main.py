@@ -22,6 +22,7 @@ from app.api.odds import router as odds_router
 from app.api.safe_builder import router as safe_builder_router
 from app.api.telegram import router as telegram_router
 from app.api.tips import router as tips_router
+from app.api.value import router as value_router
 from app.config import get_settings
 from app.db import init_db
 
@@ -40,10 +41,10 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 4.5: surebet stakes, copy plans, "
-        "arb tips + Telegram. Open / for the dashboard, or /docs for the API."
+        "Football betting decision API — Phase 5: value/EV tips (cross-book de-vig), "
+        "surebets, Safe Builder, tips + Telegram. Open / or /docs."
     ),
-    version="0.4.5",
+    version="0.5.0",
     lifespan=lifespan,
 )
 
@@ -51,6 +52,7 @@ app.include_router(matches_router)
 app.include_router(odds_router)
 app.include_router(arbitrage_router)
 app.include_router(safe_builder_router)
+app.include_router(value_router)
 app.include_router(tips_router)
 app.include_router(telegram_router)
 

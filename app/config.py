@@ -100,6 +100,14 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
+    # --- Phase 5: Value / EV tips (cross-book de-vig; not AI yet) ---
+    # Minimum expected value % vs consensus fair odds
+    value_min_ev_pct: float = 1.5
+    # Need this many books with full 1X2 on the same match
+    value_min_books: int = 2
+    # Stake = min(1 unit, bankroll × kelly × this fraction) — 0.25 = quarter Kelly
+    value_kelly_fraction: float = 0.25
+
     @property
     def sqlalchemy_database_url(self) -> str:
         """

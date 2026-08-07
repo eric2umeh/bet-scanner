@@ -245,7 +245,7 @@ Guide: `docs/PHASE_4_TIPS_TELEGRAM.txt`
 
 ---
 
-## Phase 4.5 — Surebet ops (current)
+## Phase 4.5 — Surebet ops
 
 | Action | Purpose |
 |---|---|
@@ -255,6 +255,25 @@ Guide: `docs/PHASE_4_TIPS_TELEGRAM.txt`
 | `POST /tips/log-arbitrage-scan` | Same via API |
 
 Guide: `docs/PHASE_4_5_SUREBET_OPS.txt`
+
+---
+
+## Phase 5 — Value / EV tips (current)
+
+Risked singles (not surebets): flag when a book is longer than de-vigged consensus fair odds.
+
+| Endpoint / Action | Purpose |
+|---|---|
+| `GET /value/scan` | Cross-book +EV 1X2 picks + unit stake |
+| `POST /value/evaluate` | Paste multi-book odds → fair probs / EV |
+| `POST /tips/log-value-scan` | Log value tips + optional Telegram |
+| Dashboard **Scan value** | Preview +EV table |
+
+```bash
+python scripts/demo_value_math.py
+```
+
+Guide: `docs/PHASE_5_VALUE_TIPS.txt`
 
 ---
 
@@ -268,8 +287,8 @@ Guide: `docs/PHASE_4_5_SUREBET_OPS.txt`
 | 3B | Nigerian book odds (SportyBet / Bet9ja via free odds-api.io) |
 | 3C | Bankroll / unit sizing + Safe Builder (your underdog rules) |
 | 4 | Tip logging, hit-rate, dashboard + optional Telegram |
-| **4.5 (now)** | Surebet stake plans, copy stakes, arb tips + Telegram alerts |
-| 5 | Value / AI tips (risked, not “sure”) |
+| 4.5 | Surebet stake plans, copy stakes, arb tips + Telegram alerts |
+| **5 (now)** | Value / EV tips (cross-book de-vig; AI models later) |
 
 ---
 

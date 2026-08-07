@@ -1,0 +1,77 @@
+================================================================================
+PHASE 5 — VALUE / EV TIPS (cross-book de-vig, no AI yet)
+================================================================================
+
+Goal:
+  Flag risked 1X2 singles where a NG book is longer than a fair price
+  estimated from SportyBet + Bet9ja (multiplicative de-vig consensus).
+
+  Value ≠ surebet. You can lose. Track tips to see if edge is real.
+
+
+--------------------------------------------------------------------------------
+IDEA (learning)
+--------------------------------------------------------------------------------
+
+  1) Each book’s 1X2 prices include margin (overround).
+  2) De-vig → fair probabilities that sum to 1.
+  3) Average fair probs across books = consensus.
+  4) EV% = (best_odds × fair_p − 1) × 100
+  5) Show pick if EV ≥ VALUE_MIN_EV_PCT (default 1.5%)
+
+  Later (5B+): better probability models / AI — same tip pipeline.
+
+
+--------------------------------------------------------------------------------
+DASHBOARD (2 minutes)
+--------------------------------------------------------------------------------
+
+  1) Refresh http://127.0.0.1:8000/
+  2) Set Bankroll ₦ + Unit %
+  3) Sync NG odds (if stale)
+  4) Scan value
+  5) Log value → tips (optional Telegram)
+  6) After matches finish: Won/Lost → hit-rate
+
+
+--------------------------------------------------------------------------------
+API
+--------------------------------------------------------------------------------
+
+  GET  /value/scan?bookmakers=sportybet,bet9ja&bankroll_ngn=50000
+  POST /value/evaluate
+       body: { "books": { "sportybet": {"home":2.1,"draw":3.4,"away":3.5},
+                          "bet9ja":    {"home":1.95,"draw":3.5,"away":4.0} } }
+  POST /tips/log-value-scan
+       body example:
+       {
+         "bookmakers": "sportybet,bet9ja",
+         "bankroll_ngn": "50000",
+         "unit_pct": "1",
+         "log_tips": true,
+         "notify_telegram": false
+       }
+
+  Tips use source=value, risk_profile=value_cross_book.
+
+
+--------------------------------------------------------------------------------
+CONFIG (.env optional)
+--------------------------------------------------------------------------------
+
+  VALUE_MIN_EV_PCT=1.5
+  VALUE_MIN_BOOKS=2
+  VALUE_KELLY_FRACTION=0.25
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/services/value_math.py
+  app/services/scan_value.py
+  app/services/value_ops.py
+  app/api/value.py
+  app/schemas/value.py
+  docs/PHASE_5_VALUE_TIPS.txt
+================================================================================

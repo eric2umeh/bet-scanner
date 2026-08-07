@@ -114,9 +114,9 @@
 
   <main>
     <div class="note">
-      <strong>Flow:</strong> Sync NG odds (sparingly) → Scan Safe Builder →
-      Log Safe picks → mark Won/Lost → hit-rate / learning.
-      Odds buttons only <em>show raw prices</em> (no bet actions) — Safe Builder uses that data.
+      <strong>Flow:</strong> Sync NG odds → Scan Value / Safe Builder / surebets →
+      Log tips → mark Won/Lost → hit-rate / learning.
+      Odds buttons only <em>show raw prices</em>. Value tips are risked (not surebets).
     </div>
 
     <section>
@@ -125,6 +125,8 @@
         <button onclick="loadUpcoming()">Upcoming matches</button>
         <button onclick="loadOdds('sportybet')">SportyBet odds</button>
         <button onclick="loadOdds('bet9ja')">Bet9ja odds</button>
+        <button onclick="loadValue()">Scan value</button>
+        <button onclick="logValueTips()">Log value → tips</button>
         <button onclick="loadArbs()">Scan surebets</button>
         <button onclick="logArbTips()">Log surebets → tips</button>
         <button onclick="loadSafe()">Scan Safe Builder</button>
@@ -169,6 +171,16 @@
       <h2>Tips (logged picks)</h2>
       <p class="muted">Mark Won / Lost / Void — and change it later if you tapped the wrong one. Learning uses the latest result.</p>
       <div id="tipsBox"><em>Click “Load tips” or “Log Safe picks”.</em></div>
+    </section>
+
+    <section>
+      <h2>Value tips (Phase 5) — risked EV</h2>
+      <p class="muted">
+        Cross-book de-vig: if SportyBet or Bet9ja is longer than the consensus fair price,
+        we flag +EV. Not a surebet — settle tips to see if edge is real.
+        Guide: <code>docs/PHASE_5_VALUE_TIPS.txt</code>
+      </p>
+      <div id="valueBox"><em>Click “Scan value”.</em></div>
     </section>
 
     <section>
@@ -354,6 +366,71 @@
           <button class="secondary" onclick="copyArbStakes(${idx})">Copy stakes</button>
         </div>`;
       setStatus(`Stake plan ready for ${o.home_team} vs ${o.away_team}`);
+    }
+
+    async function loadValue() {
+      const bankroll = document.getElementById('bankroll').value || 50000;
+      const unitPct = document.getElementById('unitPct').value || 1;
+      setStatus(`Scanning value (EV) with bankroll ₦${bankroll}...`);
+      try {
+        const data = await getJson(
+          `/value/scan?bookmakers=sportybet,bet9ja&bankroll_ngn=${encodeURIComponent(bankroll)}&unit_pct=${encodeURIComponent(unitPct)}`
+        );
+        const picks = data.picks || [];
+        if (!picks.length) {
+          document.getElementById('valueBox').innerHTML =
+            `<p>${data.message}</p><em>No +EV edges right now (normal when books agree).</em>`;
+          setStatus(data.message);
+          return;
+        }
+        const rows = picks.map(p => {
+          const hot = Number(p.ev_pct) >= 15
+            ? ` <span class="pill pending">check live</span>`
+            : '';
+          return [
+            `${p.home_team} vs ${p.away_team}`,
+            `${p.selection} @ ${p.odds} (${p.bookmaker})`,
+            `fair ~${p.fair_odds}`,
+            String(p.ev_pct) + '%' + hot,
+            `₦${p.suggested_stake_ngn}`,
+            `₦${p.potential_return_ngn}`,
+          ];
+        });
+        document.getElementById('valueBox').innerHTML =
+          `<p>${data.message} Unit ₦${data.one_unit_ngn}.</p>` +
+          table(
+            ['Match', 'Pick', 'Fair odds', 'EV %', 'Stake', 'Return ~'],
+            rows
+          );
+        setStatus(`Found ${picks.length} value pick(s). Verify live before placing.`);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function logValueTips() {
+      const bankroll = document.getElementById('bankroll').value || 50000;
+      const unit_pct = document.getElementById('unitPct').value || 1;
+      const notify_telegram = document.getElementById('notifyTg').checked;
+      setStatus('Scanning + logging value tips...');
+      try {
+        const data = await postJson('/tips/log-value-scan', {
+          bookmakers: 'sportybet,bet9ja',
+          bankroll_ngn: bankroll,
+          unit_pct,
+          log_tips: true,
+          notify_telegram,
+        });
+        setStatus(
+          data.message +
+          (data.telegram ? ` | TG: ${data.telegram.message}` : '')
+        );
+        await loadValue();
+        await loadTips();
+        await loadStats();
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
     }
 
     async function loadArbs() {

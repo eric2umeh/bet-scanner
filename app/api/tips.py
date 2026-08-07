@@ -21,6 +21,8 @@ from app.schemas.tips import (
     LogArbScanResponse,
     LogSafeScanRequest,
     LogSafeScanResponse,
+    LogValueScanRequest,
+    LogValueScanResponse,
     TipCreate,
     TipOut,
     TipSettleRequest,
@@ -33,8 +35,10 @@ from app.services.arb_ops import (
 )
 from app.services.scan_arbitrage import scan_1x2_arbs
 from app.services.scan_safe_builder import scan_safe_picks
+from app.services.scan_value import scan_value_1x2
 from app.services.telegram_notify import format_tips_digest, send_telegram_message
 from app.services.tip_learning import build_learning_model, learning_to_dict
+from app.services.value_ops import format_value_digest, log_value_picks
 from app.services.tips import (
     auto_settle_finished,
     create_tip,
@@ -178,10 +182,79 @@ def log_arbitrage_scan(
     )
 
 
+@router.post(
+    "/log-value-scan",
+    response_model=LogValueScanResponse,
+    summary="Scan cross-book value, log tips, optional Telegram (Phase 5)",
+)
+def log_value_scan(
+    body: LogValueScanRequest,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> LogValueScanResponse:
+    """
+    Scan SportyBet/Bet9ja for positive-EV 1X2 singles vs de-vig consensus,
+    optionally save each as a tip and ping Telegram.
+    """
+    allowed = {b.strip().lower() for b in body.bookmakers.split(",") if b.strip()}
+    scan = scan_value_1x2(
+        db,
+        settings,
+        min_ev_pct=body.min_ev_pct,
+        max_age_minutes=body.max_odds_age_minutes,
+        bankroll_ngn=body.bankroll_ngn,
+        unit_pct=body.unit_pct,
+        allowed_bookmakers=allowed or None,
+    )
+    picks = scan.get("picks") or []
+
+    created: list[dict] = []
+    skipped: list[dict] = []
+    errors: list[str] = []
+    log_msg = "Tips not logged (log_tips=false)."
+    if body.log_tips and picks:
+        result = log_value_picks(db, picks)
+        created = result["created"]
+        skipped = result["skipped"]
+        errors = result["errors"]
+        log_msg = result["message"]
+    elif body.log_tips and not picks:
+        log_msg = "No value picks to log."
+
+    telegram_info = None
+    if body.notify_telegram:
+        if picks:
+            text = format_value_digest(
+                picks,
+                title=f"Value alert — {len(picks)} pick(s)",
+            )
+            telegram_info = send_telegram_message(settings, text)
+        else:
+            telegram_info = {
+                "ok": True,
+                "message": "No value picks — Telegram not sent.",
+            }
+
+    return LogValueScanResponse(
+        scan_count=len(picks),
+        created_count=len(created),
+        skipped_duplicates=len(skipped),
+        errors=errors,
+        picks=picks,
+        created=[TipOut(**t) for t in created],
+        skipped=skipped,
+        message=f"{scan.get('message', '')} {log_msg}".strip(),
+        telegram=telegram_info,
+    )
+
+
 @router.get("", response_model=list[TipOut])
 def list_tips_endpoint(
     result: str | None = Query(default=None, description="pending|won|lost|void"),
-    source: str | None = Query(default=None, description="safe_builder|manual|arbitrage"),
+    source: str | None = Query(
+        default=None,
+        description="safe_builder|manual|arbitrage|value",
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
 ) -> list[TipOut]:
