@@ -48,12 +48,25 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Create tables if they don't exist (fine for early learning)."""
+    """
+    Create tables if they don't exist (fine for early learning).
+
+    Does not crash the API if Supabase/DNS is temporarily down —
+    endpoints that need the DB will still fail until connectivity returns.
+    """
     # Import models so they register on Base.metadata before create_all
     from app import models  # noqa: F401
 
-    Base.metadata.create_all(bind=engine)
-    _ensure_tip_columns()
+    try:
+        Base.metadata.create_all(bind=engine)
+        _ensure_tip_columns()
+    except Exception as exc:  # noqa: BLE001 — startup must stay up for /health
+        print(
+            "WARNING: init_db could not reach the database.\n"
+            f"  {type(exc).__name__}: {exc}\n"
+            "  Check internet/DNS and DATABASE_URL (Supabase host).\n"
+            "  Server will start, but match/odds/tips calls will fail until DB is reachable."
+        )
 
 
 def _ensure_tip_columns() -> None:
