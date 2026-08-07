@@ -140,6 +140,8 @@
         <button class="secondary" onclick="autoSettle()">Auto-settle finished</button>
         <button class="secondary" onclick="testTelegram()">Test Telegram</button>
         <button class="secondary" id="syncBtn" onclick="syncOdds()">Sync NG odds</button>
+        <button onclick="runDailyOps(true)">Daily ops (with odds)</button>
+        <button class="secondary" onclick="runDailyOps(false)">Daily ops (no odds sync)</button>
       </div>
       <div class="row" style="margin-top:0.5rem">
         <label>Bankroll ₦ <input id="bankroll" type="number" value="50000" min="1000" step="1000" style="width:8rem" /></label>
@@ -154,6 +156,16 @@
         <button class="secondary" onclick="sizeBankroll()">Size unit stake</button>
       </div>
       <div class="status" id="status">Ready. Click a button.</div>
+    </section>
+
+    <section>
+      <h2>Daily ops (Phase 7)</h2>
+      <p class="muted">
+        Morning pipeline: fixtures → (optional) NG odds → auto-settle tips → decision brief.
+        Prefer <strong>no odds sync</strong> most runs to save free quota.
+        Guide: <code>docs/PHASE_7_DAILY_OPS.txt</code> · cron: <code>python scripts/daily_ops.py</code>
+      </p>
+      <div id="opsBox"><em>Click “Daily ops…”.</em></div>
     </section>
 
     <section>
@@ -419,6 +431,57 @@
           <button class="secondary" onclick="copyArbStakes(${idx})">Copy stakes</button>
         </div>`;
       setStatus(`Stake plan ready for ${o.home_team} vs ${o.away_team}`);
+    }
+
+    async function runDailyOps(withOdds) {
+      const bankroll = document.getElementById('bankroll').value || 50000;
+      const unit_pct = document.getElementById('unitPct').value || 1;
+      const pick_market = document.getElementById('pickMarket').value || 'double_chance';
+      const notify_telegram = document.getElementById('notifyTg').checked;
+      setStatus(withOdds ? 'Daily ops (includes odds sync)...' : 'Daily ops (skipping odds sync)...');
+      try {
+        const data = await postJson('/ops/daily-run', {
+          sync_fixtures: true,
+          sync_odds: !!withOdds,
+          auto_settle: true,
+          build_brief: true,
+          notify_telegram,
+          bankroll_ngn: bankroll,
+          unit_pct,
+          pick_market,
+          prefer_llm: true,
+        });
+        const steps = (data.steps || []).map(s =>
+          `<li><strong>${s.ok ? '✓' : '✗'} ${s.step}</strong> — ${String(s.message || '').replace(/</g,'&lt;')}</li>`
+        ).join('');
+        const briefSum = data.brief?.summary
+          ? `<pre style="white-space:pre-wrap;background:#f3f7f5;padding:0.75rem;border-radius:8px;border:1px solid var(--line)">${String(data.brief.summary).replace(/</g,'&lt;')}</pre>`
+          : '';
+        document.getElementById('opsBox').innerHTML =
+          `<p>${data.summary}</p><ul>${steps}</ul>` +
+          `<p class="muted">Safe hit-rate: ${data.learning?.hit_rate_pct ?? '—'}% · Tipsters ranked: ${data.tipsters_ranked}</p>` +
+          briefSum;
+        setStatus(
+          data.message +
+          (data.telegram ? ` | TG: ${data.telegram.message}` : '')
+        );
+        if (data.brief) {
+          // Keep brief panel in sync when ops builds one
+          const expl = (data.brief.explanations || []).map(e =>
+            `<div style="margin:0.75rem 0;padding:0.75rem;border:1px solid var(--line);border-radius:8px;background:#f7faf8">
+              <strong>[${e.engine}]</strong> ${e.match}
+              <span class="pill pending">${e.mode}</span>
+              <pre style="white-space:pre-wrap;margin:0.5rem 0 0;font-family:inherit">${String(e.explanation || '').replace(/</g, '&lt;')}</pre>
+            </div>`
+          ).join('');
+          document.getElementById('briefBox').innerHTML =
+            briefSum + `<p class="muted">${data.brief.message || ''}</p>` + expl;
+        }
+        await loadStats();
+        await loadLearning();
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
     }
 
     async function refreshTipsters() {
