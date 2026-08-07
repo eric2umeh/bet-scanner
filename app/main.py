@@ -40,10 +40,10 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 4: tips hit-rate + optional Telegram. "
-        "Open / for the dashboard, or /docs for the API test panel."
+        "Football betting decision API — Phase 4.5: surebet stakes, copy plans, "
+        "arb tips + Telegram. Open / for the dashboard, or /docs for the API."
     ),
-    version="0.4.0",
+    version="0.4.5",
     lifespan=lifespan,
 )
 
