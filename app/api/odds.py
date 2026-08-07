@@ -38,14 +38,19 @@ def sync_odds_endpoint(
     return OddsSyncResult(**result)
 
 
-@router.get("/latest", response_model=list[OddOut])
+@router.get(
+    "/latest",
+    response_model=list[OddOut],
+    summary="Latest odds (set bookmaker=sportybet or bet9ja)",
+)
 def list_latest_odds(
-    match_id: int | None = Query(default=None, description="Filter by matches.id"),
     bookmaker: str | None = Query(
         default=None,
-        description="Filter by book key, e.g. sportybet or bet9ja",
+        description="Type sportybet or bet9ja here",
+        examples=["sportybet"],
     ),
-    limit: int = Query(default=100, ge=1, le=500),
+    match_id: int | None = Query(default=None, description="Optional filter by matches.id"),
+    limit: int = Query(default=50, ge=1, le=500),
     db: Session = Depends(get_db),
 ) -> list[Odd]:
     """Return recent odd snapshots (optionally for one match / book)."""

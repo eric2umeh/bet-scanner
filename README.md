@@ -5,6 +5,9 @@ You are building a football betting **decision** app, learning AI/backend engine
 **Non-code docs** (guides, glossary, product notes) live in [`docs/`](./docs/).  
 Start with the [Betting glossary](./docs/GLOSSARY.txt) if you’re new to betting terms.
 
+**Easiest way to see data:** run the server, then open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) (simple dashboard).  
+`/docs` is an advanced API test panel — see [`docs/HOW_TO_USE_DOCS.txt`](./docs/HOW_TO_USE_DOCS.txt).
+
 This phase is only the **data spine**:
 - Postgres tables: `matches`, `odds`, `tips`
 - `GET /matches/today`
@@ -196,30 +199,36 @@ python scripts/sync_odds.py
 
 ---
 
-## Phase 3A — Arbitrage / surebets (current)
-
-Core “must-win *if* odds hold” module:
+## Phase 3A — Arbitrage / surebets
 
 | Endpoint | Purpose |
 |---|---|
 | `GET /arbitrage/scan` | Find 1X2 surebets from stored odds |
 | `POST /arbitrage/calculate` | Split ₦ bankroll across legs |
 
-Offline math demo (no keys):
-
 ```bash
 python scripts/demo_arbitrage_math.py
 ```
 
-Files to read:
-
-| Concept | File |
-|---|---|
-| Surebet math | `app/services/arbitrage_math.py` |
-| DB scanner | `app/services/scan_arbitrage.py` |
-| HTTP API | `app/api/arbitrage.py` |
-
 Reminder: profit is locked only if **all legs** are placed at the shown odds before books move/void them.
+
+---
+
+## Phase 3C — Bankroll + Safe Builder (current)
+
+Rules-based safer slips (not surebets):
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /bankroll/size` | ₦ unit from bankroll % |
+| `GET /safe-builder/scan` | Apply underdog/fav/DC/flex rules to stored odds |
+| `POST /safe-builder/evaluate` | Paste 1X2 odds → which rule fires |
+
+```bash
+python scripts/demo_safe_builder.py
+```
+
+Guide: `docs/PHASE_3C_SAFE_BUILDER.txt`
 
 ---
 
@@ -230,8 +239,8 @@ Reminder: profit is locked only if **all legs** are placed at the shown odds bef
 | 1 | Fixtures in DB + `/matches/today` + daily sync |
 | 2 | Multi-provider fixtures + odds snapshots |
 | 3A | Arbitrage scan + ₦ stake calculator |
-| **3B (now)** | Nigerian book odds (SportyBet / Bet9ja via free odds-api.io) |
-| 3C | Bankroll / unit sizing + your safe-slip rules |
+| 3B | Nigerian book odds (SportyBet / Bet9ja via free odds-api.io) |
+| **3C (now)** | Bankroll / unit sizing + Safe Builder (your underdog rules) |
 | 4 | Telegram or web UI |
 | 5 | Value / AI tips (risked, not “sure”) |
 

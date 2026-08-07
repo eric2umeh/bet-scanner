@@ -23,7 +23,11 @@ from app.services.scan_arbitrage import calculate_from_request, scan_1x2_arbs
 router = APIRouter(prefix="/arbitrage", tags=["arbitrage"])
 
 
-@router.get("/scan", response_model=ScanResponse)
+@router.get(
+    "/scan",
+    response_model=ScanResponse,
+    summary="Scan surebets (try bookmakers=sportybet,bet9ja)",
+)
 def scan_arbitrage(
     min_profit_pct: Decimal | None = Query(
         default=None,

@@ -1,0 +1,108 @@
+================================================================================
+HOW TO USE /docs  (and why boxes seem missing)
+================================================================================
+
+IMPORTANT
+---------
+The server ALREADY has:
+  GET /odds/latest          (with bookmaker)
+  GET /arbitrage/scan
+  GET /safe-builder/scan    (Phase 3C)
+  POST /bankroll/size
+  GET /                     (simple dashboard)
+
+If you do not see them, your browser is showing an OLD cached page.
+
+
+--------------------------------------------------------------------------------
+EASIEST PATH (skip /docs for now)
+--------------------------------------------------------------------------------
+
+1) Make sure server is running:
+
+     cd "/Users/MAC/Desktop/next/bet-scanner"
+     source .venv/bin/activate
+     uvicorn app.main:app --reload
+
+2) Open this instead:
+
+     http://127.0.0.1:8000/
+
+3) Click the green buttons:
+     - Load SportyBet odds
+     - Load Bet9ja odds
+     - Scan surebets
+     - Scan Safe Builder (Phase 3C — your underdog rules)
+
+That page does the same work without Swagger.
+
+
+--------------------------------------------------------------------------------
+IF YOU STILL WANT /docs — FIX "NO BOX / NO SCAN"
+--------------------------------------------------------------------------------
+
+A) Hard refresh the docs page
+   Mac:  Cmd + Shift + R
+   Or open a private window:
+     http://127.0.0.1:8000/docs
+
+B) Confirm the page title/version near the top says something like
+   "Phase 3B" / version 0.3.2 (not an old Phase 1/2 title).
+
+C) On the left/main list, look for SECTION NAMES (tags), not only matches:
+     - matches
+     - odds
+     - arbitrage     <--- GET /arbitrage/scan is HERE
+     - default / health
+
+   Scroll down past "matches". Many people stop at matches/upcoming.
+
+
+--------------------------------------------------------------------------------
+WHY YOU ONLY SAW match_id (no bookmaker box)
+--------------------------------------------------------------------------------
+
+Parameter boxes appear ONLY after you click:
+
+     Try it out
+
+Steps:
+
+1) Scroll to section:  odds
+2) Click:  GET /odds/latest
+   (summary may say: Latest odds (set bookmaker=sportybet or bet9ja))
+3) Click blue button:  Try it out
+4) NOW you should see editable fields:
+     - bookmaker   ← type: sportybet
+     - match_id    ← leave empty
+     - limit
+5) Click:  Execute
+6) Scroll to:  Response body
+
+
+For surebets:
+
+1) Scroll to section:  arbitrage
+2) Click:  GET /arbitrage/scan
+3) Try it out
+4) In bookmakers type:  sportybet,bet9ja
+5) Execute
+6) Read Response body → opportunities
+
+
+--------------------------------------------------------------------------------
+QUICK CHECK THAT SERVER IS UP TO DATE
+--------------------------------------------------------------------------------
+
+Open these in the browser (should NOT 404):
+
+  http://127.0.0.1:8000/
+  http://127.0.0.1:8000/arbitrage/scan?bookmakers=sportybet,bet9ja
+  http://127.0.0.1:8000/odds/latest?bookmaker=sportybet
+  http://127.0.0.1:8000/safe-builder/scan?bookmaker=sportybet
+
+If /arbitrage/scan 404s, stop the server (Ctrl+C) and start again:
+
+  uvicorn app.main:app --reload
+
+================================================================================

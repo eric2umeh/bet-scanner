@@ -84,6 +84,18 @@ class Settings(BaseSettings):
     # Round stakes to nearest ₦100 so they look recreational
     arb_stake_round_to: int = 100
 
+    # --- Phase 3C: Bankroll + Safe Builder ---
+    # Default unit = this % of bankroll (1% of ₦50k = ₦500)
+    bankroll_unit_pct: float = 1.0
+    # Underdog odds thresholds (home/away only)
+    safe_dog_high: float = 7.0          # >7 → safe fav / DC
+    safe_dog_medium_low: float = 5.0    # 5–7 → medium profile
+    safe_dog_flex: float = 10.0         # >10 → flex accumulator only
+    # Favourite max odds for each profile
+    safe_fav_max_straight: float = 1.30
+    safe_fav_max_medium: float = 1.45
+    safe_fav_max_flex: float = 1.50
+
     @property
     def sqlalchemy_database_url(self) -> str:
         """

@@ -56,6 +56,11 @@ Unit
   Example: Bankroll N50,000 -> 1 unit = N500; never risk more than
   2-3 units on one idea.
 
+Safe Builder
+  Our Phase 3C rules engine: when underdog odds are long, suggest the
+  favourite, double chance, or a flex multi — with a unit-sized stake.
+  Different from surebets: these picks can still lose.
+
 
 --------------------------------------------------------------------------------
 COMMON FOOTBALL MARKETS

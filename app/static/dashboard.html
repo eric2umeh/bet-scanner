@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bet Scanner — Simple Dashboard</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --ink: #1c1917;
+      --muted: #57534e;
+      --card: #fffdf8;
+      --line: #d6d3d1;
+      --accent: #0f766e;
+      --warn: #b45309;
+      --bad: #b91c1c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(180deg, #e7e5e4 0%, var(--bg) 40%);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,253,248,0.9);
+    }
+    h1 { margin: 0 0 0.25rem; font-size: 1.4rem; }
+    p { margin: 0; color: var(--muted); max-width: 50rem; }
+    main { padding: 1rem 1.5rem 3rem; display: grid; gap: 1rem; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    button, select, input {
+      font: inherit;
+      padding: 0.55rem 0.85rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+      cursor: pointer;
+    }
+    button.secondary { background: white; color: var(--ink); }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1rem;
+      overflow: auto;
+    }
+    h2 { margin: 0 0 0.75rem; font-size: 1.05rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th, td { text-align: left; padding: 0.45rem 0.4rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    .status { font-size: 0.9rem; color: var(--muted); margin-top: 0.5rem; white-space: pre-wrap; }
+    .status.err { color: var(--bad); }
+    .pill {
+      display: inline-block;
+      padding: 0.1rem 0.45rem;
+      border-radius: 999px;
+      background: #ccfbf1;
+      color: #115e59;
+      font-size: 0.8rem;
+    }
+    .note {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+    }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Bet Scanner — simple view</h1>
+    <p>
+      This page reads your API for you. Advanced testing still lives at
+      <a href="/docs" target="_blank">/docs</a>.
+      Guide: <code>docs/HOW_TO_USE_DOCS.txt</code>
+    </p>
+  </header>
+
+  <main>
+    <div class="note">
+      <strong>How to use:</strong> click a green button below.
+      Tables update with whatever is already in your Supabase database.
+      “Sync NG odds” calls the external API (uses free quota) — use sparingly.
+    </div>
+
+    <section>
+      <h2>Actions</h2>
+      <div class="row">
+        <button onclick="loadUpcoming()">Load upcoming matches</button>
+        <button onclick="loadOdds('sportybet')">Load SportyBet odds</button>
+        <button onclick="loadOdds('bet9ja')">Load Bet9ja odds</button>
+        <button onclick="loadArbs()">Scan surebets (NG books)</button>
+        <button onclick="loadSafe()">Scan Safe Builder</button>
+        <button class="secondary" id="syncBtn" onclick="syncOdds()">Sync NG odds (uses quota)</button>
+      </div>
+      <div class="row" style="margin-top:0.5rem">
+        <label>Bankroll ₦ <input id="bankroll" type="number" value="50000" min="1000" step="1000" style="width:8rem" /></label>
+        <label>Unit % <input id="unitPct" type="number" value="1" min="0.1" max="10" step="0.1" style="width:4rem" /></label>
+        <button class="secondary" onclick="sizeBankroll()">Size unit stake</button>
+      </div>
+      <div class="status" id="status">Ready. Click a button.</div>
+    </section>
+
+    <section>
+      <h2>Upcoming matches</h2>
+      <div id="matchesBox"><em>Click “Load upcoming matches”.</em></div>
+    </section>
+
+    <section>
+      <h2>Latest odds</h2>
+      <div id="oddsBox"><em>Click “Load SportyBet odds” or “Load Bet9ja odds”.</em></div>
+    </section>
+
+    <section>
+      <h2>Surebets (SportyBet + Bet9ja)</h2>
+      <div id="arbBox"><em>Click “Scan surebets”.</em></div>
+    </section>
+
+    <section>
+      <h2>Safe Builder (rules — not surebets)</h2>
+      <p style="color:var(--muted);margin:0 0 0.75rem;font-size:0.9rem">
+        Underdog &gt;7 → fav &lt;1.30 or double chance; 5–7 medium; &gt;10 flex multi.
+        Guide: <code>docs/PHASE_3C_SAFE_BUILDER.txt</code>
+      </p>
+      <div id="safeBox"><em>Click “Scan Safe Builder”.</em></div>
+    </section>
+  </main>
+
+  <script>
+    const statusEl = document.getElementById('status');
+
+    function setStatus(msg, isErr = false) {
+      statusEl.textContent = msg;
+      statusEl.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    async function getJson(url) {
+      const res = await fetch(url);
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = text; }
+      if (!res.ok) {
+        const detail = data?.detail || text;
+        throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+      }
+      return data;
+    }
+
+    function table(headers, rows) {
+      if (!rows.length) return '<em>No rows found.</em>';
+      const head = headers.map(h => `<th>${h}</th>`).join('');
+      const body = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+      return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    async function loadUpcoming() {
+      setStatus('Loading upcoming matches...');
+      try {
+        const data = await getJson('/matches/upcoming?days=21');
+        const rows = data.map(m => [
+          m.competition_code,
+          `${m.home_team} vs ${m.away_team}`,
+          new Date(m.kickoff_at).toLocaleString(),
+          `<span class="pill">${m.provider}</span>`,
+          m.status,
+        ]);
+        document.getElementById('matchesBox').innerHTML = table(
+          ['League', 'Match', 'Kickoff', 'Provider', 'Status'],
+          rows
+        );
+        setStatus(`Loaded ${data.length} upcoming match(es).`);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function loadOdds(bookmaker) {
+      setStatus(`Loading ${bookmaker} odds...`);
+      try {
+        const data = await getJson(`/odds/latest?bookmaker=${bookmaker}&limit=50`);
+        const rows = data.map(o => [
+          o.match_id,
+          o.bookmaker,
+          o.market,
+          o.selection,
+          o.price,
+          new Date(o.captured_at).toLocaleString(),
+        ]);
+        document.getElementById('oddsBox').innerHTML =
+          `<p>Showing <strong>${bookmaker}</strong> (${data.length} rows)</p>` +
+          table(['Match ID', 'Book', 'Market', 'Selection', 'Odds', 'Captured'], rows);
+        setStatus(`Loaded ${data.length} ${bookmaker} odd(s).`);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function loadArbs() {
+      setStatus('Scanning surebets for sportybet,bet9ja...');
+      try {
+        const data = await getJson('/arbitrage/scan?bookmakers=sportybet,bet9ja&min_profit_pct=0.01');
+        const opps = data.opportunities || [];
+        if (!opps.length) {
+          document.getElementById('arbBox').innerHTML =
+            `<p>${data.message}</p><em>No surebets right now (normal if books are priced tightly).</em>`;
+          setStatus(data.message);
+          return;
+        }
+        const rows = opps.map(o => [
+          `${o.home_team} vs ${o.away_team}`,
+          o.competition_code,
+          o.profit_pct + '%',
+          o.sample_profit_ngn,
+          o.legs.map(l => `${l.bookmaker} ${l.selection}@${l.odds}`).join('<br>'),
+        ]);
+        document.getElementById('arbBox').innerHTML =
+          `<p>${data.message}</p>` +
+          table(['Match', 'League', 'Profit %', 'Sample profit ₦ (on 10k)', 'Legs'], rows);
+        setStatus(`Found ${opps.length} surebet(s).`);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function syncOdds() {
+      const btn = document.getElementById('syncBtn');
+      btn.disabled = true;
+      setStatus('Syncing NG odds from odds-api.io (uses free quota)...');
+      try {
+        const res = await fetch('/odds/sync', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+        setStatus(data.message || 'Sync done.');
+        await loadOdds('sportybet');
+      } catch (e) {
+        setStatus('Sync error: ' + e.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function sizeBankroll() {
+      const bankroll = document.getElementById('bankroll').value;
+      const unit_pct = document.getElementById('unitPct').value;
+      setStatus('Sizing bankroll unit...');
+      try {
+        const res = await fetch('/bankroll/size', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bankroll_ngn: bankroll, unit_pct }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+        setStatus(data.message);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function loadSafe() {
+      const bankroll = document.getElementById('bankroll').value;
+      const unit_pct = document.getElementById('unitPct').value;
+      setStatus('Scanning Safe Builder on SportyBet...');
+      try {
+        const data = await getJson(
+          `/safe-builder/scan?bookmaker=sportybet&bankroll_ngn=${bankroll}&unit_pct=${unit_pct}`
+        );
+        const picks = data.picks || [];
+        if (!picks.length) {
+          document.getElementById('safeBox').innerHTML =
+            `<p>${data.message}</p><em>No matches fit the rules right now (normal).</em>`;
+          setStatus(data.message);
+          return;
+        }
+        const rows = picks.map(p => [
+          `${p.home_team} vs ${p.away_team}`,
+          `<span class="pill">${p.profile}</span>`,
+          `${p.market} / ${p.selection}`,
+          p.odds ?? 'check book',
+          p.suggested_stake_ngn,
+          p.rationale,
+        ]);
+        document.getElementById('safeBox').innerHTML =
+          `<p>${data.message}</p>` +
+          table(['Match', 'Profile', 'Pick', 'Odds', 'Stake ₦', 'Why'], rows);
+        setStatus(`Found ${picks.length} Safe Builder pick(s).`);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+  </script>
+</body>
+</html>
