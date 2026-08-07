@@ -12,6 +12,7 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [PHASE_4_5_SUREBET_OPS.txt](./PHASE_4_5_SUREBET_OPS.txt) | Surebet stakes, copy, arb tips + alerts |
 | [PHASE_5_VALUE_TIPS.txt](./PHASE_5_VALUE_TIPS.txt) | Value / EV tips (cross-book de-vig) |
 | [PHASE_5B_AI_EXPLAIN.txt](./PHASE_5B_AI_EXPLAIN.txt) | AI explain + decision brief (optional LLM) |
+| [PHASE_6_TIPSTERS.txt](./PHASE_6_TIPSTERS.txt) | Tipster booking codes + verified leaderboard |
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 

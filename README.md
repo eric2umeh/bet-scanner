@@ -277,7 +277,7 @@ Guide: `docs/PHASE_5_VALUE_TIPS.txt`
 
 ---
 
-## Phase 5B — AI explain + decision brief (current)
+## Phase 5B — AI explain + decision brief
 
 Engines still pick tips. AI (optional) explains them in plain English.
 
@@ -293,6 +293,22 @@ Guide: `docs/PHASE_5B_AI_EXPLAIN.txt`
 
 ---
 
+## Phase 6 — Tipsters / booking codes (current)
+
+Track Instagram/Telegram codes → settle honestly → verified leaderboard.
+
+| Endpoint / Action | Purpose |
+|---|---|
+| `POST /tipsters` | Create tipster profile |
+| `POST /tipsters/codes` | Log a booking code (+ optional stake/odds/notes) |
+| `POST /tipsters/codes/{id}/settle` | Won / Lost / Void |
+| `GET /tipsters/leaderboard` | Rank by ROI / hit-rate |
+| Dashboard **Tipsters** | Add tipster, log code, settle, leaderboard |
+
+Guide: `docs/PHASE_6_TIPSTERS.txt`
+
+---
+
 ## Phase roadmap
 
 | Phase | Goal |
@@ -305,8 +321,8 @@ Guide: `docs/PHASE_5B_AI_EXPLAIN.txt`
 | 4 | Tip logging, hit-rate, dashboard + optional Telegram |
 | 4.5 | Surebet stake plans, copy stakes, arb tips + Telegram alerts |
 | 5A | Value / EV tips (cross-book de-vig) |
-| **5B (now)** | AI explain + decision brief (optional LLM) |
-| 6 | Tipster / codes layer (optional growth) |
+| 5B | AI explain + decision brief (optional LLM) |
+| **6 (now)** | Tipster / booking codes + verified leaderboard |
 
 ---
 

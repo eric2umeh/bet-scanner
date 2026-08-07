@@ -1,0 +1,47 @@
+================================================================================
+PHASE 6 — TIPSTERS / BOOKING CODES
+================================================================================
+
+Goal:
+  Track Instagram/Telegram “guru” booking codes honestly.
+  Settle Won/Lost/Void → verified leaderboard (hit-rate + ROI).
+
+  Important: SportyBet/Bet9ja codes are opaque. We STORE them; we do not
+  auto-decode the slip from the book API in this phase.
+
+
+--------------------------------------------------------------------------------
+DASHBOARD (2 minutes)
+--------------------------------------------------------------------------------
+
+  1) Refresh http://127.0.0.1:8000/
+  2) Add tipster (name + handle + platform)
+  3) Paste booking code + optional stake/odds/notes (e.g. "1X, Over 2.5")
+  4) Log code
+  5) After the slip finishes → Won / Lost / Void
+  6) Tipster leaderboard
+
+
+--------------------------------------------------------------------------------
+API
+--------------------------------------------------------------------------------
+
+  POST /tipsters
+  GET  /tipsters
+  GET  /tipsters/leaderboard?min_settled=1
+  POST /tipsters/codes
+  GET  /tipsters/codes
+  POST /tipsters/codes/{id}/settle
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/models/tipster.py
+  app/services/tipsters.py
+  app/services/code_parse.py
+  app/api/tipsters.py
+  app/schemas/tipsters.py
+  docs/PHASE_6_TIPSTERS.txt
+================================================================================
