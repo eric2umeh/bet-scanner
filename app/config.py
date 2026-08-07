@@ -56,6 +56,17 @@ class Settings(BaseSettings):
 
     app_timezone: str = "Africa/Lagos"
 
+    # --- Phase 3A: Arbitrage / surebets ---
+    # Minimum theoretical profit % to show in /arbitrage/scan
+    arb_min_profit_pct: float = 0.3
+    # Ignore odds older than this (minutes) — stale prices are dangerous
+    arb_max_odds_age_minutes: int = 180
+    # Filter palpable errors / typos
+    arb_min_odds: float = 1.01
+    arb_max_odds: float = 15.0
+    # Round stakes to nearest ₦100 so they look recreational
+    arb_stake_round_to: int = 100
+
     @property
     def sqlalchemy_database_url(self) -> str:
         """

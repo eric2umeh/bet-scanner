@@ -193,17 +193,44 @@ python scripts/sync_odds.py
 
 ---
 
+## Phase 3A — Arbitrage / surebets (current)
+
+Core “must-win *if* odds hold” module:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /arbitrage/scan` | Find 1X2 surebets from stored odds |
+| `POST /arbitrage/calculate` | Split ₦ bankroll across legs |
+
+Offline math demo (no keys):
+
+```bash
+python scripts/demo_arbitrage_math.py
+```
+
+Files to read:
+
+| Concept | File |
+|---|---|
+| Surebet math | `app/services/arbitrage_math.py` |
+| DB scanner | `app/services/scan_arbitrage.py` |
+| HTTP API | `app/api/arbitrage.py` |
+
+Reminder: profit is locked only if **all legs** are placed at the shown odds before books move/void them.
+
+---
+
 ## Phase roadmap
 
 | Phase | Goal |
 |---|---|
 | 1 | Fixtures in DB + `/matches/today` + daily sync |
-| **2 (now)** | Multi-provider fixtures + odds snapshots |
-| 3 | Simple ranking / risk profiles → write `tips` |
+| 2 | Multi-provider fixtures + odds snapshots |
+| **3A (now)** | Arbitrage scan + ₦ stake calculator |
+| 3B | Nigerian book odds (SportyBet / Bet9ja / …) |
+| 3C | Bankroll / unit sizing |
 | 4 | Telegram or web UI |
-| 5 | Auto-settle tips + performance history |
-| 6 | LLM explanations (not predictions) |
-| 7 | Better ML (LightGBM etc.) |
+| 5 | Value / AI tips (risked, not “sure”) |
 
 ---
 
