@@ -45,17 +45,31 @@ class Settings(BaseSettings):
     # Examples: "football-data,api-football" or just "api-football"
     fixture_providers: str = "football-data,api-football"
 
-    # --- Odds provider: The Odds API ---
-    # Free key: https://the-odds-api.com/
-    # Set ODDS_SYNC_ENABLED=false while learning so you don't burn free credits.
-    # Credits are ONLY used when POST /odds/sync (or scripts/sync_odds.py) runs.
-    odds_sync_enabled: bool = True
+    # --- Odds sync master switch ---
+    # false = never call external odds APIs (saves credits while testing)
+    odds_sync_enabled: bool = False
+    # Which providers to run when enabled (comma-separated)
+    # Recommended free NG path: odds-api-io
+    # Optional: the-odds-api (UK/EU credits), betrelay (usually paid)
+    odds_providers: str = "odds-api-io"
+
+    # The Odds API (UK/EU) — https://the-odds-api.com/ — ~500 credits/month
     odds_api_key: str = ""
     odds_regions: str = "uk,eu"
     odds_sport_keys: str = (
         "soccer_epl,soccer_spain_la_liga,soccer_italy_serie_a,"
         "soccer_germany_bundesliga,soccer_france_ligue_one"
     )
+
+    # Odds-API.io (FREE) — https://odds-api.io — SportyBet + Bet9ja
+    # Docs: https://docs.odds-api.io/quickstart
+    odds_api_io_key: str = ""
+    odds_api_io_bookmakers: str = "SportyBet,Bet9ja"
+    odds_api_io_event_limit: int = 12
+
+    # BetRelay (optional / often paid) — https://betrelay.com.ng/api-docs
+    betrelay_api_key: str = ""
+    betrelay_match_limit: int = 10
 
     app_timezone: str = "Africa/Lagos"
 
@@ -94,6 +108,14 @@ class Settings(BaseSettings):
     @property
     def odds_sport_keys_list(self) -> list[str]:
         return [s.strip() for s in self.odds_sport_keys.split(",") if s.strip()]
+
+    @property
+    def odds_providers_list(self) -> list[str]:
+        return [p.strip() for p in self.odds_providers.split(",") if p.strip()]
+
+    @property
+    def odds_api_io_bookmakers_list(self) -> list[str]:
+        return [b.strip() for b in self.odds_api_io_bookmakers.split(",") if b.strip()]
 
 
 @lru_cache

@@ -1,9 +1,10 @@
 """
-Odds endpoints (Phase 2).
+Odds endpoints (Phase 2 + 3B).
 
-Try in /docs after you add ODDS_API_KEY:
-  POST /odds/sync
-  GET  /odds/latest?match_id=1
+Try in /docs:
+  POST /odds/sync          ← runs providers in ODDS_PROVIDERS
+  GET  /odds/latest
+  GET  /odds/latest?bookmaker=sportybet
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -25,10 +26,11 @@ def sync_odds_endpoint(
     settings: Settings = Depends(get_settings),
 ) -> OddsSyncResult:
     """
-    Pull 1X2 odds from The Odds API (free tier) into the `odds` table.
+    Pull 1X2 odds from enabled providers into the `odds` table.
 
-    Warning for learners: free plan has a monthly request budget.
-    Don't spam this button.
+    Phase 3B free path: ODDS_PROVIDERS=odds-api-io (SportyBet + Bet9ja).
+    Requires ODDS_SYNC_ENABLED=true and ODDS_API_IO_KEY set.
+    Don't spam — free APIs have hourly/daily limits.
     """
     result = sync_odds(db, settings)
     if not result.get("ok", True):
@@ -39,16 +41,18 @@ def sync_odds_endpoint(
 @router.get("/latest", response_model=list[OddOut])
 def list_latest_odds(
     match_id: int | None = Query(default=None, description="Filter by matches.id"),
+    bookmaker: str | None = Query(
+        default=None,
+        description="Filter by book key, e.g. sportybet or bet9ja",
+    ),
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
 ) -> list[Odd]:
-    """Return recent odd snapshots (optionally for one match)."""
-    stmt = select(Odd).order_by(Odd.captured_at.desc()).limit(limit)
+    """Return recent odd snapshots (optionally for one match / book)."""
+    stmt = select(Odd).order_by(Odd.captured_at.desc())
     if match_id is not None:
-        stmt = (
-            select(Odd)
-            .where(Odd.match_id == match_id)
-            .order_by(Odd.captured_at.desc())
-            .limit(limit)
-        )
+        stmt = stmt.where(Odd.match_id == match_id)
+    if bookmaker:
+        stmt = stmt.where(Odd.bookmaker == bookmaker.strip().lower())
+    stmt = stmt.limit(limit)
     return list(db.scalars(stmt))

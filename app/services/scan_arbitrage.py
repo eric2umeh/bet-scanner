@@ -34,6 +34,7 @@ def scan_1x2_arbs(
     min_profit_pct: Decimal | None = None,
     max_age_minutes: int | None = None,
     sample_stake_ngn: Decimal = Decimal("10000"),
+    allowed_bookmakers: set[str] | None = None,
 ) -> dict:
     """
     Find 1X2 arbitrage opportunities from stored odds.
@@ -78,6 +79,10 @@ def scan_1x2_arbs(
     # Group by match_id → selection → list of (book, price, captured_at)
     by_match: dict[int, dict[str, list[dict]]] = {}
     for row in rows:
+        book = str(row["bookmaker"]).lower()
+        if allowed_bookmakers is not None and book not in allowed_bookmakers:
+            continue
+
         captured = row["captured_at"]
         if captured.tzinfo is None:
             captured = captured.replace(tzinfo=timezone.utc)
@@ -195,8 +200,12 @@ def scan_1x2_arbs(
         "opportunities": opportunities,
         "message": (
             f"Found {len(opportunities)} 1X2 surebet(s) "
-            f"with profit ≥ {min_profit}% and odds younger than {max_age} min. "
-            "Phase 3A uses stored international books; NG books come in 3B."
+            f"with profit ≥ {min_profit}% and odds younger than {max_age} min."
+            + (
+                f" Books filter: {', '.join(sorted(allowed_bookmakers))}."
+                if allowed_bookmakers
+                else ""
+            )
         ),
     }
 

@@ -50,3 +50,6 @@ class OddQuote:
     selection: str    # e.g. "home" | "draw" | "away"
     price: Decimal
     captured_at: datetime | None = None
+    # If set, attach odds to this existing matches.id (BetRelay path).
+    # Leave None to upsert a Match from provider + external_match_id.
+    existing_match_id: int | None = None

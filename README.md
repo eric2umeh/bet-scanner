@@ -229,9 +229,9 @@ Reminder: profit is locked only if **all legs** are placed at the shown odds bef
 |---|---|
 | 1 | Fixtures in DB + `/matches/today` + daily sync |
 | 2 | Multi-provider fixtures + odds snapshots |
-| **3A (now)** | Arbitrage scan + ₦ stake calculator |
-| 3B | Nigerian book odds (SportyBet / Bet9ja / …) |
-| 3C | Bankroll / unit sizing |
+| 3A | Arbitrage scan + ₦ stake calculator |
+| **3B (now)** | Nigerian book odds (SportyBet / Bet9ja via free odds-api.io) |
+| 3C | Bankroll / unit sizing + your safe-slip rules |
 | 4 | Telegram or web UI |
 | 5 | Value / AI tips (risked, not “sure”) |
 

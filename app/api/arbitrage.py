@@ -40,6 +40,13 @@ def scan_arbitrage(
         gt=0,
         description="Sample bankroll used to show stake splits (₦)",
     ),
+    bookmakers: str | None = Query(
+        default=None,
+        description=(
+            "Optional comma list to only use these books, "
+            "e.g. sportybet,bet9ja (Phase 3B Nigeria focus)"
+        ),
+    ),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> ScanResponse:
@@ -47,13 +54,18 @@ def scan_arbitrage(
     Scan stored 1X2 odds for surebets.
 
     Uses best home / draw / away prices across bookmakers for each match.
+    Tip: after NG odds sync, try bookmakers=sportybet,bet9ja
     """
+    allowed = None
+    if bookmakers:
+        allowed = {b.strip().lower() for b in bookmakers.split(",") if b.strip()}
     result = scan_1x2_arbs(
         db,
         settings,
         min_profit_pct=min_profit_pct,
         max_age_minutes=max_odds_age_minutes,
         sample_stake_ngn=sample_stake_ngn,
+        allowed_bookmakers=allowed,
     )
     return ScanResponse(**result)
 

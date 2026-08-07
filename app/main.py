@@ -32,11 +32,11 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 3A: arbitrage / surebets. "
-        "Scan stored odds for locked-profit opportunities + Naira stake calculator. "
+        "Football betting decision API — Phase 3B: Nigerian book odds + surebets. "
+        "Free path: odds-api.io (SportyBet/Bet9ja). Optional: BetRelay, The Odds API. "
         "Learn by calling /docs endpoints."
     ),
-    version="0.3.0",
+    version="0.3.1",
     lifespan=lifespan,
 )
 

@@ -1,0 +1,94 @@
+================================================================================
+PHASE 3B — NIGERIAN BOOK ODDS (SportyBet ↔ Bet9ja)
+================================================================================
+
+Goal:
+  Put SportyBet / Bet9ja (and later BetKing, 1xBet) prices into the SAME
+  `odds` table so /arbitrage/scan can find Nigeria-relevant surebets.
+
+
+--------------------------------------------------------------------------------
+DO I NEED TO PAY BETRELAY NOW?
+--------------------------------------------------------------------------------
+
+No. BetRelay is useful later (code convert + many NG books), but live API
+keys usually need a paid plan:
+  https://betrelay.com.ng/api-docs
+
+For learning Phase 3B FREE, use Odds-API.io instead.
+
+
+--------------------------------------------------------------------------------
+FREE PATH: ODDS-API.IO
+--------------------------------------------------------------------------------
+
+1) Sign up (no credit card):
+     https://odds-api.io
+
+2) Free plan includes:
+     - 100 requests/hour (up to 500/day)
+     - 2 recreational bookmakers — pick SportyBet + Bet9ja
+     Docs: https://docs.odds-api.io/quickstart
+     Pricing: https://odds-api.io/pricing/free
+
+3) Put the key in .env:
+
+     ODDS_SYNC_ENABLED=true
+     ODDS_PROVIDERS=odds-api-io
+     ODDS_API_IO_KEY=paste_your_key_here
+     ODDS_API_IO_BOOKMAKERS=SportyBet,Bet9ja
+     ODDS_API_IO_EVENT_LIMIT=12
+
+4) Keep The Odds API paused (saves its 500/month credits):
+
+     # do NOT list the-odds-api in ODDS_PROVIDERS while testing
+
+5) Run:
+
+     source .venv/bin/activate
+     uvicorn app.main:app --reload
+
+   In http://127.0.0.1:8000/docs :
+     POST /odds/sync
+     GET  /odds/latest?bookmaker=sportybet
+     GET  /arbitrage/scan?bookmakers=sportybet,bet9ja
+
+
+--------------------------------------------------------------------------------
+OPTIONAL LATER: BETRELAY
+--------------------------------------------------------------------------------
+
+When you pay / get a test key:
+
+     ODDS_PROVIDERS=odds-api-io,betrelay
+     BETRELAY_API_KEY=br_test_... or br_live_...
+
+BetRelay compares odds for matches already in your DB
+(SportyBet, Bet9ja, BetKing, 1xBet, …).
+
+
+--------------------------------------------------------------------------------
+REQUEST BUDGET TIPS
+--------------------------------------------------------------------------------
+
+odds-api.io free:
+  1 events call + ~12 odds calls ≈ 13 requests per sync
+  Do NOT click sync every minute.
+
+the-odds-api:
+  Keep out of ODDS_PROVIDERS until you need UK/EU books again.
+
+ODDS_SYNC_ENABLED=false
+  Blocks ALL external odds calls (safe default while coding).
+
+
+--------------------------------------------------------------------------------
+FILES TO READ
+--------------------------------------------------------------------------------
+
+  app/providers/odds_api_io.py   — free NG odds provider
+  app/providers/betrelay.py      — optional paid NG compare
+  app/services/sync_odds.py      — multi-provider sync
+  app/api/arbitrage.py           — ?bookmakers=sportybet,bet9ja
+
+================================================================================
