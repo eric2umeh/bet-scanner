@@ -132,6 +132,8 @@
         <button onclick="loadSafe()">Scan Safe Builder</button>
         <button onclick="logSafeTips()">Log Safe picks → tips</button>
         <button onclick="loadBrief()">AI decision brief</button>
+        <button onclick="loadTipsterBoard()">Tipster leaderboard</button>
+        <button onclick="loadCodes()">Load tipster codes</button>
         <button class="secondary" onclick="loadTips()">Load tips</button>
         <button class="secondary" onclick="loadStats()">Hit-rate stats</button>
         <button class="secondary" onclick="loadLearning()">What it learned</button>
@@ -152,6 +154,46 @@
         <button class="secondary" onclick="sizeBankroll()">Size unit stake</button>
       </div>
       <div class="status" id="status">Ready. Click a button.</div>
+    </section>
+
+    <section>
+      <h2>Tipsters / booking codes (Phase 6)</h2>
+      <p class="muted">
+        Log Instagram/Telegram codes, settle Won/Lost, rank by verified hit-rate/ROI.
+        Codes are opaque (not auto-decoded). Guide: <code>docs/PHASE_6_TIPSTERS.txt</code>
+      </p>
+      <div class="row" style="margin-bottom:0.5rem">
+        <label>Name <input id="tsName" type="text" placeholder="Lagos Tips" style="width:8rem" /></label>
+        <label>Handle <input id="tsHandle" type="text" placeholder="@lagostips" style="width:8rem" /></label>
+        <label>Platform
+          <select id="tsPlatform">
+            <option value="instagram">instagram</option>
+            <option value="telegram">telegram</option>
+            <option value="twitter">twitter</option>
+            <option value="other">other</option>
+          </select>
+        </label>
+        <button class="secondary" onclick="createTipster()">Add tipster</button>
+      </div>
+      <div class="row" style="margin-bottom:0.5rem">
+        <label>Tipster
+          <select id="tsSelect"><option value="">— load tipsters —</option></select>
+        </label>
+        <label>Code <input id="tsCode" type="text" placeholder="booking code" style="width:9rem" /></label>
+        <label>Book
+          <select id="tsBook">
+            <option value="sportybet">sportybet</option>
+            <option value="bet9ja">bet9ja</option>
+          </select>
+        </label>
+        <label>Stake ₦ <input id="tsStake" type="number" value="1000" min="100" step="100" style="width:5rem" /></label>
+        <label>Odds <input id="tsOdds" type="number" step="0.01" min="1.01" placeholder="total" style="width:4.5rem" /></label>
+        <label>Notes <input id="tsNotes" type="text" placeholder="1X, Over 2.5…" style="width:9rem" /></label>
+        <button onclick="submitCode()">Log code</button>
+        <button class="secondary" onclick="refreshTipsters()">Refresh tipsters</button>
+      </div>
+      <div id="tipsterBoardBox"><em>Click “Tipster leaderboard”.</em></div>
+      <div id="codesBox" style="margin-top:0.75rem"><em>Click “Load tipster codes”.</em></div>
     </section>
 
     <section>
@@ -377,6 +419,143 @@
           <button class="secondary" onclick="copyArbStakes(${idx})">Copy stakes</button>
         </div>`;
       setStatus(`Stake plan ready for ${o.home_team} vs ${o.away_team}`);
+    }
+
+    async function refreshTipsters() {
+      try {
+        const list = await getJson('/tipsters?limit=100');
+        const sel = document.getElementById('tsSelect');
+        const prev = sel.value;
+        sel.innerHTML = list.length
+          ? list.map(t => `<option value="${t.id}">#${t.id} ${t.name}${t.handle ? ' ('+t.handle+')' : ''}</option>`).join('')
+          : '<option value="">— no tipsters yet —</option>';
+        if (prev) sel.value = prev;
+        return list;
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+        return [];
+      }
+    }
+
+    async function createTipster() {
+      const name = (document.getElementById('tsName').value || '').trim();
+      if (!name) { setStatus('Enter a tipster name.', true); return; }
+      setStatus('Creating tipster...');
+      try {
+        const t = await postJson('/tipsters', {
+          name,
+          handle: document.getElementById('tsHandle').value || null,
+          platform: document.getElementById('tsPlatform').value || null,
+        });
+        setStatus(`Tipster #${t.id} ${t.name} created.`);
+        document.getElementById('tsName').value = '';
+        await refreshTipsters();
+        document.getElementById('tsSelect').value = String(t.id);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function submitCode() {
+      const tipster_id = Number(document.getElementById('tsSelect').value);
+      const code_text = (document.getElementById('tsCode').value || '').trim();
+      if (!tipster_id) { setStatus('Select or create a tipster first.', true); return; }
+      if (!code_text) { setStatus('Enter a booking code.', true); return; }
+      const stake = document.getElementById('tsStake').value;
+      const odds = document.getElementById('tsOdds').value;
+      setStatus('Logging code...');
+      try {
+        const data = await postJson('/tipsters/codes', {
+          tipster_id,
+          code_text,
+          bookmaker: document.getElementById('tsBook').value,
+          stake_ngn: stake ? stake : null,
+          odds_price: odds ? odds : null,
+          source: document.getElementById('tsPlatform').value || 'manual',
+          notes: document.getElementById('tsNotes').value || null,
+        });
+        setStatus(data.message + (data.code ? ` (#${data.code.id})` : ''));
+        document.getElementById('tsCode').value = '';
+        await loadCodes();
+        await loadTipsterBoard();
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function settleCode(id, result) {
+      setStatus(`Settling code #${id} → ${result}...`);
+      try {
+        await postJson(`/tipsters/codes/${id}/settle`, { result });
+        setStatus(`Code #${id} marked ${result}.`);
+        await loadCodes();
+        await loadTipsterBoard();
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function loadCodes() {
+      setStatus('Loading tipster codes...');
+      try {
+        await refreshTipsters();
+        const tipster_id = document.getElementById('tsSelect').value;
+        const q = tipster_id ? `?tipster_id=${encodeURIComponent(tipster_id)}&limit=40` : '?limit=40';
+        const codes = await getJson('/tipsters/codes' + q);
+        if (!codes.length) {
+          document.getElementById('codesBox').innerHTML = '<em>No codes yet — add a tipster and log a code.</em>';
+          setStatus('No tipster codes.');
+          return;
+        }
+        const rows = codes.map(c => [
+          `#${c.id}`,
+          c.tipster_name,
+          `${c.bookmaker} <code>${c.code_text}</code>`,
+          c.markets_summary || '—',
+          c.stake_ngn != null ? `₦${c.stake_ngn}` : '—',
+          c.odds_price != null ? c.odds_price : '—',
+          resultPill(c.result),
+          `<button class="secondary" onclick="settleCode(${c.id},'won')">Won</button>
+           <button class="secondary" onclick="settleCode(${c.id},'lost')">Lost</button>
+           <button class="secondary" onclick="settleCode(${c.id},'void')">Void</button>
+           <button class="secondary" onclick="settleCode(${c.id},'pending')">Pending</button>`,
+        ]);
+        document.getElementById('codesBox').innerHTML =
+          table(['ID', 'Tipster', 'Code', 'Markets', 'Stake', 'Odds', 'Result', 'Settle'], rows);
+        setStatus(`Loaded ${codes.length} code(s).`);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function loadTipsterBoard() {
+      setStatus('Loading tipster leaderboard...');
+      try {
+        await refreshTipsters();
+        const data = await getJson('/tipsters/leaderboard?min_settled=1');
+        const board = data.leaderboard || [];
+        if (!board.length) {
+          document.getElementById('tipsterBoardBox').innerHTML =
+            `<p>${data.message}</p><em>Settle some codes (Won/Lost) to rank tipsters.</em>`;
+          setStatus(data.message);
+          return;
+        }
+        const rows = board.map((r, i) => [
+          String(i + 1),
+          `${r.name}${r.handle ? ' ' + r.handle : ''}`,
+          r.platform || '—',
+          `${r.won}/${r.settled}`,
+          r.hit_rate_pct != null ? r.hit_rate_pct + '%' : '—',
+          r.roi_pct != null ? r.roi_pct + '%' : '—',
+          r.pending,
+        ]);
+        document.getElementById('tipsterBoardBox').innerHTML =
+          `<p>${data.message}</p>` +
+          table(['#', 'Tipster', 'Platform', 'W/Settled', 'Hit %', 'ROI %', 'Pending'], rows);
+        setStatus(`Leaderboard: ${board.length} tipster(s).`);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
     }
 
     async function loadBrief() {
