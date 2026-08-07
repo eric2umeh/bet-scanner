@@ -17,6 +17,8 @@ from app.db import get_db
 from app.schemas.tips import (
     AutoSettleResponse,
     LearningResponse,
+    LogArbScanRequest,
+    LogArbScanResponse,
     LogSafeScanRequest,
     LogSafeScanResponse,
     TipCreate,
@@ -24,6 +26,12 @@ from app.schemas.tips import (
     TipSettleRequest,
     TipStatsResponse,
 )
+from app.services.arb_ops import (
+    format_arbs_digest,
+    format_stake_plan_text,
+    log_arbitrage_opportunities,
+)
+from app.services.scan_arbitrage import scan_1x2_arbs
 from app.services.scan_safe_builder import scan_safe_picks
 from app.services.telegram_notify import format_tips_digest, send_telegram_message
 from app.services.tip_learning import build_learning_model, learning_to_dict
@@ -100,6 +108,73 @@ def log_safe_scan(
         skipped=result["skipped"],
         message=result["message"],
         telegram=telegram_info,
+    )
+
+
+@router.post(
+    "/log-arbitrage-scan",
+    response_model=LogArbScanResponse,
+    summary="Scan NG surebets, log tips, optional Telegram alert (Phase 4.5)",
+)
+def log_arbitrage_scan(
+    body: LogArbScanRequest,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> LogArbScanResponse:
+    """
+    Scan SportyBet/Bet9ja surebets with your ₦ bankroll stake split,
+    optionally save each as a tip and ping Telegram.
+    """
+    allowed = {b.strip().lower() for b in body.bookmakers.split(",") if b.strip()}
+    scan = scan_1x2_arbs(
+        db,
+        settings,
+        min_profit_pct=body.min_profit_pct,
+        max_age_minutes=body.max_odds_age_minutes,
+        sample_stake_ngn=body.bankroll_ngn,
+        allowed_bookmakers=allowed or None,
+    )
+    opps = scan.get("opportunities") or []
+    plans = [format_stake_plan_text(o) for o in opps]
+
+    created: list[dict] = []
+    skipped: list[dict] = []
+    errors: list[str] = []
+    log_msg = "Tips not logged (log_tips=false)."
+    if body.log_tips and opps:
+        result = log_arbitrage_opportunities(db, opps)
+        created = result["created"]
+        skipped = result["skipped"]
+        errors = result["errors"]
+        log_msg = result["message"]
+    elif body.log_tips and not opps:
+        log_msg = "No surebets to log."
+
+    telegram_info = None
+    if body.notify_telegram:
+        if opps:
+            text = format_arbs_digest(
+                opps,
+                title=f"Surebet alert — {len(opps)} found (₦{body.bankroll_ngn})",
+            )
+            telegram_info = send_telegram_message(settings, text)
+        else:
+            telegram_info = {
+                "ok": True,
+                "message": "No surebets — Telegram not sent.",
+            }
+
+    return LogArbScanResponse(
+        scan_count=len(opps),
+        created_count=len(created),
+        skipped_duplicates=len(skipped),
+        errors=errors,
+        opportunities=opps,
+        created=[TipOut(**t) for t in created],
+        skipped=skipped,
+        message=f"{scan.get('message', '')} {log_msg}".strip(),
+        telegram=telegram_info,
+        stake_plans=plans,
     )
 
 
