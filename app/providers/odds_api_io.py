@@ -68,7 +68,7 @@ class OddsApiIoProvider:
         """
         events = self._list_events()
         quotes: list[OddQuote] = []
-        for event in events[: self.event_limit]:
+        for event in events:
             event_id = event.get("id")
             if event_id is None:
                 continue
@@ -80,24 +80,83 @@ class OddsApiIoProvider:
             quotes.extend(self._payload_to_quotes(payload, event))
             # Be gentle on free hourly quota
             time.sleep(0.35)
+        by_book: dict[str, int] = {}
+        for q in quotes:
+            by_book[q.bookmaker] = by_book.get(q.bookmaker, 0) + 1
+        print(f"[odds-api-io] quotes={len(quotes)} by_book={by_book}")
         return quotes
 
     def _list_events(self) -> list[dict]:
-        params = {
-            "apiKey": self.api_key,
-            "sport": "football",
-            "status": "pending,live",
-            "limit": self.event_limit,
-        }
-        # Prefer events that actually have one of our NG books
-        if self.bookmakers:
-            params["bookmaker"] = self.bookmakers[0]
+        """
+        List football events per NG book, then round-robin merge.
 
-        data = self._get("/events", params)
-        if not isinstance(data, list):
-            raise OddsApiIoError(f"Unexpected /events response: {type(data)}")
-        print(f"[odds-api-io] events={len(data)} (limit={self.event_limit})")
-        return data
+        odds-api.io's `bookmaker=` filter returns different event sets.
+        Using only SportyBet meant Bet9ja almost never refreshed — so
+        /arbitrage/scan (180m age + both books) returned 0 surebets.
+        """
+        if not self.bookmakers:
+            data = self._get(
+                "/events",
+                {
+                    "apiKey": self.api_key,
+                    "sport": "football",
+                    "status": "pending,live",
+                    "limit": self.event_limit,
+                },
+            )
+            if not isinstance(data, list):
+                raise OddsApiIoError(f"Unexpected /events response: {type(data)}")
+            print(f"[odds-api-io] events={len(data)} (limit={self.event_limit})")
+            return data
+
+        per_book: list[list[dict]] = []
+        for book in self.bookmakers:
+            data = self._get(
+                "/events",
+                {
+                    "apiKey": self.api_key,
+                    "sport": "football",
+                    "status": "pending,live",
+                    "limit": self.event_limit,
+                    "bookmaker": book,
+                },
+            )
+            if not isinstance(data, list):
+                raise OddsApiIoError(
+                    f"Unexpected /events response for {book}: {type(data)}"
+                )
+            print(f"[odds-api-io] events={len(data)} bookmaker={book}")
+            per_book.append(data)
+
+        # Round-robin so each book contributes (cap keeps free-tier quota sane)
+        cap = min(40, self.event_limit * len(self.bookmakers))
+        selected: list[dict] = []
+        seen: set = set()
+        index = 0
+        while len(selected) < cap:
+            progressed = False
+            for events in per_book:
+                if index >= len(events):
+                    continue
+                event = events[index]
+                event_id = event.get("id")
+                if event_id is None or event_id in seen:
+                    progressed = True
+                    continue
+                seen.add(event_id)
+                selected.append(event)
+                progressed = True
+                if len(selected) >= cap:
+                    break
+            if not progressed:
+                break
+            index += 1
+
+        print(
+            f"[odds-api-io] events={len(selected)} "
+            f"(merged from {len(self.bookmakers)} books, cap={cap})"
+        )
+        return selected
 
     def _get_event_odds(self, event_id: int | str) -> dict:
         params = {
