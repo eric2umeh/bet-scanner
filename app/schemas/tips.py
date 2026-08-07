@@ -84,6 +84,30 @@ class LogSafeScanResponse(BaseModel):
     telegram: dict | None = None
 
 
+class LogArbScanRequest(BaseModel):
+    """Phase 4.5 — scan NG surebets, optional log + Telegram alert."""
+
+    bookmakers: str = "sportybet,bet9ja"
+    bankroll_ngn: Decimal = Field(default=Decimal("10000"), gt=0)
+    min_profit_pct: Decimal = Field(default=Decimal("0.01"), ge=0)
+    max_odds_age_minutes: int | None = Field(default=None, ge=1, le=24 * 60)
+    log_tips: bool = True
+    notify_telegram: bool = False
+
+
+class LogArbScanResponse(BaseModel):
+    scan_count: int
+    created_count: int
+    skipped_duplicates: int
+    errors: list[str]
+    opportunities: list[dict]
+    created: list[TipOut]
+    skipped: list[dict]
+    message: str
+    telegram: dict | None = None
+    stake_plans: list[str] = []
+
+
 class TipStatsResponse(BaseModel):
     total: int
     pending: int
