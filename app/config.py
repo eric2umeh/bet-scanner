@@ -115,6 +115,10 @@ class Settings(BaseSettings):
     ai_base_url: str = "https://api.openai.com/v1"
     ai_model: str = "gpt-4o-mini"
 
+    # --- Phase 7: Daily ops defaults ---
+    ops_default_bankroll_ngn: float = 50000
+    ops_brief_max_explains: int = 3
+
     @property
     def sqlalchemy_database_url(self) -> str:
         """
