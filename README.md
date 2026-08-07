@@ -293,7 +293,7 @@ Guide: `docs/PHASE_5B_AI_EXPLAIN.txt`
 
 ---
 
-## Phase 6 — Tipsters / booking codes (current)
+## Phase 6 — Tipsters / booking codes
 
 Track Instagram/Telegram codes → settle honestly → verified leaderboard.
 
@@ -306,6 +306,24 @@ Track Instagram/Telegram codes → settle honestly → verified leaderboard.
 | Dashboard **Tipsters** | Add tipster, log code, settle, leaderboard |
 
 Guide: `docs/PHASE_6_TIPSTERS.txt`
+
+---
+
+## Phase 7 — Daily ops (current)
+
+One morning pipeline for cron / dashboard.
+
+| Action | Purpose |
+|---|---|
+| `POST /ops/daily-run` | Fixtures → odds? → auto-settle → brief (+ Telegram) |
+| `python scripts/daily_ops.py` | Same from cron |
+| Dashboard **Daily ops** | With / without odds sync |
+
+```bash
+python scripts/daily_ops.py --no-odds --telegram
+```
+
+Guide: `docs/PHASE_7_DAILY_OPS.txt`
 
 ---
 
@@ -322,7 +340,8 @@ Guide: `docs/PHASE_6_TIPSTERS.txt`
 | 4.5 | Surebet stake plans, copy stakes, arb tips + Telegram alerts |
 | 5A | Value / EV tips (cross-book de-vig) |
 | 5B | AI explain + decision brief (optional LLM) |
-| **6 (now)** | Tipster / booking codes + verified leaderboard |
+| 6 | Tipster / booking codes + verified leaderboard |
+| **7 (now)** | Daily ops morning run (cron + API + Telegram digest) |
 
 ---
 

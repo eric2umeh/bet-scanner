@@ -1,0 +1,66 @@
+================================================================================
+PHASE 7 — DAILY OPS (morning run)
+================================================================================
+
+Goal:
+  One pipeline for cron / dashboard:
+    fixtures sync → (optional) NG odds sync → auto-settle tips → decision brief
+    → optional Telegram digest
+
+  Tipster codes still settle manually (opaque booking codes).
+
+
+--------------------------------------------------------------------------------
+DASHBOARD
+--------------------------------------------------------------------------------
+
+  • Daily ops (with odds)     — uses free odds-api.io quota
+  • Daily ops (no odds sync)  — safer default for frequent runs
+  Tick “Notify Telegram” to send the digest.
+
+
+--------------------------------------------------------------------------------
+CLI / CRON
+--------------------------------------------------------------------------------
+
+  python scripts/daily_ops.py
+  python scripts/daily_ops.py --no-odds
+  python scripts/daily_ops.py --telegram --no-odds
+
+  Cron (07:30):
+    30 7 * * * cd /path/to/bet-scanner && .venv/bin/python scripts/daily_ops.py --telegram >> /tmp/bet-scanner-ops.log 2>&1
+
+
+--------------------------------------------------------------------------------
+API
+--------------------------------------------------------------------------------
+
+  POST /ops/daily-run
+       {
+         "sync_fixtures": true,
+         "sync_odds": false,
+         "auto_settle": true,
+         "build_brief": true,
+         "notify_telegram": false,
+         "bankroll_ngn": "50000"
+       }
+
+
+--------------------------------------------------------------------------------
+CONFIG
+--------------------------------------------------------------------------------
+
+  OPS_DEFAULT_BANKROLL_NGN=50000
+  OPS_BRIEF_MAX_EXPLAINS=3
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/services/daily_ops.py
+  app/api/ops.py
+  app/schemas/ops.py
+  scripts/daily_ops.py
+  docs/PHASE_7_DAILY_OPS.txt
+================================================================================
