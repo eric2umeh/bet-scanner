@@ -100,13 +100,20 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
-    # --- Phase 5: Value / EV tips (cross-book de-vig; not AI yet) ---
+    # --- Phase 5A: Value / EV tips (cross-book de-vig) ---
     # Minimum expected value % vs consensus fair odds
     value_min_ev_pct: float = 1.5
     # Need this many books with full 1X2 on the same match
     value_min_books: int = 2
     # Stake = min(1 unit, bankroll × kelly × this fraction) — 0.25 = quarter Kelly
     value_kelly_fraction: float = 0.25
+
+    # --- Phase 5B: AI explain layer (optional OpenAI-compatible API) ---
+    # Engines still pick tips; AI only explains. Works without a key (templates).
+    ai_enabled: bool = False
+    ai_api_key: str = ""
+    ai_base_url: str = "https://api.openai.com/v1"
+    ai_model: str = "gpt-4o-mini"
 
     @property
     def sqlalchemy_database_url(self) -> str:
