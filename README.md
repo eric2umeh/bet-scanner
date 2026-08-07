@@ -1,6 +1,9 @@
-# Bet Scanner (Phase 1) — Football fixtures API
+# Bet Scanner — Football decision / surebet API
 
 You are building a football betting **decision** app, learning AI/backend engineering as you go.
+
+**Non-code docs** (guides, glossary, product notes) live in [`docs/`](./docs/).  
+Start with the [Betting glossary](./docs/GLOSSARY.txt) if you’re new to betting terms.
 
 This phase is only the **data spine**:
 - Postgres tables: `matches`, `odds`, `tips`

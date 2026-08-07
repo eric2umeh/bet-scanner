@@ -27,6 +27,16 @@ ODDS_BATCH_SIZE = 200
 
 def sync_odds(db: Session, settings: Settings) -> dict:
     """Fetch h2h odds and write Odd snapshots."""
+    if not settings.odds_sync_enabled:
+        return {
+            "inserted": 0,
+            "matches_touched": 0,
+            "message": (
+                "Odds sync is DISABLED (ODDS_SYNC_ENABLED=false). "
+                "No credits used. Set it to true in .env when you want a fresh pull."
+            ),
+            "ok": False,
+        }
     try:
         provider = TheOddsApiProvider(settings)
         quotes = provider.fetch_h2h_odds()

@@ -1,0 +1,65 @@
+================================================================================
+PYTHON BASICS FOR THIS PROJECT (short)
+================================================================================
+
+These three lines are how you run the app on your Mac:
+
+
+1)  source .venv/bin/activate
+
+    Meaning:
+      Turn on this project's private Python toolbox (.venv).
+
+    Why:
+      Packages like FastAPI are installed inside .venv, not on your whole Mac.
+      "activate" makes your terminal use that toolbox.
+
+    You will see (.venv) at the start of your terminal line when it worked.
+
+    To leave later:
+      deactivate
+
+
+2)  python scripts/demo_arbitrage_math.py
+
+    Meaning:
+      Run the file scripts/demo_arbitrage_math.py with Python.
+
+    Why:
+      It teaches surebet math OFFLINE — no internet, no API credits, no database.
+      Safe to run anytime while learning.
+
+
+3)  uvicorn app.main:app --reload
+
+    Meaning:
+      Start the website/API server for bet-scanner.
+
+    Broken down:
+      uvicorn     = the program that serves FastAPI apps
+      app.main    = the file app/main.py
+      :app        = the FastAPI object named "app" inside that file
+      --reload    = auto-restart when you change code (great for learning)
+
+    After it starts, open in your browser:
+      http://127.0.0.1:8000/docs
+
+    Stop the server:
+      Press Ctrl + C in the terminal
+
+
+TYPICAL SESSION
+---------------
+  cd "/Users/MAC/Desktop/next/bet-scanner"
+  source .venv/bin/activate
+  uvicorn app.main:app --reload
+
+Then use /docs in the browser. Keep the terminal open while the server runs.
+
+
+CREDITS REMINDER
+----------------
+  Running uvicorn or /arbitrage/scan does NOT use The Odds API credits.
+  Credits are used only when you sync odds (POST /odds/sync).
+
+================================================================================

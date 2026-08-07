@@ -47,6 +47,9 @@ class Settings(BaseSettings):
 
     # --- Odds provider: The Odds API ---
     # Free key: https://the-odds-api.com/
+    # Set ODDS_SYNC_ENABLED=false while learning so you don't burn free credits.
+    # Credits are ONLY used when POST /odds/sync (or scripts/sync_odds.py) runs.
+    odds_sync_enabled: bool = True
     odds_api_key: str = ""
     odds_regions: str = "uk,eu"
     odds_sport_keys: str = (

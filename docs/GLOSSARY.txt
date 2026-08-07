@@ -1,0 +1,254 @@
+================================================================================
+BETTING & PRODUCT GLOSSARY
+================================================================================
+
+Short definitions for words you will see in this project's code and docs.
+Written for someone new to sports betting.
+
+
+--------------------------------------------------------------------------------
+CORE BETTING WORDS
+--------------------------------------------------------------------------------
+
+Bookmaker (bookie)
+  A company that takes bets and sets the prices (odds).
+  Example: SportyBet, Bet9ja, BetKing, 1xBet, bet365.
+
+Odds (decimal odds)
+  The multiplier that tells you how much you get back if you win
+  (including your stake).
+  Example: Odds 2.00 on a N1,000 bet -> you get N2,000 back if it wins
+  (N1,000 profit).
+
+Stake
+  The amount of money you put on a bet.
+  Example: Stake N500 on Home to win.
+
+Payout / return
+  What the bookmaker pays you if the bet wins (stake x odds).
+  Example: N500 x 2.50 = N1,250 return.
+
+Profit
+  What you keep after getting your stake back (return - stake).
+  Example: Return N1,250 - stake N500 = N750 profit.
+
+Selection
+  The specific choice you bet on inside a market.
+  Example: In 1X2, selections are home, draw, or away.
+
+Market
+  The type of bet available on a match.
+  Example: 1X2, Over/Under 2.5, Both Teams to Score.
+
+Fixture / match
+  One scheduled game between two teams.
+  Example: Arsenal vs Chelsea on Saturday.
+
+Kickoff
+  The start time of the match (we store this in UTC in the database).
+
+Bankroll
+  Your total betting money for a period (day/month).
+  Example: "My August bankroll is N50,000."
+
+Unit
+  A small fixed piece of your bankroll used to size bets safely.
+  Example: Bankroll N50,000 -> 1 unit = N500; never risk more than
+  2-3 units on one idea.
+
+
+--------------------------------------------------------------------------------
+COMMON FOOTBALL MARKETS
+--------------------------------------------------------------------------------
+
+1X2 (Match result)
+  Bet on Home win (1), Draw (X), or Away win (2).
+  Example: Home @ 1.90 means you think the home team wins.
+
+Home / Draw / Away
+  The three 1X2 outcomes. In our code these are often stored as
+  home, draw, away.
+
+Double Chance (DC)
+  You cover two of the three 1X2 results in one bet (safer, lower odds).
+  Example: 1X = Home win or Draw (away must not win alone).
+
+Over / Under (O/U)
+  Bet on whether total goals are over or under a line (often 2.5).
+  Example: Over 2.5 wins if the match has 3+ goals.
+
+BTTS (Both Teams To Score)
+  Bet on whether both teams score at least once (Yes / No).
+
+Handicap / Asian Handicap (AH)
+  One team gets a virtual goal head-start or deficit to balance the match.
+  Example: Away -0.5 means away must win by at least 1 goal.
+
+Live / in-play
+  Betting while the match is already happening (odds move fast).
+
+Pre-match
+  Betting before kickoff.
+
+
+--------------------------------------------------------------------------------
+SUREBETS & SCANNER WORDS (PHASE 3A)
+--------------------------------------------------------------------------------
+
+Arbitrage (arb) / Surebet
+  A situation where different bookmakers price the same event so you can
+  cover ALL outcomes and still lock a profit — IF you place every leg at
+  those odds.
+  Example: Best Home @ 2.20 (Book A), Draw @ 3.80 (Book B), Away @ 4.20
+  (Book C). If 1/2.20 + 1/3.80 + 1/4.20 < 1, it is a surebet.
+
+Leg
+  One side of a multi-book surebet (one bookmaker + one selection + its odds).
+  Example: "Leg 1: SportyBet Home @ 2.05."
+
+Implied probability
+  What the odds suggest as a chance: 1 / odds.
+  Example: Odds 2.00 -> implied probability 50% (1/2.00 = 0.50).
+
+Implied sum
+  Add implied probabilities of all covered outcomes.
+  Example: If the sum is 0.96 (less than 1.0), there is about 4%
+  theoretical edge.
+
+Edge / profit %
+  How much percentage profit the surebet offers in theory before
+  fees/limits.
+  Example: profit_pct = 2.2 means about N220 profit on N10,000 if
+  everything clears.
+
+Stake split / stake plan
+  How much Naira to put on each leg so every outcome returns roughly
+  the same amount.
+  Example: Total N10,000 -> N4,800 Home, N2,800 Draw, N2,500 Away.
+
+Odds snapshot
+  A saved copy of a price at a moment in time (our odds table).
+  Prices change, so we store history.
+
+Freshness / odds age
+  How old a snapshot is. Stale odds are dangerous because the book may
+  have already moved.
+  Example: age_minutes = 45 -> that price is 45 minutes old.
+
+Palpable error
+  An obvious typo in odds (e.g. 21.0 instead of 2.10). Books often VOID
+  these bets. Our scanner filters extreme prices so you do not get stuck
+  with one-sided risk.
+
+Void
+  Bookmaker cancels a bet (stake usually returned). Dangerous in arbs if
+  only one leg is voided.
+
+Gubbing / account limitation
+  When a bookmaker shrinks how much you can stake because you win too
+  sharply/often.
+  Tip: Round stakes (e.g. N4,500 not N4,523) to look more like a normal
+  punter.
+
+Middles
+  A related strategy (advanced): odds lines differ so SOME results can
+  win both sides. Not the same as a classic surebet.
+
+Value bet
+  A single bet where you believe the true chance is better than the odds
+  imply (risked, not guaranteed).
+  Example: You think Home has 55% chance, but odds imply only 45%.
+
+
+--------------------------------------------------------------------------------
+WORDS USED IN OUR CODE / API
+--------------------------------------------------------------------------------
+
+Provider
+  An external data source we fetch from.
+  Example: football-data, api-football, the-odds-api.
+
+Sync
+  Pull fresh data from a provider into our database.
+  Example: POST /matches/sync, POST /odds/sync.
+
+Upsert
+  Insert a row if new, or update it if it already exists (same match ID).
+
+Endpoint
+  A URL on our API you can call.
+  Example: GET /arbitrage/scan.
+
+Match ID
+  Our internal database id for a fixture (matches.id).
+
+External ID
+  The provider's own id for that fixture (different per provider).
+
+Bookmaker key
+  Short name for a book in odds data.
+  Example: onexbet, bet365, later sportybet.
+
+H2H (head-to-head)
+  In The Odds API, "h2h" usually means the main win market (for soccer,
+  like 1X2).
+
+Region (odds API)
+  Which country's bookmakers to pull (e.g. uk, eu). Nigerian books need
+  a different provider later.
+
+Deep link
+  A link that opens the exact match page inside a bookmaker app/site
+  (planned for UX later).
+
+
+--------------------------------------------------------------------------------
+PRODUCT / MONEY WORDS (NIGERIA CONTEXT)
+--------------------------------------------------------------------------------
+
+Wallet
+  Your balance inside a bookmaker account. Arb players often keep money
+  in 3-4 wallets.
+
+Payment gateway
+  Service that moves Naira quickly (e.g. OPay, Paystack, Flutterwave) so
+  you can fund books fast when a surebet appears.
+
+Multi / accumulator
+  One bet combining several selections; all must win. Higher odds, higher
+  risk. Not a surebet.
+
+Single
+  One selection on one match.
+
+Tip / prediction
+  Someone's (or an AI's) suggested bet. Not guaranteed.
+
+ROI
+  Return on investment — profit relative to money risked over time.
+  Example: Risked N100,000 total, profit N5,000 -> 5% ROI.
+
+
+--------------------------------------------------------------------------------
+QUICK "SEE IT IN OUR APP"
+--------------------------------------------------------------------------------
+
+  Fixtures          ->  matches table, GET /matches/today
+  Prices            ->  odds table, GET /odds/latest
+  Surebet scan      ->  GET /arbitrage/scan
+  Naira stake split ->  POST /arbitrage/calculate
+  Math in code      ->  app/services/arbitrage_math.py
+
+
+--------------------------------------------------------------------------------
+SAFETY REMINDER (READ ONCE)
+--------------------------------------------------------------------------------
+
+A surebet is math-locked ONLY if every leg is accepted at the shown odds.
+Odds can move, bets can be voided, and accounts can be limited.
+The app helps you decide — it does not force bookmakers to honour a past
+price.
+
+================================================================================
+END OF GLOSSARY
+================================================================================
