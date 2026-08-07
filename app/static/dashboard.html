@@ -131,6 +131,7 @@
         <button onclick="logArbTips()">Log surebets → tips</button>
         <button onclick="loadSafe()">Scan Safe Builder</button>
         <button onclick="logSafeTips()">Log Safe picks → tips</button>
+        <button onclick="loadBrief()">AI decision brief</button>
         <button class="secondary" onclick="loadTips()">Load tips</button>
         <button class="secondary" onclick="loadStats()">Hit-rate stats</button>
         <button class="secondary" onclick="loadLearning()">What it learned</button>
@@ -151,6 +152,16 @@
         <button class="secondary" onclick="sizeBankroll()">Size unit stake</button>
       </div>
       <div class="status" id="status">Ready. Click a button.</div>
+    </section>
+
+    <section>
+      <h2>AI decision brief (Phase 5B)</h2>
+      <p class="muted">
+        Combines Safe Builder + value + surebets, then explains top picks in plain English.
+        Works without an API key (templates). Optional LLM: set <code>AI_ENABLED</code> +
+        <code>AI_API_KEY</code>. Guide: <code>docs/PHASE_5B_AI_EXPLAIN.txt</code>
+      </p>
+      <div id="briefBox"><em>Click “AI decision brief”.</em></div>
     </section>
 
     <section>
@@ -366,6 +377,41 @@
           <button class="secondary" onclick="copyArbStakes(${idx})">Copy stakes</button>
         </div>`;
       setStatus(`Stake plan ready for ${o.home_team} vs ${o.away_team}`);
+    }
+
+    async function loadBrief() {
+      const bankroll = document.getElementById('bankroll').value || 50000;
+      const unit_pct = document.getElementById('unitPct').value || 1;
+      const pick_market = document.getElementById('pickMarket').value || 'double_chance';
+      const notify_telegram = document.getElementById('notifyTg').checked;
+      setStatus('Building AI decision brief...');
+      try {
+        const data = await postJson('/ai/brief', {
+          bankroll_ngn: bankroll,
+          unit_pct,
+          pick_market,
+          prefer_llm: true,
+          notify_telegram,
+          max_explains: 3,
+        });
+        const expl = (data.explanations || []).map(e =>
+          `<div style="margin:0.75rem 0;padding:0.75rem;border:1px solid var(--line);border-radius:8px;background:#f7faf8">
+            <strong>[${e.engine}]</strong> ${e.match}
+            <span class="pill pending">${e.mode}</span>
+            <pre style="white-space:pre-wrap;margin:0.5rem 0 0;font-family:inherit">${String(e.explanation || '').replace(/</g, '&lt;')}</pre>
+          </div>`
+        ).join('') || '<em>No explanations (no picks right now).</em>';
+        document.getElementById('briefBox').innerHTML =
+          `<pre style="white-space:pre-wrap;background:#f3f7f5;padding:0.75rem;border-radius:8px;border:1px solid var(--line)">${String(data.summary || '').replace(/</g, '&lt;')}</pre>` +
+          `<p class="muted">${data.message}</p>` +
+          expl;
+        setStatus(
+          data.message +
+          (data.telegram ? ` | TG: ${data.telegram.message}` : '')
+        );
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
     }
 
     async function loadValue() {
