@@ -16,6 +16,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
+from app.api.ai import router as ai_router
 from app.api.arbitrage import router as arbitrage_router
 from app.api.matches import router as matches_router
 from app.api.odds import router as odds_router
@@ -41,10 +42,10 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 5: value/EV tips (cross-book de-vig), "
-        "surebets, Safe Builder, tips + Telegram. Open / or /docs."
+        "Football betting decision API — Phase 5B: AI explain + decision brief, "
+        "value/EV, surebets, Safe Builder, tips + Telegram. Open / or /docs."
     ),
-    version="0.5.0",
+    version="0.5.1",
     lifespan=lifespan,
 )
 
@@ -53,6 +54,7 @@ app.include_router(odds_router)
 app.include_router(arbitrage_router)
 app.include_router(safe_builder_router)
 app.include_router(value_router)
+app.include_router(ai_router)
 app.include_router(tips_router)
 app.include_router(telegram_router)
 
