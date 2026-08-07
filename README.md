@@ -245,6 +245,19 @@ Guide: `docs/PHASE_4_TIPS_TELEGRAM.txt`
 
 ---
 
+## Phase 4.5 — Surebet ops (current)
+
+| Action | Purpose |
+|---|---|
+| Dashboard **Scan surebets** | Stake split using your Bankroll ₦ |
+| **Stake plan / Copy** | Exact ₦ per leg + clipboard text |
+| **Log surebets → tips** | Save arbs + optional Telegram |
+| `POST /tips/log-arbitrage-scan` | Same via API |
+
+Guide: `docs/PHASE_4_5_SUREBET_OPS.txt`
+
+---
+
 ## Phase roadmap
 
 | Phase | Goal |
@@ -254,7 +267,8 @@ Guide: `docs/PHASE_4_TIPS_TELEGRAM.txt`
 | 3A | Arbitrage scan + ₦ stake calculator |
 | 3B | Nigerian book odds (SportyBet / Bet9ja via free odds-api.io) |
 | 3C | Bankroll / unit sizing + Safe Builder (your underdog rules) |
-| **4 (now)** | Tip logging, hit-rate, dashboard + optional Telegram |
+| 4 | Tip logging, hit-rate, dashboard + optional Telegram |
+| **4.5 (now)** | Surebet stake plans, copy stakes, arb tips + Telegram alerts |
 | 5 | Value / AI tips (risked, not “sure”) |
 
 ---

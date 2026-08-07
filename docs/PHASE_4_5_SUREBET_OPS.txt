@@ -1,0 +1,51 @@
+================================================================================
+PHASE 4.5 — SUREBET OPS (stakes, copy, tips, Telegram)
+================================================================================
+
+Goal:
+  Make surebets usable from the dashboard:
+  - ₦ stake split for YOUR bankroll
+  - Copy stake plan text
+  - Log surebets into tips
+  - Optional Telegram alert when NG surebets appear
+
+
+--------------------------------------------------------------------------------
+DASHBOARD
+--------------------------------------------------------------------------------
+
+  1) Set Bankroll ₦ (used as total surebet stake)
+  2) Scan surebets → each row shows stakes per leg
+  3) Copy stakes → clipboard text for that match
+  4) Log all surebets → tips  (source=arbitrage, selection=surebet)
+  5) Optional: tick Notify Telegram when logging / use alert flow
+
+  Always verify odds LIVE on SportyBet / Bet9ja before placing.
+  Profit ≥15% is a red flag — often stale or mismatched prices.
+
+
+--------------------------------------------------------------------------------
+API
+--------------------------------------------------------------------------------
+
+  GET  /arbitrage/scan?bookmakers=sportybet,bet9ja&sample_stake_ngn=10000
+  POST /arbitrage/calculate
+  POST /tips/log-arbitrage-scan
+       body example:
+       {
+         "bookmakers": "sportybet,bet9ja",
+         "bankroll_ngn": "10000",
+         "min_profit_pct": "0.01",
+         "log_tips": true,
+         "notify_telegram": true
+       }
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/services/arb_ops.py
+  app/api/tips.py          (log-arbitrage-scan)
+  app/static/dashboard.html
+================================================================================
