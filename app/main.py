@@ -20,6 +20,7 @@ from app.api.ai import router as ai_router
 from app.api.arbitrage import router as arbitrage_router
 from app.api.matches import router as matches_router
 from app.api.odds import router as odds_router
+from app.api.ops import router as ops_router
 from app.api.safe_builder import router as safe_builder_router
 from app.api.telegram import router as telegram_router
 from app.api.tips import router as tips_router
@@ -43,11 +44,10 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 6: tipster booking codes + "
-        "verified leaderboard, AI brief, value/EV, surebets, Safe Builder. "
-        "Open / or /docs."
+        "Football betting decision API — Phase 7: daily ops morning run, "
+        "tipsters, AI brief, value/EV, surebets, Safe Builder. Open / or /docs."
     ),
-    version="0.6.0",
+    version="0.7.0",
     lifespan=lifespan,
 )
 
@@ -59,6 +59,7 @@ app.include_router(value_router)
 app.include_router(ai_router)
 app.include_router(tips_router)
 app.include_router(tipsters_router)
+app.include_router(ops_router)
 app.include_router(telegram_router)
 
 
