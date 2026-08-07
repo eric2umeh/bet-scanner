@@ -11,7 +11,16 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models import Match
 from app.services.bankroll import potential_return, stake_for_profile
-from app.services.safe_builder import MatchPrices, evaluate_match
+from app.services.safe_builder import (
+    MatchPrices,
+    evaluate_match,
+    normalize_pick_market,
+)
+from app.services.tip_learning import (
+    build_learning_model,
+    enrich_picks_with_learning,
+    learning_to_dict,
+)
 
 
 def _latest_1x2_rows(db: Session):
@@ -40,12 +49,15 @@ def scan_safe_picks(
     bankroll_ngn: Decimal = Decimal("50000"),
     unit_pct: Decimal | None = None,
     profiles: set[str] | None = None,
+    pick_market: str | None = None,
 ) -> dict:
     """
     Find matches that fit Safe Builder rules from stored odds.
 
     Default bookmaker=sportybet (build slips on one book).
+    pick_market: double_chance (default) or 1x2.
     """
+    mode = normalize_pick_market(pick_market or settings.safe_pick_market)
     max_age = (
         max_age_minutes
         if max_age_minutes is not None
@@ -100,6 +112,7 @@ def scan_safe_picks(
             )
             pick = evaluate_match(
                 prices,
+                pick_market=mode,
                 dog_high=Decimal(str(settings.safe_dog_high)),
                 dog_flex=Decimal(str(settings.safe_dog_flex)),
                 fav_max_flex=Decimal(str(settings.safe_fav_max_flex)),
@@ -143,6 +156,8 @@ def scan_safe_picks(
                     "fav_side": pick.fav_side,
                     "dog_side": pick.dog_side,
                     "dog_odds": pick.dog_odds,
+                    "fav_odds": pick.fav_odds,
+                    "pick_market": mode,
                     "rationale": pick.rationale,
                     "flex_allow_misses": pick.flex_allow_misses,
                     "suggested_stake_ngn": stake,
@@ -151,21 +166,30 @@ def scan_safe_picks(
                 }
             )
 
-    # Prefer safer profiles first, then shorter fav odds
-    rank = {
-        "safe_double_chance": 0,
-        "accumulator_flex": 1,
-    }
-    picks.sort(key=lambda p: (rank.get(p["profile"], 9), float(p["dog_odds"])))
+    # Rank using your won/lost history (statistical learning)
+    learning = build_learning_model(db)
+    picks = enrich_picks_with_learning(picks, learning)
+    learn_dict = learning_to_dict(learning)
+
+    style = "double chance (1X/X2)" if mode == "double_chance" else "1X2 favourite"
+    warn = ""
+    if (
+        mode == "1x2"
+        and learning.preferred_pick_market == "double_chance"
+        and learning.settled >= 3
+    ):
+        warn = " History prefers double chance — 1X2 is your override."
 
     return {
         "count": len(picks),
         "bankroll_ngn": bankroll_ngn,
         "unit_pct": unit,
         "bookmaker": bookmaker,
+        "pick_market": mode,
+        "learning": learn_dict,
         "message": (
-            f"Safe Builder found {len(picks)} pick(s) on "
-            f"{bookmaker or 'all books'} (rules-based, not surebets)."
+            f"Safe Builder ({style}) found {len(picks)} pick(s) on "
+            f"{bookmaker or 'all books'}; ranked by your tip history.{warn}"
         ),
         "picks": picks,
     }
@@ -180,8 +204,10 @@ def evaluate_prices_dict(
     bookmaker: str = "manual",
     bankroll_ngn: Decimal = Decimal("50000"),
     unit_pct: Decimal | None = None,
+    pick_market: str | None = None,
 ) -> dict:
     """Evaluate pasted 1X2 odds (no DB) — good for learning / dashboard calc."""
+    mode = normalize_pick_market(pick_market or settings.safe_pick_market)
     unit = (
         unit_pct
         if unit_pct is not None
@@ -189,6 +215,7 @@ def evaluate_prices_dict(
     )
     pick = evaluate_match(
         MatchPrices(home=home, draw=draw, away=away, bookmaker=bookmaker),
+        pick_market=mode,
         dog_high=Decimal(str(settings.safe_dog_high)),
         dog_flex=Decimal(str(settings.safe_dog_flex)),
         fav_max_flex=Decimal(str(settings.safe_fav_max_flex)),

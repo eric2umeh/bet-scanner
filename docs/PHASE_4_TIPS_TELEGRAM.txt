@@ -1,0 +1,98 @@
+================================================================================
+PHASE 4 — TIP LOGGING, HIT-RATE, TELEGRAM, DASHBOARD
+================================================================================
+
+Goal:
+  1) Save Safe Builder (and manual) picks into the `tips` table
+  2) Settle them won/lost/void and track hit rate
+  3) Optional Telegram alerts when new tips are logged
+  4) Use the simple dashboard at http://127.0.0.1:8000/
+
+
+--------------------------------------------------------------------------------
+API
+--------------------------------------------------------------------------------
+
+  POST /tips/log-safe-scan
+       Scan SportyBet Safe Builder rules and INSERT new pending tips.
+       Body example:
+         {"bookmaker":"sportybet","bankroll_ngn":"50000","notify_telegram":false}
+
+  GET  /tips
+  GET  /tips?result=pending
+  GET  /tips/stats
+  GET  /tips/learning        what won/lost history implies for future picks
+  POST /tips/{id}/settle     body: {"result":"won"}   # or lost|void|pending
+  POST /tips/auto-settle     uses FINISHED match scores (1X2 + DC 1X/X2)
+
+  Learning loop:
+    Settle tips honestly → /tips/learning updates → Safe Builder scan ranks
+    picks by confidence and may cut stake on historically weak styles.
+    Default stays double_chance until 1x2 clearly outperforms with enough samples.
+
+  GET  /telegram/status
+  POST /telegram/test         body: {"text":"hello"}
+
+
+--------------------------------------------------------------------------------
+TELEGRAM SETUP (optional)
+--------------------------------------------------------------------------------
+
+  1) Message @BotFather on Telegram → /newbot → copy token
+  2) Open YOUR bot in Telegram (search its @username) as a normal user
+     Tap Start / send "hi"  ← required before the bot can message you
+  3) Open in browser:
+       https://api.telegram.org/bot<TOKEN>/getUpdates
+     Find something like:
+       "chat":{"id": 7123456789, "type":"private", "first_name":"Eric"...}
+     That "id" is TELEGRAM_CHAT_ID  (YOUR id, not the bot's)
+
+  COMMON MISTAKE:
+     Token looks like 8808116621:AAHxxxx
+     Do NOT put 8808116621 in TELEGRAM_CHAT_ID — that is the BOT id.
+     Error you will see: "the bot can't send messages to the bot"
+
+  4) In .env:
+
+       TELEGRAM_ENABLED=true
+       TELEGRAM_BOT_TOKEN=123456:ABC...
+       TELEGRAM_CHAT_ID=7123456789
+
+  5) Restart uvicorn, then dashboard → "Test Telegram"
+     or POST /telegram/test
+
+
+--------------------------------------------------------------------------------
+DASHBOARD FLOW
+--------------------------------------------------------------------------------
+
+  1) Sync NG odds (sparingly)
+  2) Scan Safe Builder
+  3) Log Safe picks → tips  (saves to Supabase)
+  4) After matches finish + fixture sync updates scores → Auto-settle
+  5) Hit-rate stats
+
+
+--------------------------------------------------------------------------------
+NOTES
+--------------------------------------------------------------------------------
+
+  - Duplicate pending tips (same match + market + selection + source) are skipped
+  - Double chance odds often missing from 1X2 feed — tip stores selection 1X/X2;
+    confirm price on SportyBet when you place
+  - Auto-settle needs match.status=FINISHED and home_score/away_score set
+    (from fixture sync). You can always settle manually.
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/models/tip.py
+  app/services/tips.py
+  app/services/tip_settle.py
+  app/services/telegram_notify.py
+  app/api/tips.py
+  app/api/telegram.py
+  app/static/dashboard.html
+================================================================================

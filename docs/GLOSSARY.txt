@@ -61,6 +61,10 @@ Safe Builder
   favourite, double chance, or a flex multi — with a unit-sized stake.
   Different from surebets: these picks can still lose.
 
+Hit rate
+  How often settled tips won. Example: 7 won / 10 settled = 70% hit rate.
+  Pending tips do not count until you settle them.
+
 
 --------------------------------------------------------------------------------
 COMMON FOOTBALL MARKETS

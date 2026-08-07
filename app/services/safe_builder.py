@@ -1,20 +1,33 @@
 """
 Safe Builder rules (Phase 3C) — pure functions, no database.
 
-Eric's SportyBet-style rules (risked picks, NOT surebets):
+When underdog odds > 7 (home/away):
 
-  1) Underdog > 10 (esp. 10–13+) → favourite only inside flex multis
-  2) Underdog > 7               → double chance covering the favourite:
-         home favourite → 1X (Home or Draw)
-         away favourite → X2 (Away or Draw)
+  Default pick_market = double_chance
+    home favourite → 1X (Home or Draw)
+    away favourite → X2 (Away or Draw)
 
-  (medium 5–7 band removed for now — too soft / easy to over-trust)
+  Optional pick_market = 1x2
+    → straight favourite (home or away)
+    → if underdog > 10, tagged accumulator_flex (prefer flex multi)
 
+User chooses the market style; rules still require underdog > 7.
 These are heuristics for safer slips — they can still lose.
 """
 
 from dataclasses import dataclass
 from decimal import Decimal
+
+PICK_DOUBLE_CHANCE = "double_chance"
+PICK_1X2 = "1x2"
+
+
+def normalize_pick_market(value: str | None) -> str:
+    """Return 'double_chance' (default) or '1x2'."""
+    raw = (value or PICK_DOUBLE_CHANCE).strip().lower().replace("-", "_")
+    if raw in ("1x2", "one_x_two", "onextwo", "match_result", "straight"):
+        return PICK_1X2
+    return PICK_DOUBLE_CHANCE
 
 
 @dataclass
@@ -63,6 +76,7 @@ def double_chance_for_favourite(fav_side: str) -> tuple[str, str]:
 def evaluate_match(
     prices: MatchPrices,
     *,
+    pick_market: str = PICK_DOUBLE_CHANCE,
     dog_high: Decimal = Decimal("7"),
     dog_flex: Decimal = Decimal("10"),
     fav_max_flex: Decimal = Decimal("1.50"),
@@ -70,34 +84,19 @@ def evaluate_match(
     """
     Apply Safe Builder rules to one match's 1X2 prices.
 
-    Returns None if the match does not fit any safe profile.
+    pick_market:
+      double_chance (default) → 1X / X2
+      1x2                     → straight favourite
     """
+    mode = normalize_pick_market(pick_market)
     fav_side, fav_odds, dog_side, dog_odds = _sides(prices)
     dc_sel, dc_label = double_chance_for_favourite(fav_side)
 
-    # --- Extreme underdog → flex accumulator candidate ---
-    if dog_odds > dog_flex:
-        if fav_odds > fav_max_flex:
-            return None
-        return SafePick(
-            profile="accumulator_flex",
-            market="1X2",
-            selection=fav_side,
-            odds=fav_odds,
-            rationale=(
-                f"Underdog {dog_side}@{dog_odds} is very long (>{dog_flex}). "
-                f"Use favourite {fav_side}@{fav_odds} only inside a multi; "
-                f"prefer Flex (e.g. allow 1 miss on a 10-leg slip)."
-            ),
-            fav_side=fav_side,
-            fav_odds=fav_odds,
-            dog_side=dog_side,
-            dog_odds=dog_odds,
-            flex_allow_misses=1,
-        )
+    if dog_odds <= dog_high:
+        return None
 
-    # --- High underdog (>7): always double chance (fav side + draw) ---
-    if dog_odds > dog_high:
+    # --- User chose double chance (default, including dog > 10) ---
+    if mode == PICK_DOUBLE_CHANCE:
         return SafePick(
             profile="safe_double_chance",
             market="double_chance",
@@ -115,4 +114,38 @@ def evaluate_match(
             dog_odds=dog_odds,
         )
 
-    return None
+    # --- User chose 1X2 straight favourite ---
+    if dog_odds > dog_flex:
+        if fav_odds > fav_max_flex:
+            return None
+        return SafePick(
+            profile="accumulator_flex",
+            market="1X2",
+            selection=fav_side,
+            odds=fav_odds,
+            rationale=(
+                f"Pick style 1X2 + underdog {dog_side}@{dog_odds} > {dog_flex}. "
+                f"Use favourite {fav_side}@{fav_odds} only inside a multi; "
+                f"prefer Flex (e.g. allow 1 miss on a 10-leg slip)."
+            ),
+            fav_side=fav_side,
+            fav_odds=fav_odds,
+            dog_side=dog_side,
+            dog_odds=dog_odds,
+            flex_allow_misses=1,
+        )
+
+    return SafePick(
+        profile="safe_favourite",
+        market="1X2",
+        selection=fav_side,
+        odds=fav_odds,
+        rationale=(
+            f"Pick style 1X2 + underdog {dog_side}@{dog_odds} > {dog_high} → "
+            f"straight favourite {fav_side}@{fav_odds}."
+        ),
+        fav_side=fav_side,
+        fav_odds=fav_odds,
+        dog_side=dog_side,
+        dog_odds=dog_odds,
+    )

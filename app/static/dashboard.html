@@ -3,33 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bet Scanner — Simple Dashboard</title>
+  <title>Bet Scanner — Dashboard</title>
   <style>
     :root {
-      --bg: #f4f1ea;
-      --ink: #1c1917;
-      --muted: #57534e;
-      --card: #fffdf8;
-      --line: #d6d3d1;
+      --bg: #eef2f0;
+      --ink: #14201c;
+      --muted: #4b5c56;
+      --card: #fbfcfb;
+      --line: #cfd8d4;
       --accent: #0f766e;
+      --good: #15803d;
       --warn: #b45309;
       --bad: #b91c1c;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: "Segoe UI", system-ui, sans-serif;
-      background: linear-gradient(180deg, #e7e5e4 0%, var(--bg) 40%);
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(ellipse 80% 50% at 10% -10%, #cfe8e2 0%, transparent 55%),
+        linear-gradient(180deg, #dfe8e4 0%, var(--bg) 45%);
       color: var(--ink);
       line-height: 1.45;
     }
     header {
       padding: 1.25rem 1.5rem;
       border-bottom: 1px solid var(--line);
-      background: rgba(255,253,248,0.9);
+      background: rgba(251,252,251,0.92);
+      backdrop-filter: blur(6px);
     }
-    h1 { margin: 0 0 0.25rem; font-size: 1.4rem; }
-    p { margin: 0; color: var(--muted); max-width: 50rem; }
+    h1 { margin: 0 0 0.25rem; font-size: 1.45rem; letter-spacing: -0.02em; }
+    header p { margin: 0; color: var(--muted); max-width: 52rem; }
     main { padding: 1rem 1.5rem 3rem; display: grid; gap: 1rem; }
     .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
     button, select, input {
@@ -46,6 +50,7 @@
       cursor: pointer;
     }
     button.secondary { background: white; color: var(--ink); }
+    button.danger { background: white; color: var(--bad); border-color: #fecaca; }
     button:disabled { opacity: 0.6; cursor: wait; }
     section {
       background: var(--card);
@@ -68,6 +73,24 @@
       color: #115e59;
       font-size: 0.8rem;
     }
+    .pill.won { background: #dcfce7; color: #166534; }
+    .pill.lost { background: #fee2e2; color: #991b1b; }
+    .pill.pending { background: #ffedd5; color: #9a3412; }
+    .pill.void { background: #e7e5e4; color: #44403c; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+      background: #f3f7f5;
+    }
+    .stat b { display: block; font-size: 1.25rem; }
+    .stat span { color: var(--muted); font-size: 0.8rem; }
     .note {
       background: #fff7ed;
       border: 1px solid #fed7aa;
@@ -76,51 +99,84 @@
       border-radius: 10px;
     }
     a { color: var(--accent); }
+    .muted { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.75rem; }
   </style>
 </head>
 <body>
   <header>
-    <h1>Bet Scanner — simple view</h1>
+    <h1>Bet Scanner</h1>
     <p>
-      This page reads your API for you. Advanced testing still lives at
-      <a href="/docs" target="_blank">/docs</a>.
-      Guide: <code>docs/HOW_TO_USE_DOCS.txt</code>
+      Phase 4 dashboard — Safe Builder, tip history, hit-rate.
+      API panel: <a href="/docs" target="_blank">/docs</a>.
+      Guides: <code>docs/PHASE_4_TIPS_TELEGRAM.txt</code>
     </p>
   </header>
 
   <main>
     <div class="note">
-      <strong>How to use:</strong> click a green button below.
-      Tables update with whatever is already in your Supabase database.
-      “Sync NG odds” calls the external API (uses free quota) — use sparingly.
+      <strong>Flow:</strong> Sync NG odds (sparingly) → Scan Safe Builder →
+      Log Safe picks → mark Won/Lost → hit-rate / learning.
+      Odds buttons only <em>show raw prices</em> (no bet actions) — Safe Builder uses that data.
     </div>
 
     <section>
       <h2>Actions</h2>
       <div class="row">
-        <button onclick="loadUpcoming()">Load upcoming matches</button>
-        <button onclick="loadOdds('sportybet')">Load SportyBet odds</button>
-        <button onclick="loadOdds('bet9ja')">Load Bet9ja odds</button>
-        <button onclick="loadArbs()">Scan surebets (NG books)</button>
+        <button onclick="loadUpcoming()">Upcoming matches</button>
+        <button onclick="loadOdds('sportybet')">SportyBet odds</button>
+        <button onclick="loadOdds('bet9ja')">Bet9ja odds</button>
+        <button onclick="loadArbs()">Scan surebets</button>
         <button onclick="loadSafe()">Scan Safe Builder</button>
-        <button class="secondary" id="syncBtn" onclick="syncOdds()">Sync NG odds (uses quota)</button>
+        <button onclick="logSafeTips()">Log Safe picks → tips</button>
+        <button class="secondary" onclick="loadTips()">Load tips</button>
+        <button class="secondary" onclick="loadStats()">Hit-rate stats</button>
+        <button class="secondary" onclick="loadLearning()">What it learned</button>
+        <button class="secondary" onclick="autoSettle()">Auto-settle finished</button>
+        <button class="secondary" onclick="testTelegram()">Test Telegram</button>
+        <button class="secondary" id="syncBtn" onclick="syncOdds()">Sync NG odds</button>
       </div>
       <div class="row" style="margin-top:0.5rem">
         <label>Bankroll ₦ <input id="bankroll" type="number" value="50000" min="1000" step="1000" style="width:8rem" /></label>
         <label>Unit % <input id="unitPct" type="number" value="1" min="0.1" max="10" step="0.1" style="width:4rem" /></label>
+        <label>Pick style
+          <select id="pickMarket">
+            <option value="double_chance" selected>Double chance (1X / X2) — default</option>
+            <option value="1x2">1X2 favourite (home / away)</option>
+          </select>
+        </label>
+        <label><input id="notifyTg" type="checkbox" /> Notify Telegram when logging</label>
         <button class="secondary" onclick="sizeBankroll()">Size unit stake</button>
       </div>
       <div class="status" id="status">Ready. Click a button.</div>
     </section>
 
     <section>
-      <h2>Upcoming matches</h2>
-      <div id="matchesBox"><em>Click “Load upcoming matches”.</em></div>
+      <h2>Hit-rate</h2>
+      <div id="statsBox"><em>Click “Hit-rate stats”.</em></div>
     </section>
 
     <section>
-      <h2>Latest odds</h2>
-      <div id="oddsBox"><em>Click “Load SportyBet odds” or “Load Bet9ja odds”.</em></div>
+      <h2>Learning (from Won / Lost)</h2>
+      <p class="muted">
+        Every settled tip trains the ranker. Double chance stays default until your
+        1X2 history clearly beats it. Settle honestly so future scans get smarter.
+      </p>
+      <div id="learnBox"><em>Click “What it learned” (or settle a tip).</em></div>
+    </section>
+
+    <section>
+      <h2>Tips (logged picks)</h2>
+      <p class="muted">Mark Won / Lost / Void — and change it later if you tapped the wrong one. Learning uses the latest result.</p>
+      <div id="tipsBox"><em>Click “Load tips” or “Log Safe picks”.</em></div>
+    </section>
+
+    <section>
+      <h2>Safe Builder (preview)</h2>
+      <p class="muted">
+        Underdog &gt;7. Default = double chance (1X / X2). Switch “Pick style” to 1X2
+        if you want straight favourite (flex multi when dog &gt;10).
+      </p>
+      <div id="safeBox"><em>Click “Scan Safe Builder”.</em></div>
     </section>
 
     <section>
@@ -129,12 +185,18 @@
     </section>
 
     <section>
-      <h2>Safe Builder (rules — not surebets)</h2>
-      <p style="color:var(--muted);margin:0 0 0.75rem;font-size:0.9rem">
-        Underdog &gt;7 → double chance (1X Home/Draw or X2 Away/Draw); &gt;10 flex multi.
-        Guide: <code>docs/PHASE_3C_SAFE_BUILDER.txt</code>
+      <h2>Latest odds (data only — not tips)</h2>
+      <p class="muted">
+        Sync pulls SportyBet/Bet9ja prices into the database. These buttons just
+        <strong>preview</strong> that data (home / draw / away). You don’t click
+        actions here — use <strong>Scan Safe Builder</strong> / <strong>Log Safe picks</strong> instead.
       </p>
-      <div id="safeBox"><em>Click “Scan Safe Builder”.</em></div>
+      <div id="oddsBox"><em>Click SportyBet / Bet9ja odds (or Sync NG odds).</em></div>
+    </section>
+
+    <section>
+      <h2>Upcoming matches</h2>
+      <div id="matchesBox"><em>Click “Upcoming matches”.</em></div>
     </section>
   </main>
 
@@ -158,11 +220,26 @@
       return data;
     }
 
+    async function postJson(url, body) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+      return data;
+    }
+
     function table(headers, rows) {
       if (!rows.length) return '<em>No rows found.</em>';
       const head = headers.map(h => `<th>${h}</th>`).join('');
       const body = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
       return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    function resultPill(result) {
+      return `<span class="pill ${result}">${result}</span>`;
     }
 
     async function loadUpcoming() {
@@ -187,21 +264,39 @@
     }
 
     async function loadOdds(bookmaker) {
-      setStatus(`Loading ${bookmaker} odds...`);
+      setStatus(`Loading ${bookmaker} odds (preview only)...`);
       try {
-        const data = await getJson(`/odds/latest?bookmaker=${bookmaker}&limit=50`);
-        const rows = data.map(o => [
-          o.match_id,
-          o.bookmaker,
-          o.market,
-          o.selection,
-          o.price,
-          new Date(o.captured_at).toLocaleString(),
+        const [data, matches] = await Promise.all([
+          getJson(`/odds/latest?bookmaker=${bookmaker}&limit=120`),
+          getJson('/matches/upcoming?days=30').catch(() => []),
+        ]);
+        const names = {};
+        for (const m of matches) {
+          names[m.id] = `${m.home_team} vs ${m.away_team}`;
+        }
+        // Group flat rows into one line per match: home / draw / away
+        const byMatch = {};
+        for (const o of data) {
+          if (o.market !== '1X2') continue;
+          const bucket = byMatch[o.match_id] || { home: '—', draw: '—', away: '—', at: o.captured_at };
+          bucket[o.selection] = o.price;
+          if (o.captured_at > bucket.at) bucket.at = o.captured_at;
+          byMatch[o.match_id] = bucket;
+        }
+        const rows = Object.entries(byMatch).map(([mid, p]) => [
+          names[mid] || `Match #${mid}`,
+          p.home,
+          p.draw,
+          p.away,
+          new Date(p.at).toLocaleString(),
         ]);
         document.getElementById('oddsBox').innerHTML =
-          `<p>Showing <strong>${bookmaker}</strong> (${data.length} rows)</p>` +
-          table(['Match ID', 'Book', 'Market', 'Selection', 'Odds', 'Captured'], rows);
-        setStatus(`Loaded ${data.length} ${bookmaker} odd(s).`);
+          `<p><strong>${bookmaker}</strong> — ${rows.length} match(es). ` +
+          `This is the price feed Safe Builder reads. No actions on this table.</p>` +
+          (rows.length
+            ? table(['Match', 'Home', 'Draw', 'Away', 'Captured'], rows)
+            : '<em>No 1X2 odds stored yet — click Sync NG odds first.</em>');
+        setStatus(`Previewed ${rows.length} ${bookmaker} match price(s). Use Scan Safe Builder next.`);
       } catch (e) {
         setStatus('Error: ' + e.message, true);
       }
@@ -256,26 +351,25 @@
       const unit_pct = document.getElementById('unitPct').value;
       setStatus('Sizing bankroll unit...');
       try {
-        const res = await fetch('/bankroll/size', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bankroll_ngn: bankroll, unit_pct }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+        const data = await postJson('/bankroll/size', { bankroll_ngn: bankroll, unit_pct });
         setStatus(data.message);
       } catch (e) {
         setStatus('Error: ' + e.message, true);
       }
     }
 
+    function pickMarket() {
+      return document.getElementById('pickMarket').value || 'double_chance';
+    }
+
     async function loadSafe() {
       const bankroll = document.getElementById('bankroll').value;
       const unit_pct = document.getElementById('unitPct').value;
-      setStatus('Scanning Safe Builder on SportyBet...');
+      const pick_market = pickMarket();
+      setStatus(`Scanning Safe Builder (${pick_market}) on SportyBet...`);
       try {
         const data = await getJson(
-          `/safe-builder/scan?bookmaker=sportybet&bankroll_ngn=${bankroll}&unit_pct=${unit_pct}`
+          `/safe-builder/scan?bookmaker=sportybet&bankroll_ngn=${bankroll}&unit_pct=${unit_pct}&pick_market=${encodeURIComponent(pick_market)}`
         );
         const picks = data.picks || [];
         if (!picks.length) {
@@ -290,16 +384,228 @@
           `${p.market} / ${p.selection}`,
           p.odds ?? 'check book',
           p.suggested_stake_ngn,
-          p.rationale,
+          p.confidence_pct != null
+            ? `${p.confidence_pct}% <span class="pill">${p.confidence_label || ''}</span>`
+            : '—',
+          p.learning_note || p.rationale,
         ]);
+        let learnHtml = '';
+        if (data.learning && data.learning.insights) {
+          learnHtml = `<p class="muted">${data.learning.insights.slice(0, 3).join(' ')}</p>`;
+          document.getElementById('learnBox').innerHTML =
+            `<p><strong>Preferred style:</strong> ${data.learning.preferred_pick_market}</p>` +
+            `<ul>${data.learning.insights.map(i => `<li>${i}</li>`).join('')}</ul>`;
+        }
         document.getElementById('safeBox').innerHTML =
-          `<p>${data.message}</p>` +
-          table(['Match', 'Profile', 'Pick', 'Odds', 'Stake ₦', 'Why'], rows);
+          `<p>${data.message}</p>${learnHtml}` +
+          table(['Match', 'Profile', 'Pick', 'Odds', 'Stake ₦', 'Confidence', 'Learning'], rows);
         setStatus(`Found ${picks.length} Safe Builder pick(s).`);
       } catch (e) {
         setStatus('Error: ' + e.message, true);
       }
     }
+
+    async function logSafeTips() {
+      const bankroll = document.getElementById('bankroll').value;
+      const unit_pct = document.getElementById('unitPct').value;
+      const notify_telegram = document.getElementById('notifyTg').checked;
+      const pick_market = pickMarket();
+      setStatus(`Logging Safe Builder picks (${pick_market}) into tips...`);
+      try {
+        const data = await postJson('/tips/log-safe-scan', {
+          bookmaker: 'sportybet',
+          bankroll_ngn: bankroll,
+          unit_pct,
+          notify_telegram,
+          pick_market,
+        });
+        setStatus(data.message + (data.telegram ? ` | TG: ${data.telegram.message}` : ''));
+        await loadTips();
+        await loadStats();
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    function settleButtons(id, current) {
+      // Always editable — fix mistakes by clicking another result
+      const opts = [
+        ['won', 'Won', 'secondary'],
+        ['lost', 'Lost', 'danger'],
+        ['void', 'Void', 'secondary'],
+        ['pending', 'Pending', 'secondary'],
+      ];
+      return opts.map(([value, label, cls]) => {
+        const active = current === value ? ' font-weight:700; outline:2px solid #0f766e;' : '';
+        return `<button class="${cls}" data-settle="${id}" data-result="${value}" style="${active}">${label}</button>`;
+      }).join(' ');
+    }
+
+    function renderTips(data) {
+      if (!data.length) {
+        document.getElementById('tipsBox').innerHTML = '<em>No tips logged yet.</em>';
+        return;
+      }
+      const rows = data.map(t => [
+        t.id,
+        `${t.home_team} vs ${t.away_team}`,
+        `<span class="pill">${t.risk_profile}</span>`,
+        `${t.market}/${t.selection}`,
+        t.odds_price ?? '—',
+        t.stake_ngn ?? '—',
+        resultPill(t.result),
+        settleButtons(t.id, t.result),
+      ]);
+      document.getElementById('tipsBox').innerHTML =
+        `<p class="muted">Wrong result? Click Won / Lost / Void / Pending anytime to correct it — learning updates too.</p>` +
+        table(
+          ['ID', 'Match', 'Profile', 'Pick', 'Odds', 'Stake ₦', 'Result', 'Edit result'],
+          rows
+        );
+    }
+
+    async function loadTips() {
+      setStatus('Loading tips...');
+      try {
+        const data = await getJson('/tips?limit=50');
+        renderTips(data);
+        setStatus(data.length ? `Loaded ${data.length} tip(s).` : 'No tips yet.');
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function settleTip(id, result) {
+      // Disable buttons immediately so it feels instant / no double-click
+      document.querySelectorAll(`[data-settle="${id}"]`).forEach(btn => {
+        btn.disabled = true;
+      });
+      setStatus(`Updating tip #${id} → ${result}...`);
+      try {
+        const tip = await postJson(`/tips/${id}/settle`, { result });
+        // Update this row only (no full tips reload — faster)
+        const box = document.getElementById('tipsBox');
+        const row = [...box.querySelectorAll('tbody tr')].find(tr =>
+          tr.cells[0] && tr.cells[0].textContent.trim() === String(id)
+        );
+        if (row) {
+          row.cells[6].innerHTML = resultPill(tip.result);
+          row.cells[7].innerHTML = settleButtons(tip.id, tip.result);
+        }
+        setStatus(`Tip #${id} → ${result} (saved for learning)`);
+        // Refresh hit-rate + learning in background (don't block the click)
+        loadStats().catch(() => {});
+        loadLearning().catch(() => {});
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+        document.querySelectorAll(`[data-settle="${id}"]`).forEach(btn => {
+          btn.disabled = false;
+        });
+      }
+    }
+
+    // Event delegation for settle buttons (works after re-render)
+    document.getElementById('tipsBox').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-settle]');
+      if (!btn || btn.disabled) return;
+      settleTip(Number(btn.dataset.settle), btn.dataset.result);
+    });
+
+    async function autoSettle() {
+      setStatus('Auto-settling tips from finished matches...');
+      try {
+        const data = await postJson('/tips/auto-settle', {});
+        setStatus(data.message);
+        await loadTips();
+        await loadStats();
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function loadStats() {
+      setStatus('Loading hit-rate...');
+      try {
+        const s = await getJson('/tips/stats');
+        const cards = `
+          <div class="stats">
+            <div class="stat"><b>${s.hit_rate_pct ?? '—'}%</b><span>Hit rate</span></div>
+            <div class="stat"><b>${s.won}</b><span>Won</span></div>
+            <div class="stat"><b>${s.lost}</b><span>Lost</span></div>
+            <div class="stat"><b>${s.pending}</b><span>Pending</span></div>
+            <div class="stat"><b>${s.total}</b><span>Total tips</span></div>
+          </div>
+          <p class="muted">${s.message}</p>`;
+        const rows = (s.by_profile || []).map(p => [
+          p.risk_profile,
+          p.won,
+          p.lost,
+          p.pending,
+          p.hit_rate_pct ?? '—',
+        ]);
+        document.getElementById('statsBox').innerHTML =
+          cards +
+          (rows.length
+            ? table(['Profile', 'Won', 'Lost', 'Pending', 'Hit %'], rows)
+            : '');
+        setStatus(s.message);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function testTelegram() {
+      setStatus('Checking Telegram...');
+      try {
+        const st = await getJson('/telegram/status');
+        if (!st.configured) {
+          setStatus(st.message, true);
+          return;
+        }
+        const data = await postJson('/telegram/test', {
+          text: 'Bet Scanner ✅ Phase 4 Telegram works.',
+        });
+        setStatus(data.message || JSON.stringify(data), !data.ok);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function loadLearning() {
+      setStatus('Loading learning model from settled tips...');
+      try {
+        const s = await getJson('/tips/learning');
+        const marketRows = (s.by_market || []).map(r => [
+          r.key, r.won, r.lost, r.hit_rate_pct ?? '—',
+        ]);
+        const profileRows = (s.by_profile || []).map(r => [
+          r.key, r.won, r.lost, r.hit_rate_pct ?? '—',
+        ]);
+        document.getElementById('learnBox').innerHTML =
+          `<div class="stats">
+            <div class="stat"><b>${s.hit_rate_pct ?? '—'}%</b><span>Learned hit rate</span></div>
+            <div class="stat"><b>${s.preferred_pick_market}</b><span>Preferred style</span></div>
+            <div class="stat"><b>${s.settled}</b><span>Settled tips used</span></div>
+          </div>` +
+          `<p class="muted">${s.message}</p>` +
+          (s.insights || []).map(i => `<div>• ${i}</div>`).join('') +
+          (marketRows.length
+            ? `<h3 style="font-size:0.95rem;margin:0.75rem 0 0.35rem">By market</h3>` +
+              table(['Market', 'Won', 'Lost', 'Hit %'], marketRows)
+            : '') +
+          (profileRows.length
+            ? `<h3 style="font-size:0.95rem;margin:0.75rem 0 0.35rem">By profile</h3>` +
+              table(['Profile', 'Won', 'Lost', 'Hit %'], profileRows)
+            : '');
+        setStatus(s.message);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    // Load stats on open so the page feels alive
+    loadStats().catch(() => {});
+    loadLearning().catch(() => {});
   </script>
 </body>
 </html>

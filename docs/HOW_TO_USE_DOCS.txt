@@ -9,7 +9,9 @@ The server ALREADY has:
   GET /arbitrage/scan
   GET /safe-builder/scan    (Phase 3C)
   POST /bankroll/size
-  GET /                     (simple dashboard)
+  POST /tips/log-safe-scan  (Phase 4)
+  GET /tips/stats
+  GET /                     (dashboard)
 
 If you do not see them, your browser is showing an OLD cached page.
 

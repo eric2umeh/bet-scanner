@@ -232,6 +232,19 @@ Guide: `docs/PHASE_3C_SAFE_BUILDER.txt`
 
 ---
 
+## Phase 4 — Tips hit-rate + Telegram (current)
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /tips/log-safe-scan` | Save Safe Builder picks into `tips` |
+| `GET /tips` / `GET /tips/stats` | History + hit rate |
+| `POST /tips/auto-settle` | Settle from finished match scores |
+| `POST /telegram/test` | Optional Telegram alert |
+
+Guide: `docs/PHASE_4_TIPS_TELEGRAM.txt`
+
+---
+
 ## Phase roadmap
 
 | Phase | Goal |
@@ -240,8 +253,8 @@ Guide: `docs/PHASE_3C_SAFE_BUILDER.txt`
 | 2 | Multi-provider fixtures + odds snapshots |
 | 3A | Arbitrage scan + ₦ stake calculator |
 | 3B | Nigerian book odds (SportyBet / Bet9ja via free odds-api.io) |
-| **3C (now)** | Bankroll / unit sizing + Safe Builder (your underdog rules) |
-| 4 | Telegram or web UI |
+| 3C | Bankroll / unit sizing + Safe Builder (your underdog rules) |
+| **4 (now)** | Tip logging, hit-rate, dashboard + optional Telegram |
 | 5 | Value / AI tips (risked, not “sure”) |
 
 ---

@@ -53,3 +53,26 @@ def init_db() -> None:
     from app import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _ensure_tip_columns()
+
+
+def _ensure_tip_columns() -> None:
+    """
+    create_all does not ALTER existing tables.
+    Add Phase 4 tip columns when upgrading an older DB.
+    """
+    statements = [
+        "ALTER TABLE tips ADD COLUMN IF NOT EXISTS bookmaker VARCHAR(64)",
+        "ALTER TABLE tips ADD COLUMN IF NOT EXISTS stake_ngn NUMERIC(12, 2)",
+        "ALTER TABLE tips ADD COLUMN IF NOT EXISTS source VARCHAR(32) DEFAULT 'manual'",
+        "ALTER TABLE tips ADD COLUMN IF NOT EXISTS pick_market VARCHAR(32)",
+        "ALTER TABLE tips ADD COLUMN IF NOT EXISTS dog_odds NUMERIC(10, 3)",
+        "ALTER TABLE tips ADD COLUMN IF NOT EXISTS fav_odds NUMERIC(10, 3)",
+    ]
+    try:
+        with engine.begin() as conn:
+            for sql in statements:
+                conn.exec_driver_sql(sql)
+    except Exception:
+        # Fresh local DBs / missing tips table are fine — create_all handles them.
+        pass

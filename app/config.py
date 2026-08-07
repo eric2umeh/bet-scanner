@@ -88,10 +88,17 @@ class Settings(BaseSettings):
     # Default unit = this % of bankroll (1% of ₦50k = ₦500)
     bankroll_unit_pct: float = 1.0
     # Underdog odds thresholds (home/away only)
-    safe_dog_high: float = 7.0          # >7 → safe fav / DC
-    safe_dog_flex: float = 10.0         # >10 → flex accumulator only
-    # Favourite max odds for flex-multi profile
+    safe_dog_high: float = 7.0          # >7 → candidate for Safe Builder
+    safe_dog_flex: float = 10.0         # >10 + pick_market=1x2 → flex multi tag
+    # Favourite max odds for flex-multi profile (1x2 mode only)
     safe_fav_max_flex: float = 1.50
+    # Default market style: double_chance | 1x2 (user can override per scan)
+    safe_pick_market: str = "double_chance"
+
+    # --- Phase 4: Telegram alerts (optional) ---
+    telegram_enabled: bool = False
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
 
     @property
     def sqlalchemy_database_url(self) -> str:

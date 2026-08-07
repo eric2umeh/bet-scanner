@@ -37,6 +37,11 @@ class EvaluateRequest(BaseModel):
     bookmaker: str = Field(default="manual", examples=["sportybet"])
     bankroll_ngn: Decimal = Field(default=Decimal("50000"), gt=0)
     unit_pct: Decimal | None = Field(default=None, gt=0, le=10)
+    pick_market: str = Field(
+        default="double_chance",
+        description="double_chance (1X/X2, default) or 1x2 (straight favourite)",
+        examples=["double_chance"],
+    )
 
 
 class SafePickOut(BaseModel):
@@ -56,11 +61,18 @@ class SafePickOut(BaseModel):
     fav_side: str
     dog_side: str
     dog_odds: Decimal
+    fav_odds: Decimal | None = None
+    pick_market: str | None = None
     rationale: str
     flex_allow_misses: int | None = None
     suggested_stake_ngn: Decimal
     potential_return_ngn: Decimal | None = None
     odds_captured_at: datetime | None = None
+    confidence_pct: float | None = None
+    confidence_label: str | None = None
+    learning_note: str | None = None
+    learned_market_hit_rate_pct: float | None = None
+    learned_profile_hit_rate_pct: float | None = None
 
 
 class EvaluateResponse(BaseModel):
@@ -74,5 +86,7 @@ class SafeScanResponse(BaseModel):
     bankroll_ngn: Decimal
     unit_pct: Decimal
     bookmaker: str | None
+    pick_market: str = "double_chance"
+    learning: dict | None = None
     message: str
     picks: list[SafePickOut]

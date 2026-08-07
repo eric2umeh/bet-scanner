@@ -13,20 +13,23 @@ Goal:
 YOUR RULES (encoded in app/services/safe_builder.py)
 --------------------------------------------------------------------------------
 
-  Priority order (first match wins):
+  Trigger: underdog (home or away) odds > 7.
 
-  1) Underdog > 10 (esp. 10–13+)
-       → profile: accumulator_flex
-       → favourite only inside a multi; prefer Flex (e.g. 9/10)
+  USER CHOICE — pick_market (default: double_chance):
 
-  2) Underdog > 7
+  A) double_chance  (DEFAULT — including when underdog > 10)
        → profile: safe_double_chance
-       → always double chance covering the favourite:
-            home favourite → 1X (Home or Draw)
-            away favourite → X2 (Away or Draw)
+       → home favourite → 1X (Home or Draw)
+       → away favourite → X2 (Away or Draw)
 
-  (Underdog 5–7 / medium_underdog is OFF for now — too easy to over-trust.)
-  (Straight favourite when dog >7 is OFF — DC only.)
+  B) 1x2  (optional — user selects this)
+       → underdog 7–10 → safe_favourite (straight home/away)
+       → underdog > 10 → accumulator_flex (fav in flex multi)
+
+  Dashboard / API: pick_market=double_chance|1x2
+  Env default: SAFE_PICK_MARKET=double_chance
+
+  (Underdog 5–7 / medium_underdog is OFF for now.)
 
 
 --------------------------------------------------------------------------------
@@ -66,6 +69,7 @@ ENV KNOBS (.env)
   SAFE_DOG_HIGH=7
   SAFE_DOG_FLEX=10
   SAFE_FAV_MAX_FLEX=1.50
+  SAFE_PICK_MARKET=double_chance
 
 
 --------------------------------------------------------------------------------

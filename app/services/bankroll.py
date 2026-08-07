@@ -46,11 +46,12 @@ def stake_for_profile(
     Suggested stake for a Safe Builder profile (in Naira).
 
     Default multipliers (in units):
-      safe_double_chance → 1.0 unit
-      accumulator_flex   → 0.5 unit (per multi slip, not per leg)
+      safe_double_chance / safe_favourite → 1.0 unit
+      accumulator_flex                    → 0.5 unit (per multi slip, not per leg)
     """
     defaults: dict[str, Decimal] = {
         "safe_double_chance": Decimal("1"),
+        "safe_favourite": Decimal("1"),
         "accumulator_flex": Decimal("0.5"),
     }
     table = {**defaults, **(units_by_profile or {})}

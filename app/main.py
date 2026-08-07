@@ -20,6 +20,8 @@ from app.api.arbitrage import router as arbitrage_router
 from app.api.matches import router as matches_router
 from app.api.odds import router as odds_router
 from app.api.safe_builder import router as safe_builder_router
+from app.api.telegram import router as telegram_router
+from app.api.tips import router as tips_router
 from app.config import get_settings
 from app.db import init_db
 
@@ -38,10 +40,10 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 3C: bankroll units + Safe Builder. "
-        "Open / for a simple dashboard, or /docs for the API test panel."
+        "Football betting decision API — Phase 4: tips hit-rate + optional Telegram. "
+        "Open / for the dashboard, or /docs for the API test panel."
     ),
-    version="0.3.3",
+    version="0.4.0",
     lifespan=lifespan,
 )
 
@@ -49,6 +51,8 @@ app.include_router(matches_router)
 app.include_router(odds_router)
 app.include_router(arbitrage_router)
 app.include_router(safe_builder_router)
+app.include_router(tips_router)
+app.include_router(telegram_router)
 
 
 @app.get("/health")

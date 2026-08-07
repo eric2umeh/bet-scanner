@@ -7,6 +7,8 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [GLOSSARY.txt](./GLOSSARY.txt) | Betting + product terms in plain English |
 | [PYTHON_BASICS.txt](./PYTHON_BASICS.txt) | What `venv`, `uvicorn`, and our scripts mean |
 | [PHASE_3B_NG_ODDS.txt](./PHASE_3B_NG_ODDS.txt) | Free SportyBet/Bet9ja odds setup (odds-api.io) |
+| [PHASE_3C_SAFE_BUILDER.txt](./PHASE_3C_SAFE_BUILDER.txt) | Bankroll units + Safe Builder rules |
+| [PHASE_4_TIPS_TELEGRAM.txt](./PHASE_4_TIPS_TELEGRAM.txt) | Tip logging, hit-rate, Telegram setup |
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 

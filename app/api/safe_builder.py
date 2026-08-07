@@ -77,16 +77,20 @@ def scan_safe_builder(
         default=None,
         description=(
             "Optional filter, comma-separated: "
-            "safe_double_chance,accumulator_flex"
+            "safe_double_chance,safe_favourite,accumulator_flex"
         ),
+    ),
+    pick_market: str = Query(
+        default="double_chance",
+        description="double_chance (1X/X2, default) or 1x2 (straight favourite)",
     ),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> SafeScanResponse:
     """
-    Apply Eric's underdog/favourite/DC/flex rules to latest 1X2 odds.
+    Apply underdog rules to latest 1X2 odds.
 
-    Not surebets — these can still lose. Stake sizes come from bankroll units.
+    Default market style is double chance; pass pick_market=1x2 for straight fav.
     """
     allowed = None
     if profiles:
@@ -99,12 +103,15 @@ def scan_safe_builder(
         bankroll_ngn=bankroll_ngn,
         unit_pct=unit_pct,
         profiles=allowed,
+        pick_market=pick_market,
     )
     return SafeScanResponse(
         count=result["count"],
         bankroll_ngn=result["bankroll_ngn"],
         unit_pct=result["unit_pct"],
         bookmaker=result["bookmaker"],
+        pick_market=result["pick_market"],
+        learning=result.get("learning"),
         message=result["message"],
         picks=[SafePickOut(**p) for p in result["picks"]],
     )
@@ -128,6 +135,7 @@ def evaluate_safe_builder(
         bookmaker=body.bookmaker,
         bankroll_ngn=body.bankroll_ngn,
         unit_pct=body.unit_pct,
+        pick_market=body.pick_market,
     )
     pick = None
     if result["pick"]:
