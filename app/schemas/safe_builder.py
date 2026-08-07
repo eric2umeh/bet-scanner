@@ -14,7 +14,7 @@ class BankrollSizeRequest(BaseModel):
     profile: str | None = Field(
         default=None,
         description="Optional Safe Builder profile to scale units",
-        examples=["safe_favourite"],
+        examples=["safe_double_chance"],
     )
     round_to: int = Field(default=100, ge=1)
 

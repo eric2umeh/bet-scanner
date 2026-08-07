@@ -89,11 +89,8 @@ class Settings(BaseSettings):
     bankroll_unit_pct: float = 1.0
     # Underdog odds thresholds (home/away only)
     safe_dog_high: float = 7.0          # >7 → safe fav / DC
-    safe_dog_medium_low: float = 5.0    # 5–7 → medium profile
     safe_dog_flex: float = 10.0         # >10 → flex accumulator only
-    # Favourite max odds for each profile
-    safe_fav_max_straight: float = 1.30
-    safe_fav_max_medium: float = 1.45
+    # Favourite max odds for flex-multi profile
     safe_fav_max_flex: float = 1.50
 
     @property

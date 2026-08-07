@@ -35,39 +35,28 @@ def main() -> None:
     bankroll = Decimal("50000")
     unit = unit_stake_ngn(bankroll, Decimal("1"))
     print(f"Bankroll ₦{bankroll} → 1 unit (1%) = ₦{unit}")
-    for profile in (
-        "safe_favourite",
-        "safe_double_chance",
-        "medium_underdog",
-        "accumulator_flex",
-    ):
+    for profile in ("safe_double_chance", "accumulator_flex"):
         print(f"  {profile}: ₦{stake_for_profile(bankroll, profile)}")
 
-    # Rule 1: dog between 7 and 10, fav <1.30 → straight fav
-    # (dog >10 is handled by accumulator_flex first)
+    # dog >7, home favourite → 1X (Home or Draw)
     show(
-        "safe favourite (dog 8.2, fav 1.22)",
+        "DC 1X — home fav, dog 8.2",
         MatchPrices(home=Decimal("1.22"), draw=Decimal("5.5"), away=Decimal("8.2")),
     )
-    # Rule 2: dog >7, fav too high → DC
+    # dog >7, away favourite → X2 (Away or Draw)
     show(
-        "safe double chance (dog 8.5, fav 1.55)",
-        MatchPrices(home=Decimal("1.55"), draw=Decimal("4.0"), away=Decimal("8.5")),
+        "DC X2 — away fav, dog 8.5",
+        MatchPrices(home=Decimal("8.5"), draw=Decimal("4.0"), away=Decimal("1.55")),
     )
-    # Rule 3: dog 5–7 medium
-    show(
-        "medium underdog (dog 6.2, fav 1.40)",
-        MatchPrices(home=Decimal("1.40"), draw=Decimal("4.2"), away=Decimal("6.2")),
-    )
-    # Rule 4: dog >10 flex multi
+    # dog >10 flex multi
     show(
         "accumulator flex (dog 12, fav 1.22)",
         MatchPrices(home=Decimal("12"), draw=Decimal("6.5"), away=Decimal("1.22")),
     )
-    # No match
+    # Dog ≤7 skipped
     show(
-        "skip (balanced 2.10 / 3.20 / 3.40)",
-        MatchPrices(home=Decimal("2.10"), draw=Decimal("3.20"), away=Decimal("3.40")),
+        "skip dog 6.2",
+        MatchPrices(home=Decimal("1.40"), draw=Decimal("4.2"), away=Decimal("6.2")),
     )
 
 

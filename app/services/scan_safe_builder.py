@@ -101,10 +101,7 @@ def scan_safe_picks(
             pick = evaluate_match(
                 prices,
                 dog_high=Decimal(str(settings.safe_dog_high)),
-                dog_medium_low=Decimal(str(settings.safe_dog_medium_low)),
                 dog_flex=Decimal(str(settings.safe_dog_flex)),
-                fav_max_straight=Decimal(str(settings.safe_fav_max_straight)),
-                fav_max_medium=Decimal(str(settings.safe_fav_max_medium)),
                 fav_max_flex=Decimal(str(settings.safe_fav_max_flex)),
             )
             if pick is None:
@@ -156,10 +153,8 @@ def scan_safe_picks(
 
     # Prefer safer profiles first, then shorter fav odds
     rank = {
-        "safe_favourite": 0,
-        "safe_double_chance": 1,
-        "medium_underdog": 2,
-        "accumulator_flex": 3,
+        "safe_double_chance": 0,
+        "accumulator_flex": 1,
     }
     picks.sort(key=lambda p: (rank.get(p["profile"], 9), float(p["dog_odds"])))
 
@@ -195,10 +190,7 @@ def evaluate_prices_dict(
     pick = evaluate_match(
         MatchPrices(home=home, draw=draw, away=away, bookmaker=bookmaker),
         dog_high=Decimal(str(settings.safe_dog_high)),
-        dog_medium_low=Decimal(str(settings.safe_dog_medium_low)),
         dog_flex=Decimal(str(settings.safe_dog_flex)),
-        fav_max_straight=Decimal(str(settings.safe_fav_max_straight)),
-        fav_max_medium=Decimal(str(settings.safe_fav_max_medium)),
         fav_max_flex=Decimal(str(settings.safe_fav_max_flex)),
     )
     if pick is None:

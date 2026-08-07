@@ -77,7 +77,7 @@ def scan_safe_builder(
         default=None,
         description=(
             "Optional filter, comma-separated: "
-            "safe_favourite,safe_double_chance,medium_underdog,accumulator_flex"
+            "safe_double_chance,accumulator_flex"
         ),
     ),
     db: Session = Depends(get_db),

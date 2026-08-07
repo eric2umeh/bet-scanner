@@ -19,17 +19,14 @@ YOUR RULES (encoded in app/services/safe_builder.py)
        → profile: accumulator_flex
        → favourite only inside a multi; prefer Flex (e.g. 9/10)
 
-  2) Underdog > 7  AND favourite < 1.30
-       → profile: safe_favourite
-       → market: 1X2 (home or away)
-
-  3) Underdog > 7  BUT favourite >= 1.30
+  2) Underdog > 7
        → profile: safe_double_chance
-       → market: double_chance (1X if home fav, X2 if away fav)
+       → always double chance covering the favourite:
+            home favourite → 1X (Home or Draw)
+            away favourite → X2 (Away or Draw)
 
-  4) Underdog between 5 and 7
-       → profile: medium_underdog
-       → favourite if still short, else double chance
+  (Underdog 5–7 / medium_underdog is OFF for now — too easy to over-trust.)
+  (Straight favourite when dog >7 is OFF — DC only.)
 
 
 --------------------------------------------------------------------------------
@@ -39,9 +36,8 @@ BANKROLL UNITS
   Example: bankroll ₦50,000, unit = 1% → ₦500 per unit.
 
   Default stake multipliers:
-    safe_favourite / safe_double_chance → 1.0 unit
-    medium_underdog                     → 0.75 unit
-    accumulator_flex                    → 0.5 unit (whole slip)
+    safe_double_chance → 1.0 unit
+    accumulator_flex   → 0.5 unit (whole slip)
 
 
 --------------------------------------------------------------------------------
@@ -68,10 +64,7 @@ ENV KNOBS (.env)
 
   BANKROLL_UNIT_PCT=1
   SAFE_DOG_HIGH=7
-  SAFE_DOG_MEDIUM_LOW=5
   SAFE_DOG_FLEX=10
-  SAFE_FAV_MAX_STRAIGHT=1.30
-  SAFE_FAV_MAX_MEDIUM=1.45
   SAFE_FAV_MAX_FLEX=1.50
 
 
