@@ -126,6 +126,7 @@
         <button onclick="loadOdds('sportybet')">SportyBet odds</button>
         <button onclick="loadOdds('bet9ja')">Bet9ja odds</button>
         <button onclick="loadArbs()">Scan surebets</button>
+        <button onclick="logArbTips()">Log surebets → tips</button>
         <button onclick="loadSafe()">Scan Safe Builder</button>
         <button onclick="logSafeTips()">Log Safe picks → tips</button>
         <button class="secondary" onclick="loadTips()">Load tips</button>
@@ -180,8 +181,13 @@
     </section>
 
     <section>
-      <h2>Surebets (SportyBet + Bet9ja)</h2>
+      <h2>Surebets (SportyBet + Bet9ja) — Phase 4.5</h2>
+      <p class="muted">
+        Uses your Bankroll ₦ as total stake. Copy stakes, then place manually on each book.
+        Verify live — high % edges are often stale. Guide: <code>docs/PHASE_4_5_SUREBET_OPS.txt</code>
+      </p>
       <div id="arbBox"><em>Click “Scan surebets”.</em></div>
+      <div id="arbPlanBox" style="margin-top:0.75rem"></div>
     </section>
 
     <section>
@@ -302,28 +308,118 @@
       }
     }
 
-    async function loadArbs() {
-      setStatus('Scanning surebets for sportybet,bet9ja...');
+    let lastArbs = [];
+
+    function arbStakeText(o) {
+      const legs = (o.sample_legs || []).map((l, i) =>
+        `${i + 1}) ${l.bookmaker} ${l.selection} @${l.odds} → ₦${l.stake_ngn} (ret ~₦${l.potential_return_ngn})`
+      ).join('\n');
+      let warn = '';
+      if (Number(o.profit_pct) >= 15) {
+        warn = '\n⚠ Profit ≥15% is unusually high — verify live before placing.';
+      }
+      return (
+        `Surebet: ${o.home_team} vs ${o.away_team}\n` +
+        `Profit ~${o.profit_pct}% | total ₦${o.sample_total_stake_ngn} → profit ~₦${o.sample_profit_ngn}\n` +
+        legs +
+        `\nVerify ALL odds live on the books before placing.` +
+        warn
+      );
+    }
+
+    async function copyArbStakes(idx) {
+      const o = lastArbs[idx];
+      if (!o) return;
+      const text = arbStakeText(o);
       try {
-        const data = await getJson('/arbitrage/scan?bookmakers=sportybet,bet9ja&min_profit_pct=0.01');
+        await navigator.clipboard.writeText(text);
+        document.getElementById('arbPlanBox').innerHTML =
+          `<pre style="white-space:pre-wrap;background:#f3f7f5;padding:0.75rem;border-radius:8px;border:1px solid var(--line)">${text.replace(/</g, '&lt;')}</pre>` +
+          `<p class="muted">Copied to clipboard.</p>`;
+        setStatus(`Copied stake plan for ${o.home_team} vs ${o.away_team}`);
+      } catch (e) {
+        document.getElementById('arbPlanBox').innerHTML =
+          `<pre style="white-space:pre-wrap">${text.replace(/</g, '&lt;')}</pre>`;
+        setStatus('Clipboard blocked — stake plan shown below. Select & copy manually.', true);
+      }
+    }
+
+    function showArbPlan(idx) {
+      const o = lastArbs[idx];
+      if (!o) return;
+      const text = arbStakeText(o);
+      document.getElementById('arbPlanBox').innerHTML =
+        `<pre style="white-space:pre-wrap;background:#f3f7f5;padding:0.75rem;border-radius:8px;border:1px solid var(--line)">${text.replace(/</g, '&lt;')}</pre>` +
+        `<div class="row" style="margin-top:0.5rem">
+          <button class="secondary" onclick="copyArbStakes(${idx})">Copy stakes</button>
+        </div>`;
+      setStatus(`Stake plan ready for ${o.home_team} vs ${o.away_team}`);
+    }
+
+    async function loadArbs() {
+      const bankroll = document.getElementById('bankroll').value || 10000;
+      setStatus(`Scanning surebets with total stake ₦${bankroll}...`);
+      try {
+        const data = await getJson(
+          `/arbitrage/scan?bookmakers=sportybet,bet9ja&min_profit_pct=0.01&sample_stake_ngn=${encodeURIComponent(bankroll)}`
+        );
         const opps = data.opportunities || [];
+        lastArbs = opps;
+        document.getElementById('arbPlanBox').innerHTML = '';
         if (!opps.length) {
           document.getElementById('arbBox').innerHTML =
             `<p>${data.message}</p><em>No surebets right now (normal if books are priced tightly).</em>`;
           setStatus(data.message);
           return;
         }
-        const rows = opps.map(o => [
-          `${o.home_team} vs ${o.away_team}`,
-          o.competition_code,
-          o.profit_pct + '%',
-          o.sample_profit_ngn,
-          o.legs.map(l => `${l.bookmaker} ${l.selection}@${l.odds}`).join('<br>'),
-        ]);
+        const rows = opps.map((o, idx) => {
+          const stakes = (o.sample_legs || []).map(l =>
+            `${l.bookmaker} ${l.selection}@${l.odds} → <strong>₦${l.stake_ngn}</strong>`
+          ).join('<br>');
+          const hot = Number(o.profit_pct) >= 15
+            ? ` <span class="pill pending">check live</span>`
+            : '';
+          return [
+            `${o.home_team} vs ${o.away_team}`,
+            o.profit_pct + '%' + hot,
+            o.sample_profit_ngn,
+            stakes,
+            `<button class="secondary" onclick="showArbPlan(${idx})">Stake plan</button>
+             <button class="secondary" onclick="copyArbStakes(${idx})">Copy</button>`,
+          ];
+        });
         document.getElementById('arbBox').innerHTML =
-          `<p>${data.message}</p>` +
-          table(['Match', 'League', 'Profit %', 'Sample profit ₦ (on 10k)', 'Legs'], rows);
-        setStatus(`Found ${opps.length} surebet(s).`);
+          `<p>${data.message} Stakes use bankroll <strong>₦${bankroll}</strong>.</p>` +
+          table(['Match', 'Profit %', 'Profit ₦', 'Legs + stakes', 'Actions'], rows);
+        setStatus(`Found ${opps.length} surebet(s). Use Stake plan / Copy, then verify live.`);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function logArbTips() {
+      const bankroll = document.getElementById('bankroll').value || 10000;
+      const notify_telegram = document.getElementById('notifyTg').checked;
+      setStatus('Scanning + logging surebets...');
+      try {
+        const data = await postJson('/tips/log-arbitrage-scan', {
+          bookmakers: 'sportybet,bet9ja',
+          bankroll_ngn: bankroll,
+          min_profit_pct: '0.01',
+          log_tips: true,
+          notify_telegram,
+        });
+        lastArbs = data.opportunities || [];
+        setStatus(
+          data.message +
+          (data.telegram ? ` | TG: ${data.telegram.message}` : '')
+        );
+        if (lastArbs.length) {
+          // Refresh the surebet table with the same bankroll
+          await loadArbs();
+        }
+        await loadTips();
+        await loadStats();
       } catch (e) {
         setStatus('Error: ' + e.message, true);
       }
