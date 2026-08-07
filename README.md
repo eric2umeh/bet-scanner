@@ -258,7 +258,7 @@ Guide: `docs/PHASE_4_5_SUREBET_OPS.txt`
 
 ---
 
-## Phase 5 — Value / EV tips (current)
+## Phase 5A — Value / EV tips
 
 Risked singles (not surebets): flag when a book is longer than de-vigged consensus fair odds.
 
@@ -277,6 +277,22 @@ Guide: `docs/PHASE_5_VALUE_TIPS.txt`
 
 ---
 
+## Phase 5B — AI explain + decision brief (current)
+
+Engines still pick tips. AI (optional) explains them in plain English.
+
+| Endpoint / Action | Purpose |
+|---|---|
+| `POST /ai/explain` | Explain one Safe / value / surebet pick |
+| `POST /ai/brief` | Combined brief + short explains (+ optional Telegram) |
+| Dashboard **AI decision brief** | One-click coach summary |
+
+Works without a key (templates). Optional LLM via `AI_ENABLED` + `AI_API_KEY`.
+
+Guide: `docs/PHASE_5B_AI_EXPLAIN.txt`
+
+---
+
 ## Phase roadmap
 
 | Phase | Goal |
@@ -288,7 +304,9 @@ Guide: `docs/PHASE_5_VALUE_TIPS.txt`
 | 3C | Bankroll / unit sizing + Safe Builder (your underdog rules) |
 | 4 | Tip logging, hit-rate, dashboard + optional Telegram |
 | 4.5 | Surebet stake plans, copy stakes, arb tips + Telegram alerts |
-| **5 (now)** | Value / EV tips (cross-book de-vig; AI models later) |
+| 5A | Value / EV tips (cross-book de-vig) |
+| **5B (now)** | AI explain + decision brief (optional LLM) |
+| 6 | Tipster / codes layer (optional growth) |
 
 ---
 
