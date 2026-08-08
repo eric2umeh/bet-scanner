@@ -14,6 +14,7 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [PHASE_5B_AI_EXPLAIN.txt](./PHASE_5B_AI_EXPLAIN.txt) | AI explain + decision brief (optional LLM) |
 | [PHASE_6_TIPSTERS.txt](./PHASE_6_TIPSTERS.txt) | Tipster booking codes + verified leaderboard |
 | [PHASE_7_DAILY_OPS.txt](./PHASE_7_DAILY_OPS.txt) | Daily ops morning run (cron + API) |
+| [PHASE_8_RENDER_DEPLOY.txt](./PHASE_8_RENDER_DEPLOY.txt) | Deploy FastAPI + cron on Render |
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 

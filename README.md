@@ -309,7 +309,7 @@ Guide: `docs/PHASE_6_TIPSTERS.txt`
 
 ---
 
-## Phase 7 — Daily ops (current)
+## Phase 7 — Daily ops
 
 One morning pipeline for cron / dashboard.
 
@@ -327,6 +327,24 @@ Guide: `docs/PHASE_7_DAILY_OPS.txt`
 
 ---
 
+## Phase 8 — Deploy on Render (current)
+
+Put the API online; keep Supabase as the DB; run daily ops as a **separate Cron**.
+
+| Piece | Where |
+|---|---|
+| FastAPI + dashboard | Render **Web Service** |
+| `scripts/daily_ops.py` | Render **Cron Job** (optional / usually paid) |
+| Postgres | Supabase (unchanged) |
+
+```bash
+python scripts/check_deploy_env.py
+```
+
+Guide: `docs/PHASE_8_RENDER_DEPLOY.txt` · Blueprint: `render.yaml`
+
+---
+
 ## Phase roadmap
 
 | Phase | Goal |
@@ -341,7 +359,8 @@ Guide: `docs/PHASE_7_DAILY_OPS.txt`
 | 5A | Value / EV tips (cross-book de-vig) |
 | 5B | AI explain + decision brief (optional LLM) |
 | 6 | Tipster / booking codes + verified leaderboard |
-| **7 (now)** | Daily ops morning run (cron + API + Telegram digest) |
+| 7 | Daily ops morning run (cron + API + Telegram digest) |
+| **8 (now)** | Deploy on Render (web + optional cron; Supabase stays) |
 
 ---
 

@@ -44,10 +44,11 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 7: daily ops morning run, "
-        "tipsters, AI brief, value/EV, surebets, Safe Builder. Open / or /docs."
+        "Football betting decision API — Phase 8: Render deploy ready, "
+        "daily ops, tipsters, AI brief, value/EV, surebets, Safe Builder. "
+        "Open / or /docs."
     ),
-    version="0.7.0",
+    version="0.8.0",
     lifespan=lifespan,
 )
 
@@ -65,7 +66,12 @@ app.include_router(telegram_router)
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "env": settings.app_env}
+    """Lightweight liveness check for Render / load balancers."""
+    return {
+        "status": "ok",
+        "env": settings.app_env,
+        "version": app.version,
+    }
 
 
 @app.get("/", include_in_schema=False)

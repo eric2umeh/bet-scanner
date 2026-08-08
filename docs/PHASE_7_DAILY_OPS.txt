@@ -27,8 +27,11 @@ CLI / CRON
   python scripts/daily_ops.py --no-odds
   python scripts/daily_ops.py --telegram --no-odds
 
-  Cron (07:30):
+  Cron (07:30 local Mac):
     30 7 * * * cd /path/to/bet-scanner && .venv/bin/python scripts/daily_ops.py --telegram >> /tmp/bet-scanner-ops.log 2>&1
+
+  On Render (Phase 8): use a separate Cron Job for this script —
+  see docs/PHASE_8_RENDER_DEPLOY.txt (do not run daily_ops inside the web process).
 
 
 --------------------------------------------------------------------------------

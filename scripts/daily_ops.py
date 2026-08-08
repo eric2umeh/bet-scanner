@@ -9,7 +9,7 @@ Phase 7 — cron-friendly daily ops (morning run).
 Cron example (07:30 Africa/Lagos on a Mac/Linux host):
   30 7 * * * cd /path/to/bet-scanner && .venv/bin/python scripts/daily_ops.py --telegram >> /tmp/bet-scanner-ops.log 2>&1
 
-On Railway/Render later: use a Scheduled Job that runs this script.
+On Render (Phase 8): Cron Job runs this script (see docs/PHASE_8_RENDER_DEPLOY.txt).
 """
 
 from __future__ import annotations

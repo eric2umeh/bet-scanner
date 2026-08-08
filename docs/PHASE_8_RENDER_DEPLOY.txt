@@ -1,0 +1,129 @@
+================================================================================
+PHASE 8 — DEPLOY ON RENDER (FastAPI web + optional cron)
+================================================================================
+
+Goal:
+  Put bet-scanner online without your laptop running.
+  Keep Supabase as the database.
+  Run daily_ops as a SEPARATE Cron Job (not inside the web process).
+
+
+--------------------------------------------------------------------------------
+ARCHITECTURE (MVP)
+--------------------------------------------------------------------------------
+
+  Browser  →  Render Web (FastAPI + dashboard)
+                    │
+                    ▼
+               Supabase Postgres
+
+  Render Cron  →  python scripts/daily_ops.py --no-odds
+                    │
+                    ▼
+               same Supabase
+
+
+--------------------------------------------------------------------------------
+BEFORE YOU DEPLOY
+--------------------------------------------------------------------------------
+
+  1) Commit + push this repo to GitHub (develop or main).
+  2) Local check (does not print secrets):
+       python scripts/check_deploy_env.py
+  3) Confirm DATABASE_URL uses the Supabase **Session pooler**
+     (…pooler.supabase.com…), not the dead db.*.supabase.co host.
+
+
+--------------------------------------------------------------------------------
+OPTION A — Dashboard (simplest)
+--------------------------------------------------------------------------------
+
+  A1) Web service
+      - https://dashboard.render.com → New → Web Service
+      - Connect GitHub repo `bet-scanner`
+      - Runtime: Python
+      - Build:  pip install -r requirements.txt
+      - Start:  uvicorn app.main:app --host 0.0.0.0 --port $PORT
+      - Instance: Free (Hobby) is OK for testing
+      - Health check path: /health
+
+  A2) Environment variables (copy from local .env — never commit .env)
+      Required:
+        DATABASE_URL
+        FOOTBALL_DATA_API_KEY
+        APP_ENV=production
+        DEBUG=false
+        PYTHON_VERSION=3.12.11
+      Recommended:
+        API_FOOTBALL_KEY
+        ODDS_API_IO_KEY
+        ODDS_SYNC_ENABLED=false          ← turn true only when you want sync
+        ODDS_PROVIDERS=odds-api-io
+        ODDS_API_IO_BOOKMAKERS=SportyBet,Bet9ja
+        FIXTURE_PROVIDERS=football-data,api-football
+        APP_TIMEZONE=Africa/Lagos
+      Optional:
+        TELEGRAM_ENABLED / TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID
+        AI_ENABLED / AI_API_KEY / AI_BASE_URL / AI_MODEL
+
+  A3) Deploy → open https://YOUR-SERVICE.onrender.com/
+      Cold start on free tier can take ~30–60s after idle.
+
+  A4) Cron job (separate service — usually paid ~$1+/mo)
+      - New → Cron Job
+      - Same repo / branch
+      - Build:  pip install -r requirements.txt
+      - Command: python scripts/daily_ops.py --no-odds
+      - Schedule: 0 6 * * *     (06:00 UTC = 07:00 Lagos)
+      - Copy the SAME env vars as the web service
+        (or use Blueprint fromService links — see render.yaml)
+
+
+--------------------------------------------------------------------------------
+OPTION B — Blueprint (render.yaml)
+--------------------------------------------------------------------------------
+
+  1) Push render.yaml to GitHub
+  2) Render Dashboard → New → Blueprint
+  3) Select repo → fill prompted secrets (sync: false keys)
+  4) Apply
+
+  Note: Cron in the Blueprint may require a paid cron plan.
+  You can deploy the web service first and add cron later.
+
+
+--------------------------------------------------------------------------------
+SMOKE TEST AFTER DEPLOY
+--------------------------------------------------------------------------------
+
+  curl https://YOUR-SERVICE.onrender.com/health
+  → {"status":"ok","env":"production", ...}
+
+  Open /  → dashboard
+  Open /docs → API panel
+
+  Manual morning run (no cron yet):
+    Dashboard → Daily ops (no odds sync)
+    or POST /ops/daily-run with sync_odds=false
+
+
+--------------------------------------------------------------------------------
+COST / QUOTA REMINDERS
+--------------------------------------------------------------------------------
+
+  - Free web sleeps after ~15 minutes idle (wake delay).
+  - Cron is usually NOT free.
+  - Odds-api.io free quota is your bigger risk than Render — keep
+    ODDS_SYNC_ENABLED=false by default; use --no-odds on cron.
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  render.yaml
+  Procfile
+  .python-version
+  scripts/check_deploy_env.py
+  docs/PHASE_8_RENDER_DEPLOY.txt
+================================================================================
