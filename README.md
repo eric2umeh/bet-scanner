@@ -5,15 +5,13 @@ You are building a football betting **decision** app, learning AI/backend engine
 **Non-code docs** (guides, glossary, product notes) live in [`docs/`](./docs/).  
 Start with the [Betting glossary](./docs/GLOSSARY.txt) if you’re new to betting terms.
 
-**Easiest way to see data:** run the server, then open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) (simple dashboard).  
-`/docs` is an advanced API test panel — see [`docs/HOW_TO_USE_DOCS.txt`](./docs/HOW_TO_USE_DOCS.txt).
+**Live app:** [https://bet-scanner-znvg.onrender.com](https://bet-scanner-znvg.onrender.com)  
+**Local:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/) · API panel: [`/docs`](http://127.0.0.1:8000/docs)
 
-This phase is only the **data spine**:
-- Postgres tables: `matches`, `odds`, `tips`
-- `GET /matches/today`
-- A daily sync job that fills `matches` from [football-data.org](https://www.football-data.org/)
+**Morning path:** Start morning → Safe picks → log tips → settle → hit-rate.  
+Guide: [`docs/PHASE_9_PRODUCT_JOURNEY.txt`](./docs/PHASE_9_PRODUCT_JOURNEY.txt)
 
-Odds, tip generation, ML, Telegram, and LLMs come in later phases.
+Stack: FastAPI + Supabase + Safe Builder / value / surebets / tipsters / AI brief / daily ops · hosted on Render.
 
 ---
 
@@ -327,7 +325,7 @@ Guide: `docs/PHASE_7_DAILY_OPS.txt`
 
 ---
 
-## Phase 8 — Deploy on Render (current)
+## Phase 8 — Deploy on Render
 
 Put the API online; keep Supabase as the DB; run daily ops as a **separate Cron**.
 
@@ -337,11 +335,28 @@ Put the API online; keep Supabase as the DB; run daily ops as a **separate Cron*
 | `scripts/daily_ops.py` | Render **Cron Job** (optional / usually paid) |
 | Postgres | Supabase (unchanged) |
 
+Live: https://bet-scanner-znvg.onrender.com
+
 ```bash
 python scripts/check_deploy_env.py
 ```
 
 Guide: `docs/PHASE_8_RENDER_DEPLOY.txt` · Blueprint: `render.yaml`
+
+---
+
+## Phase 9 — Product journey (current)
+
+One clear morning path on the dashboard; advanced tools folded away.
+
+| Action | Purpose |
+|---|---|
+| **1. Start morning** | Ops (no odds) + Safe scan + tips/stats refresh |
+| **2. Safe picks** | Scan → log what you place |
+| **3. Settle** | Won/Lost or auto-settle → hit-rate / learning |
+| **Advanced** | Value, surebets, tipsters, raw odds |
+
+Guide: `docs/PHASE_9_PRODUCT_JOURNEY.txt`
 
 ---
 
@@ -360,7 +375,8 @@ Guide: `docs/PHASE_8_RENDER_DEPLOY.txt` · Blueprint: `render.yaml`
 | 5B | AI explain + decision brief (optional LLM) |
 | 6 | Tipster / booking codes + verified leaderboard |
 | 7 | Daily ops morning run (cron + API + Telegram digest) |
-| **8 (now)** | Deploy on Render (web + optional cron; Supabase stays) |
+| 8 | Deploy on Render (web + optional cron; Supabase stays) |
+| **9 (now)** | Product journey — one morning path, advanced folded away |
 
 ---
 

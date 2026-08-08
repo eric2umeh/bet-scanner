@@ -44,11 +44,11 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 8: Render deploy ready, "
-        "daily ops, tipsters, AI brief, value/EV, surebets, Safe Builder. "
+        "Football betting decision API — Phase 9: product journey dashboard, "
+        "Render deploy, daily ops, tipsters, AI brief, value/EV, Safe Builder. "
         "Open / or /docs."
     ),
-    version="0.8.0",
+    version="0.9.0",
     lifespan=lifespan,
 )
 

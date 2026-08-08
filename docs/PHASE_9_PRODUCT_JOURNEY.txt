@@ -1,0 +1,53 @@
+================================================================================
+PHASE 9 — PRODUCT JOURNEY (one clear morning path)
+================================================================================
+
+Goal:
+  Make the live app feel like one product, not a pile of buttons.
+
+
+--------------------------------------------------------------------------------
+LIVE URL
+--------------------------------------------------------------------------------
+
+  https://bet-scanner-znvg.onrender.com
+
+  Local: http://127.0.0.1:8000/
+  Free Render cold start can take ~30–60s after idle.
+
+
+--------------------------------------------------------------------------------
+EACH MORNING (3 steps)
+--------------------------------------------------------------------------------
+
+  1) Start morning
+     - fixtures refresh
+     - auto-settle finished Safe tips
+     - AI decision brief
+     - does NOT sync odds (saves free quota)
+
+  2) Safe picks
+     - Scan Safe Builder
+     - Log only the slips you will place
+     - Sync NG odds first only if prices look stale
+
+  3) After matches
+     - Won / Lost / Void (or Auto-settle)
+     - Hit-rate / What it learned
+
+
+--------------------------------------------------------------------------------
+ADVANCED (folded away)
+--------------------------------------------------------------------------------
+
+  Value tips, surebets, tipsters, raw odds previews —
+  open “Advanced tools” on the dashboard when you need them.
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/static/dashboard.html
+  docs/PHASE_9_PRODUCT_JOURNEY.txt
+================================================================================
