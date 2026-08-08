@@ -109,19 +109,55 @@
     .steps strong { color: var(--ink); }
     details.advanced {
       background: var(--card);
-      border: 1px solid var(--line);
+      border: 1px dashed var(--line);
       border-radius: 12px;
-      padding: 0.75rem 1rem;
+      padding: 0;
+      overflow: hidden;
     }
     details.advanced > summary {
       cursor: pointer;
-      font-weight: 600;
-      color: var(--muted);
       list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.9rem 1rem;
+      font-weight: 600;
+      color: var(--ink);
+      background: #f3f7f5;
+      user-select: none;
     }
     details.advanced > summary::-webkit-details-marker { display: none; }
-    details.advanced[open] > summary { margin-bottom: 0.75rem; color: var(--ink); }
-    .advanced-grid { display: grid; gap: 1rem; }
+    details.advanced > summary:hover { background: #e8f0ec; }
+    details.advanced[open] > summary {
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 0;
+    }
+    details.advanced .adv-chevron {
+      flex: 0 0 auto;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      color: var(--accent);
+      transition: transform 0.15s ease;
+    }
+    details.advanced[open] .adv-chevron { transform: rotate(90deg); }
+    details.advanced .adv-label { flex: 1; }
+    details.advanced .adv-hint {
+      font-weight: 500;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    details.advanced .advanced-grid {
+      display: grid;
+      gap: 1rem;
+      padding: 1rem;
+    }
     a { color: var(--accent); }
     .muted { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.75rem; }
     .journey-num {
@@ -235,8 +271,12 @@
       <div id="briefBox"><em>Filled by “Start morning” or “AI brief”.</em></div>
     </section>
 
-    <details class="advanced">
-      <summary>Advanced tools (value, surebets, tipsters, raw odds)</summary>
+    <details class="advanced" id="advancedTools">
+      <summary>
+        <span class="adv-chevron" aria-hidden="true">▶</span>
+        <span class="adv-label">Advanced tools</span>
+        <span class="adv-hint">Click to expand · value · surebets · tipsters · raw odds</span>
+      </summary>
       <div class="advanced-grid">
         <section>
           <h2>Advanced actions</h2>
