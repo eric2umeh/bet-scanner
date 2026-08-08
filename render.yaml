@@ -1,0 +1,138 @@
+# Phase 8 — Render Blueprint
+# Docs: https://render.com/docs/blueprint-spec
+# Guide: docs/PHASE_8_RENDER_DEPLOY.txt
+#
+# After connecting the GitHub repo, Render can create:
+#   1) Web service  → FastAPI dashboard + API
+#   2) Cron job     → scripts/daily_ops.py (separate from the web process)
+#
+# Secrets (DATABASE_URL, API keys) are NOT stored here — set them in the
+# Render dashboard (or Blueprint prompts where sync: false).
+
+services:
+  - type: web
+    name: bet-scanner-api
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.11"
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: APP_TIMEZONE
+        value: Africa/Lagos
+      - key: DATABASE_URL
+        sync: false
+      - key: FOOTBALL_DATA_API_KEY
+        sync: false
+      - key: API_FOOTBALL_KEY
+        sync: false
+      - key: ODDS_SYNC_ENABLED
+        value: "false"
+      - key: ODDS_PROVIDERS
+        value: odds-api-io
+      - key: ODDS_API_IO_KEY
+        sync: false
+      - key: ODDS_API_IO_BOOKMAKERS
+        value: SportyBet,Bet9ja
+      - key: ODDS_API_IO_EVENT_LIMIT
+        value: "12"
+      - key: FIXTURE_PROVIDERS
+        value: football-data,api-football
+      - key: TELEGRAM_ENABLED
+        value: "false"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: AI_ENABLED
+        value: "false"
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_MODEL
+        sync: false
+
+  # Cron is usually NOT on the free tier (~$1+/mo). Create this when ready.
+  # Schedule: 06:00 UTC = 07:00 Africa/Lagos
+  - type: cron
+    name: bet-scanner-daily-ops
+    runtime: python
+    schedule: "0 6 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/daily_ops.py --no-odds
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.11"
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: APP_TIMEZONE
+        value: Africa/Lagos
+      - key: DATABASE_URL
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: DATABASE_URL
+      - key: FOOTBALL_DATA_API_KEY
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: FOOTBALL_DATA_API_KEY
+      - key: API_FOOTBALL_KEY
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: API_FOOTBALL_KEY
+      - key: ODDS_SYNC_ENABLED
+        value: "false"
+      - key: ODDS_PROVIDERS
+        value: odds-api-io
+      - key: ODDS_API_IO_KEY
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: ODDS_API_IO_KEY
+      - key: TELEGRAM_ENABLED
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: TELEGRAM_ENABLED
+      - key: TELEGRAM_BOT_TOKEN
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: TELEGRAM_BOT_TOKEN
+      - key: TELEGRAM_CHAT_ID
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: TELEGRAM_CHAT_ID
+      - key: AI_ENABLED
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: AI_ENABLED
+      - key: AI_API_KEY
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: AI_API_KEY
+      - key: AI_BASE_URL
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: AI_BASE_URL
+      - key: AI_MODEL
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: AI_MODEL
