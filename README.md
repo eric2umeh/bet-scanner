@@ -381,7 +381,8 @@ Guide: `docs/PHASE_10A_SCOUTER_UI.txt`
 | 10B | O/U 2.5 + BTTS tips, DC prices, /odds/multi quota save |
 | 10C | Select-to-log tips + first-run onboarding |
 | 10D | Dedupe + multi/accumulator slips |
-| **10E (now)** | Slip converter — paste slip → SportyBet/Bet9ja price-check |
+| 10E | Slip converter — paste slip → SportyBet/Bet9ja price-check |
+| **10F (now)** | Richer match Odds compare (gaps, filters, add to selection) |
 
 ---
 

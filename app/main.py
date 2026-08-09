@@ -46,11 +46,11 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 10E: slip price-check converter, "
-        "multi slips, select-to-log, O/U+BTTS, Safe Builder, NG odds, tipsters. "
+        "Football betting decision API — Phase 10F: richer odds compare, "
+        "slip converter, multi slips, select-to-log, Safe Builder, NG odds. "
         "Open / or /docs."
     ),
-    version="0.10.4",
+    version="0.10.5",
     lifespan=lifespan,
 )
 

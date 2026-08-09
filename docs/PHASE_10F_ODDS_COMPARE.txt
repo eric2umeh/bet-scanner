@@ -1,0 +1,43 @@
+================================================================================
+PHASE 10F — RICHER ODDS COMPARE
+================================================================================
+
+Goal:
+  Make the match Odds tab useful for choosing SportyBet vs Bet9ja quickly.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  Match sheet → Odds
+    - Tally: how many selections each book wins (+ ties)
+    - Odds age (warn when stale > ~3h)
+    - Market chips: All / 1X2 / DC / O/U / BTTS
+    - Per market lean label
+    - Price gap Δ (+absolute and %) on the better book
+    - Correct 2-col vs 3-col grids
+    - + buttons → add best (or Sporty on tie) to Log selected
+    - Copy bests summary
+
+
+--------------------------------------------------------------------------------
+HOW TO USE
+--------------------------------------------------------------------------------
+
+  1) Load real bets
+  2) Open a match → Odds
+  3) Filter markets, note green prices and Δ
+  4) Tap + to queue picks → Log selected (multi if same book)
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/static/dashboard.html
+  app/main.py                         (version 0.10.5)
+  docs/PHASE_10F_ODDS_COMPARE.txt
+  docs/README.md
+  README.md
+================================================================================

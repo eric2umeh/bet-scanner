@@ -447,22 +447,88 @@
     .tip-stat b { display: block; font-size: 1.05rem; }
     .tip-stat span { font-size: 0.75rem; color: var(--muted); }
 
+    .odds-compare-top {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      margin-bottom: 0.85rem;
+    }
+    .odds-tally {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.45rem;
+    }
+    .odds-tally .tip-stat b { font-size: 0.95rem; }
+    .odds-fresh {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin: 0;
+    }
+    .odds-fresh.stale { color: var(--warn); }
+    .odds-mchips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .odds-mchips .chip {
+      padding: 0.35rem 0.7rem;
+      font-size: 0.78rem;
+    }
+    .odds-market {
+      margin: 0 0 1rem;
+      padding: 0.75rem;
+      background: var(--bg-elev);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    .odds-market-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin: 0 0 0.55rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .odds-market-title span {
+      font-weight: 500;
+      color: var(--muted);
+      font-size: 0.72rem;
+    }
     .odds-row {
       display: grid;
-      grid-template-columns: 1.2fr repeat(3, 1fr);
       gap: 0.35rem;
       align-items: center;
       padding: 0.7rem 0.75rem;
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 12px;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.45rem;
       font-size: 0.88rem;
     }
+    .odds-row.cols-2 { grid-template-columns: 1.15fr repeat(2, 1fr); }
+    .odds-row.cols-3 { grid-template-columns: 1.15fr repeat(3, 1fr); }
     .odds-row .best {
       color: var(--accent);
       font-weight: 700;
     }
+    .odds-row .tie {
+      color: var(--warn);
+      font-weight: 600;
+    }
+    .odds-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.1rem;
+      min-width: 0;
+    }
+    .odds-cell .delta {
+      font-size: 0.68rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .odds-cell .delta.up { color: var(--good); }
     .odds-head {
       font-size: 0.72rem;
       color: var(--muted);
@@ -471,8 +537,20 @@
       margin-bottom: 0.35rem;
       padding: 0 0.25rem;
       display: grid;
-      grid-template-columns: 1.2fr repeat(3, 1fr);
       gap: 0.35rem;
+    }
+    .odds-head.cols-2 { grid-template-columns: 1.15fr repeat(2, 1fr); }
+    .odds-head.cols-3 { grid-template-columns: 1.15fr repeat(3, 1fr); }
+    .odds-pick-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.45rem;
+    }
+    .odds-pick-row button {
+      padding: 0.4rem 0.65rem;
+      font-size: 0.75rem;
+      border-radius: 10px;
     }
 
     .stats {
@@ -875,10 +953,10 @@
       </details>
 
       <p class="muted" style="margin-top:1rem;font-size:0.78rem">
-        Phase 10E · slip converter ·
+        Phase 10F · odds compare ·
         <a href="https://bet-scanner-znvg.onrender.com" target="_blank" rel="noopener">live</a> ·
         <a href="/docs" target="_blank">/docs</a> ·
-        <code>docs/PHASE_10E_SLIP_CONVERTER.txt</code>
+        <code>docs/PHASE_10F_ODDS_COMPARE.txt</code>
       </p>
     </section>
   </div>
@@ -1504,74 +1582,239 @@
         </div>`;
     }
 
+    function oddsAgeLabel(iso) {
+      if (!iso) return { text: 'Age unknown', stale: true };
+      const t = new Date(iso).getTime();
+      if (!Number.isFinite(t)) return { text: 'Age unknown', stale: true };
+      const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+      if (mins < 60) return { text: `Odds ~${mins}m old`, stale: mins > 180 };
+      const hrs = Math.round(mins / 60);
+      return { text: `Odds ~${hrs}h old`, stale: mins > 180 };
+    }
+
+    function packOddsMarket(rows, market, keys) {
+      const o = {};
+      let newest = null;
+      for (const k of keys) o[k] = null;
+      for (const r of rows) {
+        if (r.market !== market) continue;
+        const sel = String(r.selection).toLowerCase();
+        if (!(sel in o)) continue;
+        o[sel] = r.price;
+        if (r.captured_at && (!newest || r.captured_at > newest)) newest = r.captured_at;
+      }
+      return { prices: o, captured_at: newest };
+    }
+
+    function compareCell(a, b) {
+      const av = a != null ? Number(a) : null;
+      const bv = b != null ? Number(b) : null;
+      const tie = av != null && bv != null && Math.abs(av - bv) < 0.0005;
+      const bestA = av != null && (bv == null || av > bv + 0.0005 || tie);
+      const bestB = bv != null && (av == null || bv > av + 0.0005 || tie);
+      let deltaA = '';
+      let deltaB = '';
+      if (av != null && bv != null && !tie) {
+        const d = Math.abs(av - bv);
+        const pct = ((d / Math.min(av, bv)) * 100).toFixed(1);
+        if (av > bv) deltaA = `+${d.toFixed(3)} (${pct}%)`;
+        else deltaB = `+${d.toFixed(3)} (${pct}%)`;
+      }
+      return { a: av, b: bv, bestA, bestB, tie, deltaA, deltaB };
+    }
+
+    function addOddsPickToSelection(market, selection, bookmaker, price) {
+      const m = activeMatch;
+      if (!m || price == null) {
+        setStatus('No price to add.', true);
+        return;
+      }
+      const tip = {
+        match_id: m.id,
+        home_team: m.home_team,
+        away_team: m.away_team,
+        competition_code: m.competition_code,
+        kickoff_at: m.kickoff_at,
+        bookmaker,
+        market,
+        selection,
+        odds: Number(price),
+        profile: 'odds_compare',
+        pick_market: market === 'double_chance' ? 'double_chance' : market,
+        suggested_stake_ngn: suggestedStakeNgn({ suggested_stake_ngn: null }),
+        rationale: `Best/compare pick from Odds tab · ${bookLabel(bookmaker)} ${market}/${String(selection).toUpperCase()} @ ${price}`,
+      };
+      const key = tipKey(tip);
+      selectedTips[key] = tip;
+      updateSelectBar();
+      setStatus(`Added ${bookLabel(bookmaker)} ${market}/${String(selection).toUpperCase()} @ ${price} to selection.`);
+    }
+
+    function renderOddsCompare() {
+      const el = document.getElementById('panelOdds');
+      const state = window._oddsCompare;
+      if (!el || !state) return;
+      const { sporty, bet9ja, filter } = state;
+      const m = activeMatch;
+
+      const markets = [
+        { id: '1x2', title: '1X2', market: '1X2', keys: ['home', 'draw', 'away'], labels: ['Home', 'Draw', 'Away'] },
+        { id: 'double_chance', title: 'Double chance', market: 'double_chance', keys: ['1x', 'x2', '12'], labels: ['1X', 'X2', '12'] },
+        { id: 'ou_2_5', title: 'O/U 2.5', market: 'ou_2_5', keys: ['over', 'under'], labels: ['Over', 'Under'] },
+        { id: 'btts', title: 'BTTS', market: 'btts', keys: ['yes', 'no'], labels: ['Yes', 'No'] },
+      ];
+
+      let newest = null;
+      let winsSb = 0;
+      let winsB9 = 0;
+      let ties = 0;
+      const blocks = [];
+      const summaryLines = [];
+      if (m) summaryLines.push(`${m.home_team} vs ${m.away_team}`);
+
+      for (const mk of markets) {
+        if (filter !== 'all' && filter !== mk.id) continue;
+        const sp = packOddsMarket(sporty, mk.market, mk.keys);
+        const b9 = packOddsMarket(bet9ja, mk.market, mk.keys);
+        for (const cap of [sp.captured_at, b9.captured_at]) {
+          if (cap && (!newest || cap > newest)) newest = cap;
+        }
+        const cells = mk.keys.map(k => compareCell(sp.prices[k], b9.prices[k]));
+        const has = cells.some(c => c.a != null || c.b != null);
+        if (!has) continue;
+
+        const cols = mk.keys.length === 2 ? 'cols-2' : 'cols-3';
+        let marketWinsSb = 0;
+        let marketWinsB9 = 0;
+        cells.forEach((c, i) => {
+          if (c.a == null && c.b == null) return;
+          if (c.tie) {
+            ties += 1;
+            summaryLines.push(`${mk.title} ${mk.labels[i]}: tie @ ${c.a}`);
+            return;
+          }
+          if (c.bestA && !c.bestB) {
+            winsSb += 1;
+            marketWinsSb += 1;
+            summaryLines.push(`${mk.title} ${mk.labels[i]}: SportyBet @ ${c.a} (vs ${c.b ?? '—'})`);
+          } else if (c.bestB && !c.bestA) {
+            winsB9 += 1;
+            marketWinsB9 += 1;
+            summaryLines.push(`${mk.title} ${mk.labels[i]}: Bet9ja @ ${c.b} (vs ${c.a ?? '—'})`);
+          }
+        });
+        const lean =
+          marketWinsSb > marketWinsB9 ? 'SportyBet lean'
+            : marketWinsB9 > marketWinsSb ? 'Bet9ja lean'
+              : 'Even';
+
+        const pickBtns = mk.keys.map((k, i) => {
+          const c = cells[i];
+          if (c.a == null && c.b == null) return '';
+          const book = c.tie ? 'sportybet' : (c.bestB && !c.bestA ? 'bet9ja' : 'sportybet');
+          const price = book === 'bet9ja' ? c.b : c.a;
+          if (price == null) return '';
+          const sel = mk.market === 'double_chance' ? k.toUpperCase() : k;
+          const mkt = mk.market === '1X2' ? '1x2' : mk.market;
+          return `<button type="button" class="secondary" data-odds-pick="${esc(mkt)}|${esc(sel)}|${esc(book)}|${esc(price)}">+ ${esc(mk.labels[i])} ${esc(bookLabel(book))}</button>`;
+        }).join('');
+
+        blocks.push(`
+          <div class="odds-market" data-odds-mkt="${esc(mk.id)}">
+            <div class="odds-market-title">${esc(mk.title)} <span>${esc(lean)} · higher = better for you</span></div>
+            <div class="odds-head ${cols}"><span>Book</span>${mk.labels.map(l => `<span>${esc(l)}</span>`).join('')}</div>
+            <div class="odds-row ${cols}">
+              <span>${bookPill('sportybet')}</span>
+              ${cells.map(c => {
+                const cls = c.tie ? 'tie' : (c.bestA ? 'best' : '');
+                return `<span class="odds-cell ${cls}"><span>${c.a ?? '—'}</span>${c.deltaA ? `<span class="delta up">${esc(c.deltaA)}</span>` : ''}</span>`;
+              }).join('')}
+            </div>
+            <div class="odds-row ${cols}">
+              <span>${bookPill('bet9ja')}</span>
+              ${cells.map(c => {
+                const cls = c.tie ? 'tie' : (c.bestB ? 'best' : '');
+                return `<span class="odds-cell ${cls}"><span>${c.b ?? '—'}</span>${c.deltaB ? `<span class="delta up">${esc(c.deltaB)}</span>` : ''}</span>`;
+              }).join('')}
+            </div>
+            <div class="odds-pick-row">${pickBtns}</div>
+          </div>`);
+      }
+
+      if (!blocks.length) {
+        el.innerHTML = `<div class="empty"><strong>No stored odds</strong>Tap Load real bets (uses free quota), then reopen.</div>`;
+        return;
+      }
+
+      const age = oddsAgeLabel(newest);
+      window._oddsCompareSummary = summaryLines.join('\n');
+      const chips = [
+        ['all', 'All'],
+        ['1x2', '1X2'],
+        ['double_chance', 'DC'],
+        ['ou_2_5', 'O/U'],
+        ['btts', 'BTTS'],
+      ].map(([id, label]) =>
+        `<button type="button" class="chip ${filter === id ? 'active' : ''}" data-odds-filter="${id}">${label}</button>`
+      ).join('');
+
+      el.innerHTML = `
+        <div class="odds-compare-top">
+          <p class="odds-fresh ${age.stale ? 'stale' : ''}">${esc(age.text)} · verify live before placing${age.stale ? ' · refresh with Load real bets' : ''}</p>
+          <div class="odds-tally">
+            <div class="tip-stat"><b>${winsSb}</b><span>SportyBet best</span></div>
+            <div class="tip-stat"><b>${winsB9}</b><span>Bet9ja best</span></div>
+            <div class="tip-stat"><b>${ties}</b><span>Ties</span></div>
+          </div>
+          <div class="odds-mchips">${chips}</div>
+          <div class="action-row" style="margin:0">
+            <button type="button" class="secondary" id="oddsCopyBtn">Copy bests</button>
+          </div>
+        </div>
+        ${blocks.join('')}
+        <p class="muted" style="font-size:0.78rem;margin:0">Green price = higher (better for the bettor). +Δ shows edge vs the other book. Buttons add that pick to Log selected.</p>`;
+
+      el.querySelectorAll('[data-odds-filter]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          window._oddsCompare.filter = btn.dataset.oddsFilter;
+          renderOddsCompare();
+        });
+      });
+      el.querySelectorAll('[data-odds-pick]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const [market, selection, bookmaker, price] = btn.dataset.oddsPick.split('|');
+          addOddsPickToSelection(market, selection, bookmaker, price);
+        });
+      });
+      document.getElementById('oddsCopyBtn')?.addEventListener('click', async () => {
+        const text = window._oddsCompareSummary || '';
+        if (!text) return;
+        try {
+          await navigator.clipboard.writeText(text);
+          setStatus('Best prices copied.');
+        } catch {
+          setStatus('Could not copy — long-press the summary.', true);
+        }
+      });
+    }
+
     async function loadMatchOdds(matchId) {
       const el = document.getElementById('panelOdds');
+      el.innerHTML = '<em class="muted">Loading odds…</em>';
       try {
         const [sporty, bet9ja] = await Promise.all([
           getJson(`/odds/latest?bookmaker=sportybet&match_id=${matchId}&limit=80`).catch(() => []),
           getJson(`/odds/latest?bookmaker=bet9ja&match_id=${matchId}&limit=80`).catch(() => []),
         ]);
-        function packMarket(rows, market, keys) {
-          const o = {};
-          for (const k of keys) o[k] = null;
-          for (const r of rows) {
-            if (r.market !== market) continue;
-            const sel = String(r.selection).toLowerCase();
-            if (sel in o) o[sel] = r.price;
-          }
-          return o;
-        }
-        function cell(a, c) {
-          const av = a != null ? Number(a) : null;
-          const bv = c != null ? Number(c) : null;
-          const bestA = av != null && (bv == null || av >= bv);
-          const bestB = bv != null && (av == null || bv > av);
-          return { a: av, b: bv, bestA, bestB };
-        }
-        function twoBookBlock(title, labels, sportyPack, bet9jaPack, keys) {
-          const cells = keys.map(k => cell(sportyPack[k], bet9jaPack[k]));
-          const has = cells.some(c => c.a != null || c.b != null);
-          if (!has) return '';
-          return `
-            <p class="muted" style="margin:0.85rem 0 0.35rem">${esc(title)} · higher price highlighted</p>
-            <div class="odds-head"><span>Book</span>${labels.map(l => `<span>${esc(l)}</span>`).join('')}</div>
-            <div class="odds-row">
-              <span>SportyBet</span>
-              ${cells.map(c => `<span class="${c.bestA ? 'best' : ''}">${c.a ?? '—'}</span>`).join('')}
-            </div>
-            <div class="odds-row">
-              <span>Bet9ja</span>
-              ${cells.map(c => `<span class="${c.bestB ? 'best' : ''}">${c.b ?? '—'}</span>`).join('')}
-            </div>`;
-        }
-        const s1 = packMarket(sporty, '1X2', ['home', 'draw', 'away']);
-        const b1 = packMarket(bet9ja, '1X2', ['home', 'draw', 'away']);
-        const sou = packMarket(sporty, 'ou_2_5', ['over', 'under']);
-        const bou = packMarket(bet9ja, 'ou_2_5', ['over', 'under']);
-        const sb = packMarket(sporty, 'btts', ['yes', 'no']);
-        const bb = packMarket(bet9ja, 'btts', ['yes', 'no']);
-        function packDc(rows) {
-          const o = { '1x': null, 'x2': null, '12': null };
-          for (const r of rows) {
-            if (r.market !== 'double_chance') continue;
-            const sel = String(r.selection).toLowerCase();
-            if (sel in o) o[sel] = r.price;
-          }
-          return o;
-        }
-        const sDc = packDc(sporty);
-        const bDc = packDc(bet9ja);
-        const html = [
-          twoBookBlock('1X2', ['Home', 'Draw', 'Away'], s1, b1, ['home', 'draw', 'away']),
-          twoBookBlock('Double chance', ['1X', 'X2', '12'], sDc, bDc, ['1x', 'x2', '12']),
-          twoBookBlock('O/U 2.5', ['Over', 'Under'], sou, bou, ['over', 'under']),
-          twoBookBlock('BTTS', ['Yes', 'No'], sb, bb, ['yes', 'no']),
-        ].join('');
-        if (!html) {
-          el.innerHTML = `<div class="empty"><strong>No stored odds</strong>Tap Load real bets (uses free quota), then reopen.</div>`;
-          return;
-        }
-        el.innerHTML = `<p class="muted">Verify live on SportyBet / Bet9ja before placing.</p>` + html;
+        window._oddsCompare = {
+          matchId,
+          sporty: Array.isArray(sporty) ? sporty : [],
+          bet9ja: Array.isArray(bet9ja) ? bet9ja : [],
+          filter: (window._oddsCompare && window._oddsCompare.matchId === matchId)
+            ? window._oddsCompare.filter
+            : 'all',
+        };
+        renderOddsCompare();
       } catch (e) {
         el.innerHTML = `<div class="empty"><strong>Odds error</strong>${esc(e.message)}</div>`;
       }

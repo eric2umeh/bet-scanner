@@ -39,7 +39,8 @@ DEFERRED (later phases)
   Phase 10C — select-to-log + thin onboarding
   Phase 10D — multi slips + dedupe
   Phase 10E — slip converter / price-check (see PHASE_10E_SLIP_CONVERTER.txt)
-  Later — richer odds compare UI, fuller onboarding wizard, auth
+  Phase 10F — richer odds compare UI (see PHASE_10F_ODDS_COMPARE.txt)
+  Later — fuller onboarding wizard, auth
 
 
 --------------------------------------------------------------------------------
