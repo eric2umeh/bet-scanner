@@ -3,6 +3,7 @@ Tip logging + hit-rate endpoints (Phase 4).
 
   POST /tips                     — log one tip manually
   POST /tips/log-safe-scan       — scan Safe Builder + save new tips
+  POST /tips/log-predictions-scan — log O/U 2.5 + BTTS lean tips
   GET  /tips                     — list tips
   GET  /tips/stats               — hit rate
   POST /tips/{id}/settle         — mark won/lost/void
@@ -19,6 +20,8 @@ from app.schemas.tips import (
     LearningResponse,
     LogArbScanRequest,
     LogArbScanResponse,
+    LogPredictionsScanRequest,
+    LogPredictionsScanResponse,
     LogSafeScanRequest,
     LogSafeScanResponse,
     LogValueScanRequest,
@@ -34,6 +37,7 @@ from app.services.arb_ops import (
     log_arbitrage_opportunities,
 )
 from app.services.scan_arbitrage import scan_1x2_arbs
+from app.services.scan_goal_markets import scan_goal_market_picks
 from app.services.scan_safe_builder import scan_safe_picks
 from app.services.scan_value import scan_value_1x2
 from app.services.telegram_notify import format_tips_digest, send_telegram_message
@@ -105,6 +109,50 @@ def log_safe_scan(
         text = format_tips_digest(result["created"], title="Safe Builder — new tips logged")
         telegram_info = send_telegram_message(settings, text)
     return LogSafeScanResponse(
+        created_count=result["created_count"],
+        skipped_duplicates=result["skipped_duplicates"],
+        errors=result["errors"],
+        created=[TipOut(**t) for t in result["created"]],
+        skipped=result["skipped"],
+        message=result["message"],
+        telegram=telegram_info,
+    )
+
+
+@router.post(
+    "/log-predictions-scan",
+    response_model=LogPredictionsScanResponse,
+    summary="Scan O/U 2.5 + BTTS and log new tips (Phase 10B)",
+)
+def log_predictions_scan(
+    body: LogPredictionsScanRequest,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> LogPredictionsScanResponse:
+    """
+    Log goal-market lean tips so Auto-settle / hit-rate can track them.
+
+    Note: this logs the current scan for the book — not a manual checkbox
+    selection. Prefer “Log this tip” on a match card for exact slips.
+    """
+    wanted = {m.strip() for m in body.markets.split(",") if m.strip()}
+    scan = scan_goal_market_picks(
+        db,
+        settings,
+        bookmaker=body.bookmaker,
+        max_age_minutes=body.max_odds_age_minutes,
+        bankroll_ngn=body.bankroll_ngn,
+        unit_pct=body.unit_pct,
+        markets=wanted or None,
+    )
+    result = log_safe_picks(db, scan["picks"], source="goal_markets")
+    telegram_info = None
+    if body.notify_telegram and result["created"]:
+        text = format_tips_digest(
+            result["created"], title="O/U + BTTS — new tips logged"
+        )
+        telegram_info = send_telegram_message(settings, text)
+    return LogPredictionsScanResponse(
         created_count=result["created_count"],
         skipped_duplicates=result["skipped_duplicates"],
         errors=result["errors"],

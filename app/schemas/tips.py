@@ -84,6 +84,30 @@ class LogSafeScanResponse(BaseModel):
     telegram: dict | None = None
 
 
+class LogPredictionsScanRequest(BaseModel):
+    """Phase 10B — log O/U 2.5 + BTTS lean tips you placed."""
+
+    bookmaker: str = "sportybet"
+    bankroll_ngn: Decimal = Field(default=Decimal("50000"), gt=0)
+    unit_pct: Decimal | None = Field(default=None, gt=0, le=10)
+    markets: str = Field(
+        default="ou_2_5,btts",
+        description="Comma list: ou_2_5, btts",
+    )
+    notify_telegram: bool = False
+    max_odds_age_minutes: int | None = Field(default=None, ge=1, le=24 * 60)
+
+
+class LogPredictionsScanResponse(BaseModel):
+    created_count: int
+    skipped_duplicates: int
+    errors: list[str]
+    created: list[TipOut]
+    skipped: list[dict]
+    message: str
+    telegram: dict | None = None
+
+
 class LogArbScanRequest(BaseModel):
     """Phase 4.5 — scan NG surebets, optional log + Telegram alert."""
 
