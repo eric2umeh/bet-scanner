@@ -21,6 +21,7 @@ from app.api.arbitrage import router as arbitrage_router
 from app.api.matches import router as matches_router
 from app.api.odds import router as odds_router
 from app.api.ops import router as ops_router
+from app.api.predictions import router as predictions_router
 from app.api.safe_builder import router as safe_builder_router
 from app.api.telegram import router as telegram_router
 from app.api.tips import router as tips_router
@@ -44,11 +45,11 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 10A: Scouter-inspired mobile "
-        "Today/Match UI, Safe Builder, NG odds, tipsters, AI brief, value/EV. "
+        "Football betting decision API — Phase 10B: O/U 2.5 + BTTS tips, "
+        "Scouter mobile UI, Safe Builder, NG odds (multi), tipsters, AI brief. "
         "Open / or /docs."
     ),
-    version="0.10.0",
+    version="0.10.1",
     lifespan=lifespan,
 )
 
@@ -56,6 +57,7 @@ app.include_router(matches_router)
 app.include_router(odds_router)
 app.include_router(arbitrage_router)
 app.include_router(safe_builder_router)
+app.include_router(predictions_router)
 app.include_router(value_router)
 app.include_router(ai_router)
 app.include_router(tips_router)
