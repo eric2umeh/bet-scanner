@@ -40,6 +40,32 @@ def _latest_1x2_rows(db: Session):
     return db.execute(sql).mappings().all()
 
 
+def _latest_dc_map(db: Session) -> dict[tuple[int, str, str], Decimal]:
+    """(match_id, bookmaker, selection) → latest double_chance price."""
+    sql = text(
+        """
+        SELECT DISTINCT ON (o.match_id, o.bookmaker, o.selection)
+            o.match_id,
+            o.bookmaker,
+            o.selection,
+            o.price
+        FROM odds o
+        WHERE o.market = 'double_chance'
+        ORDER BY o.match_id, o.bookmaker, o.selection, o.captured_at DESC
+        """
+    )
+    out: dict[tuple[int, str, str], Decimal] = {}
+    for row in db.execute(sql).mappings().all():
+        out[
+            (
+                int(row["match_id"]),
+                str(row["bookmaker"]).lower(),
+                str(row["selection"]).upper(),
+            )
+        ] = Decimal(str(row["price"]))
+    return out
+
+
 def scan_safe_picks(
     db: Session,
     settings: Settings,
@@ -97,6 +123,7 @@ def scan_safe_picks(
             m.id: m
             for m in db.scalars(select(Match).where(Match.id.in_(match_ids))).all()
         }
+    dc_prices = _latest_dc_map(db)
 
     picks: list[dict] = []
     for mid, books in by_match.items():
@@ -138,6 +165,11 @@ def scan_safe_picks(
             if profiles and pick.profile not in profiles:
                 continue
 
+            # Attach real Double Chance price when the feed has it (Phase 10B)
+            pick_odds = pick.odds
+            if pick.market == "double_chance" and pick_odds is None:
+                pick_odds = dc_prices.get((mid, book, pick.selection.upper()))
+
             stake = stake_for_profile(
                 bankroll_ngn,
                 pick.profile,
@@ -145,8 +177,8 @@ def scan_safe_picks(
                 round_to=round_to,
             )
             ret = (
-                potential_return(stake, pick.odds)
-                if pick.odds is not None
+                potential_return(stake, pick_odds)
+                if pick_odds is not None
                 else None
             )
             latest_cap = max(
@@ -165,7 +197,7 @@ def scan_safe_picks(
                     "profile": pick.profile,
                     "market": pick.market,
                     "selection": pick.selection,
-                    "odds": pick.odds,
+                    "odds": pick_odds,
                     "home_odds": prices.home,
                     "draw_odds": prices.draw,
                     "away_odds": prices.away,
