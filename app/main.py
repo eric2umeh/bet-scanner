@@ -45,11 +45,11 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 10B: O/U 2.5 + BTTS tips, "
-        "Scouter mobile UI, Safe Builder, NG odds (multi), tipsters, AI brief. "
+        "Football betting decision API — Phase 10C: select-to-log tips, "
+        "onboarding, O/U+BTTS, Safe Builder, NG odds multi, tipsters, AI. "
         "Open / or /docs."
     ),
-    version="0.10.1",
+    version="0.10.3",
     lifespan=lifespan,
 )
 

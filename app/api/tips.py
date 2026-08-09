@@ -4,6 +4,7 @@ Tip logging + hit-rate endpoints (Phase 4).
   POST /tips                     — log one tip manually
   POST /tips/log-safe-scan       — scan Safe Builder + save new tips
   POST /tips/log-predictions-scan — log O/U 2.5 + BTTS lean tips
+  POST /tips/log-batch           — log exactly selected tips (Phase 10C)
   GET  /tips                     — list tips
   GET  /tips/stats               — hit rate
   POST /tips/{id}/settle         — mark won/lost/void
@@ -26,6 +27,8 @@ from app.schemas.tips import (
     LogSafeScanResponse,
     LogValueScanRequest,
     LogValueScanResponse,
+    TipBatchLogRequest,
+    TipBatchLogResponse,
     TipCreate,
     TipOut,
     TipSettleRequest,
@@ -48,6 +51,7 @@ from app.services.tips import (
     create_tip,
     list_tips,
     log_safe_picks,
+    log_selected_tips,
     settle_tip,
     tip_stats,
     tip_to_dict,
@@ -82,6 +86,42 @@ def create_tip_endpoint(
             detail=f"Pending tip already exists (id={tip.id})",
         )
     return TipOut(**tip_to_dict(tip))
+
+
+@router.post(
+    "/log-batch",
+    response_model=TipBatchLogResponse,
+    summary="Log exactly the selected tips (Phase 10C)",
+)
+def log_tip_batch(
+    body: TipBatchLogRequest,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> TipBatchLogResponse:
+    """Save checked tips; same-book 2+ → one multi slip (Phase 10D)."""
+    payloads = [t.model_dump() for t in body.tips]
+    result = log_selected_tips(db, payloads, as_multi=body.as_multi)
+    created = result["created"]
+
+    telegram_info = None
+    if body.notify_telegram and created:
+        title = (
+            "Multi slip logged"
+            if result.get("slip_count")
+            else "Selected tips logged"
+        )
+        text = format_tips_digest(created, title=title)
+        telegram_info = send_telegram_message(settings, text)
+
+    return TipBatchLogResponse(
+        created_count=result["created_count"],
+        skipped_duplicates=result["skipped_duplicates"],
+        errors=result["errors"],
+        created=[TipOut(**c) for c in created],
+        skipped=result["skipped"],
+        message=result["message"],
+        telegram=telegram_info,
+    )
 
 
 @router.post(

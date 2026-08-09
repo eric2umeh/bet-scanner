@@ -1,0 +1,52 @@
+================================================================================
+PHASE 10D — DEDUPE + MULTI SLIPS
+================================================================================
+
+Goal:
+  Stop duplicate Tips rows when logging from Today and the match sheet.
+  Log 2+ selections on the same book as one multi (accumulator), like SportyBet.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  Dedupe
+    - Same match + bookmaker + market + selection = one tip (source ignored)
+    - Cleanup voids older duplicates on Load tips
+
+  Multi
+    - POST /tips/log-batch as_multi=true (default)
+    - 2+ selected tips on the same book share slip_id
+    - Stake stored on first leg only
+    - Auto-settle: multi wins only if every leg wins
+    - Tips tab groups multi legs under one card
+
+  UI
+    - "Log as multi" checkbox on the select bar (on by default)
+    - Stake fallback from bankroll × unit % when scan stake is 0
+
+
+--------------------------------------------------------------------------------
+HOW TO USE
+--------------------------------------------------------------------------------
+
+  1) Place DC + O/U + BTTS on SportyBet as one accumulator
+  2) Tick those three SportyBet tips on Today (not Bet9ja copies)
+  3) Keep "Log as multi" on → Log selected
+  4) Tips tab shows: Multi · SportyBet · 3 legs @ combined odds
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/models/tip.py          (slip_id)
+  app/db.py                  (ALTER tips.slip_id)
+  app/services/tips.py
+  app/api/tips.py
+  app/schemas/tips.py
+  app/static/dashboard.html
+  app/main.py                (version 0.10.3)
+  docs/PHASE_10D_MULTI_SLIPS.txt
+================================================================================

@@ -33,8 +33,11 @@ class Tip(Base):
     dog_odds: Mapped[Decimal | None] = mapped_column(Numeric(10, 3), nullable=True)
     fav_odds: Mapped[Decimal | None] = mapped_column(Numeric(10, 3), nullable=True)
 
-    # safe_builder | manual | arbitrage | value
+    # safe_builder | manual | arbitrage | value | goal_markets
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="manual", index=True)
+
+    # Phase 10D — legs that share slip_id are one multi/accumulator
+    slip_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
     rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
 

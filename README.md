@@ -378,7 +378,8 @@ Guide: `docs/PHASE_10A_SCOUTER_UI.txt`
 | 8 | Deploy on Render (web + optional cron; Supabase stays) |
 | 9 | Product journey — one morning path, advanced folded away |
 | 10A | Scouter-inspired mobile Today / Match UI |
-| **10B (now)** | O/U 2.5 + BTTS tips, DC prices, /odds/multi quota save |
+| 10B | O/U 2.5 + BTTS tips, DC prices, /odds/multi quota save |
+| **10C (now)** | Select-to-log tips + first-run onboarding |
 
 ---
 

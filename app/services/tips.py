@@ -1,11 +1,12 @@
 """
-Tip logging + hit-rate stats (Phase 4).
+Tip logging + hit-rate stats (Phase 4 + 10D multi slips).
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from decimal import Decimal
+from uuid import uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
@@ -36,6 +37,7 @@ def tip_to_dict(tip: Tip) -> dict:
         "dog_odds": tip.dog_odds,
         "fav_odds": tip.fav_odds,
         "source": tip.source,
+        "slip_id": tip.slip_id,
         "rationale": tip.rationale,
         "result": tip.result,
         "created_at": tip.created_at,
@@ -43,8 +45,22 @@ def tip_to_dict(tip: Tip) -> dict:
     }
 
 
+def _norm_sel(selection: str) -> str:
+    return str(selection or "").strip().lower()
+
+
+def _norm_book(bookmaker: str | None) -> str:
+    return str(bookmaker or "").strip().lower() or "unknown"
+
+
 def _tip_key(tip: Tip) -> tuple:
-    return (tip.match_id, tip.market, tip.selection, tip.source)
+    """Same placeable pick = same match + book + market + selection (any source)."""
+    return (
+        tip.match_id,
+        _norm_book(tip.bookmaker),
+        str(tip.market or "").strip().lower(),
+        _norm_sel(tip.selection),
+    )
 
 
 def find_existing_tip(
@@ -53,24 +69,33 @@ def find_existing_tip(
     match_id: int,
     market: str,
     selection: str,
-    source: str,
+    source: str | None = None,
+    bookmaker: str | None = None,
 ) -> Tip | None:
     """
-    Any non-void tip for the same pick blocks a new log.
-    (Pending OR already settled — avoids Beijing-style re-logs.)
+    Any non-void tip for the same placeable pick blocks a new log.
+    Source is ignored so Today log + match-page log don't double-create.
     """
-    return db.scalars(
+    q = (
         select(Tip)
         .options(joinedload(Tip.match))
         .where(
             Tip.match_id == match_id,
             Tip.market == market,
-            Tip.selection == selection,
-            Tip.source == source,
             Tip.result != "void",
         )
         .order_by(Tip.id.asc())
-    ).first()
+    )
+    rows = list(db.scalars(q).unique().all())
+    want_sel = _norm_sel(selection)
+    want_book = _norm_book(bookmaker) if bookmaker else None
+    for tip in rows:
+        if _norm_sel(tip.selection) != want_sel:
+            continue
+        if want_book and _norm_book(tip.bookmaker) != want_book:
+            continue
+        return tip
+    return None
 
 
 def _void_tip(tip: Tip, reason: str = "auto-voided duplicate") -> None:
@@ -83,9 +108,9 @@ def cleanup_duplicate_tips(db: Session) -> int:
     """
     Void extras so Load tips is readable:
 
-    1) Same match+market+selection+source → keep one
-    2) Same match+source (Safe Builder) → only ONE active tip
-       (old 1X2 + new double_chance for Perth looked like "repeats")
+    1) Same match+book+market+selection (any source) → keep one
+    2) Same match Safe Builder singles → only ONE active tip
+       (skip multi-slip legs — DC+O/U+BTTS must stay)
     """
     tips = db.scalars(
         select(Tip).where(Tip.result != "void").order_by(Tip.id.asc())
@@ -118,6 +143,8 @@ def cleanup_duplicate_tips(db: Session) -> int:
     survivors = [t for t in tips if t not in to_void]
     for tip in survivors:
         if tip.source != "safe_builder":
+            continue
+        if tip.slip_id:
             continue
         mk = (tip.match_id, tip.source)
         by_match.setdefault(mk, []).append(tip)
@@ -175,6 +202,7 @@ def create_tip(
     dog_odds: Decimal | None = None,
     fav_odds: Decimal | None = None,
     source: str = "manual",
+    slip_id: str | None = None,
     rationale: str | None = None,
     skip_duplicate: bool = True,
 ) -> tuple[Tip | None, str]:
@@ -191,31 +219,10 @@ def create_tip(
             match_id=match_id,
             market=market,
             selection=selection,
-            source=source,
+            bookmaker=bookmaker,
         )
         if dup is not None:
             return dup, "duplicate"
-
-        # Safe Builder: one tip per match — don't stack 1X2 + double_chance rows
-        if source == "safe_builder":
-            same_match = db.scalars(
-                select(Tip)
-                .options(joinedload(Tip.match))
-                .where(
-                    Tip.match_id == match_id,
-                    Tip.source == source,
-                    Tip.result != "void",
-                )
-                .order_by(Tip.id.asc())
-            ).all()
-            settled = [t for t in same_match if t.result in ("won", "lost")]
-            if settled:
-                return settled[0], "duplicate"
-            for t in same_match:
-                if t.result == "pending":
-                    _void_tip(t, "superseded by new Safe Builder log")
-            if same_match:
-                db.commit()
 
     if pick_market is None:
         pick_market = "double_chance" if market == "double_chance" else "1x2"
@@ -232,6 +239,7 @@ def create_tip(
         dog_odds=dog_odds,
         fav_odds=fav_odds,
         source=source,
+        slip_id=slip_id,
         rationale=rationale,
         result="pending",
     )
@@ -242,6 +250,113 @@ def create_tip(
         select(Tip).options(joinedload(Tip.match)).where(Tip.id == tip.id)
     ).one()
     return tip, "created"
+
+
+def log_selected_tips(
+    db: Session,
+    tips: list[dict],
+    *,
+    as_multi: bool = True,
+) -> dict:
+    """
+    Persist checkbox-selected tips. When as_multi and 2+ tips share a bookmaker,
+    assign one slip_id (accumulator) and put stake only on the first leg.
+    """
+    created: list[dict] = []
+    skipped: list[dict] = []
+    errors: list[str] = []
+    if not tips:
+        return {
+            "created_count": 0,
+            "skipped_duplicates": 0,
+            "errors": [],
+            "created": [],
+            "skipped": [],
+            "message": "No tips selected.",
+            "slip_count": 0,
+        }
+
+    slip_for_index: dict[int, str] = {}
+    if as_multi:
+        by_book: dict[str, list[int]] = {}
+        for i, t in enumerate(tips):
+            book = _norm_book(t.get("bookmaker"))
+            by_book.setdefault(book, []).append(i)
+        for idxs in by_book.values():
+            if len(idxs) < 2:
+                continue
+            sid = str(uuid4())
+            for i in idxs:
+                slip_for_index[i] = sid
+
+    first_of_slip: dict[str, int] = {}
+    for i, sid in slip_for_index.items():
+        if sid not in first_of_slip or i < first_of_slip[sid]:
+            first_of_slip[sid] = i
+
+    for i, t in enumerate(tips):
+        mid = t.get("match_id")
+        if mid is None:
+            errors.append("tip missing match_id")
+            continue
+        slip_id = slip_for_index.get(i)
+        stake = t.get("stake_ngn")
+        if stake is not None:
+            try:
+                if Decimal(str(stake)) <= 0:
+                    stake = None
+            except Exception:
+                stake = None
+        if slip_id is not None and first_of_slip.get(slip_id) != i:
+            stake = None
+
+        tip, status = create_tip(
+            db,
+            match_id=int(mid),
+            risk_profile=str(t.get("risk_profile") or t.get("profile") or "manual"),
+            market=str(t["market"]),
+            selection=str(t["selection"]),
+            odds_price=t.get("odds_price", t.get("odds")),
+            bookmaker=t.get("bookmaker"),
+            stake_ngn=stake,
+            pick_market=t.get("pick_market"),
+            dog_odds=t.get("dog_odds"),
+            fav_odds=t.get("fav_odds"),
+            source=str(t.get("source") or "manual"),
+            slip_id=slip_id,
+            rationale=t.get("rationale"),
+            skip_duplicate=True,
+        )
+        if status == "created" and tip is not None:
+            created.append(tip_to_dict(tip))
+        elif status == "duplicate" and tip is not None:
+            skipped.append(
+                {
+                    "tip_id": tip.id,
+                    "match_id": mid,
+                    "selection": t.get("selection"),
+                    "bookmaker": t.get("bookmaker"),
+                }
+            )
+        else:
+            errors.append(status)
+
+    slip_count = len({c.get("slip_id") for c in created if c.get("slip_id")})
+    multi_note = (
+        f" ({slip_count} multi slip(s))" if slip_count else ""
+    )
+    return {
+        "created_count": len(created),
+        "skipped_duplicates": len(skipped),
+        "errors": errors,
+        "created": created,
+        "skipped": skipped,
+        "slip_count": slip_count,
+        "message": (
+            f"Logged {len(created)} selected tip(s){multi_note}; "
+            f"skipped {len(skipped)} duplicate(s)."
+        ),
+    }
 
 
 def log_safe_picks(db: Session, picks: list[dict], *, source: str = "safe_builder") -> dict:
@@ -313,7 +428,7 @@ def list_tips(
     q = q.limit(limit * 3)  # fetch extra before dedupe
     rows = [tip_to_dict(t) for t in db.scalars(q).unique().all()]
 
-    # Display: one Safe Builder tip per match (prefer settled, else DC, else newest)
+    # Display: keep all multi legs; collapse Safe Builder singles per match
     def keep_score(t: dict) -> tuple:
         result = t.get("result") or ""
         pri = {"won": 4, "lost": 4, "pending": 2, "void": 0}.get(result, 1)
@@ -323,10 +438,17 @@ def list_tips(
 
     best: dict[tuple, dict] = {}
     for t in rows:
-        if t.get("source") == "safe_builder":
-            key: tuple = (t["match_id"], t["source"])
+        if t.get("slip_id"):
+            key: tuple = ("slip", t["slip_id"], t["id"])
+        elif t.get("source") == "safe_builder":
+            key = (t["match_id"], t["source"])
         else:
-            key = (t["match_id"], t["market"], t["selection"], t["source"])
+            key = (
+                t["match_id"],
+                _norm_book(t.get("bookmaker")),
+                str(t.get("market") or "").lower(),
+                _norm_sel(str(t.get("selection") or "")),
+            )
         if key not in best or keep_score(t) > keep_score(best[key]):
             best[key] = t
 
@@ -356,16 +478,33 @@ def settle_tip(
                 Tip.id != tip.id,
                 Tip.match_id == tip.match_id,
                 Tip.market == tip.market,
-                Tip.selection == tip.selection,
-                Tip.source == tip.source,
                 Tip.result == "pending",
             )
         ).all()
         now = datetime.now(timezone.utc)
+        want_sel = _norm_sel(tip.selection)
+        want_book = _norm_book(tip.bookmaker)
         for sib in siblings:
+            if _norm_sel(sib.selection) != want_sel:
+                continue
+            if _norm_book(sib.bookmaker) != want_book:
+                continue
             sib.result = "void"
             sib.settled_at = now
             sib.rationale = ((sib.rationale or "") + " | auto-voided duplicate").strip(" |")
+
+        # Multi: settle all legs together when user marks one leg
+        if tip.slip_id and result in ("won", "lost", "void"):
+            legs = db.scalars(
+                select(Tip).where(
+                    Tip.slip_id == tip.slip_id,
+                    Tip.id != tip.id,
+                    Tip.result == "pending",
+                )
+            ).all()
+            for leg in legs:
+                leg.result = result
+                leg.settled_at = tip.settled_at
 
     db.commit()
     db.refresh(tip)
@@ -377,6 +516,9 @@ def settle_tip(
 def auto_settle_finished(db: Session) -> dict:
     """
     Settle pending tips whose match is FINISHED with scores.
+
+    Multi slips (shared slip_id): wait until every leg can be judged, then
+    won only if all legs won (accumulator rules).
     """
     tips = db.scalars(
         select(Tip)
@@ -386,8 +528,15 @@ def auto_settle_finished(db: Session) -> dict:
 
     settled: list[dict] = []
     unresolved: list[dict] = []
+    now = datetime.now(timezone.utc)
 
-    for tip in tips:
+    singles = [t for t in tips if not t.slip_id]
+    by_slip: dict[str, list[Tip]] = {}
+    for t in tips:
+        if t.slip_id:
+            by_slip.setdefault(t.slip_id, []).append(t)
+
+    for tip in singles:
         m = tip.match
         if m is None:
             continue
@@ -402,8 +551,48 @@ def auto_settle_finished(db: Session) -> dict:
             )
             continue
         tip.result = "won" if won else "lost"
-        tip.settled_at = datetime.now(timezone.utc)
+        tip.settled_at = now
         settled.append(tip_to_dict(tip))
+
+    for slip_id, legs in by_slip.items():
+        judgements: list[bool] = []
+        blocked = False
+        for tip in legs:
+            m = tip.match
+            if m is None:
+                unresolved.append({"tip_id": tip.id, "slip_id": slip_id, "reason": "no match"})
+                blocked = True
+                break
+            status = (m.status or "").upper()
+            if status != "FINISHED" or m.home_score is None or m.away_score is None:
+                unresolved.append(
+                    {
+                        "tip_id": tip.id,
+                        "slip_id": slip_id,
+                        "reason": "multi waiting — match not finished",
+                    }
+                )
+                blocked = True
+                break
+            won = selection_won(tip.market, tip.selection, m.home_score, m.away_score)
+            if won is None:
+                unresolved.append(
+                    {
+                        "tip_id": tip.id,
+                        "slip_id": slip_id,
+                        "reason": f"cannot judge {tip.market}/{tip.selection}",
+                    }
+                )
+                blocked = True
+                break
+            judgements.append(won)
+        if blocked:
+            continue
+        overall = all(judgements)
+        for tip in legs:
+            tip.result = "won" if overall else "lost"
+            tip.settled_at = now
+            settled.append(tip_to_dict(tip))
 
     db.commit()
     return {

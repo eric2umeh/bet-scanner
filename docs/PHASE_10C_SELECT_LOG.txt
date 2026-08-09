@@ -1,0 +1,47 @@
+================================================================================
+PHASE 10C — SELECT-TO-LOG + FIRST-RUN ONBOARDING
+================================================================================
+
+Goal:
+  Log exactly the tips you placed (not whole scans), and a thin welcome setup.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  Today
+    - Checkbox on each tip row
+    - Sticky bar: N selected → Log selected / Clear
+
+  API
+    - POST /tips/log-batch  — save only the selected tip payloads
+
+  Match sheet
+    - Log this tip / Add to selection / Log selected
+
+  First visit
+    - Onboarding card: bankroll, unit %, default pick style (localStorage)
+
+
+--------------------------------------------------------------------------------
+HOW TO USE
+--------------------------------------------------------------------------------
+
+  1) Load real bets
+  2) Place on SportyBet / Bet9ja
+  3) Tick those same tips on Today
+  4) Log selected → Tips tab shows pending
+  5) After kickoff finishes → Auto-settle finished
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/api/tips.py
+  app/schemas/tips.py
+  app/static/dashboard.html
+  app/main.py  (version 0.10.2)
+  docs/PHASE_10C_SELECT_LOG.txt
+================================================================================

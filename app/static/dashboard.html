@@ -112,6 +112,70 @@
       color: var(--ink);
       font-weight: 600;
     }
+    .match-card {
+      cursor: pointer;
+    }
+    .tip-check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+      text-align: left;
+    }
+    .tip-check-row input {
+      margin-top: 0.2rem;
+      width: 1.05rem;
+      height: 1.05rem;
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+    }
+    .tip-check-row .tip-check-body { flex: 1; min-width: 0; }
+    .select-bar {
+      position: sticky;
+      top: calc(4.5rem + var(--safe-top));
+      z-index: 15;
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      padding: 0.65rem 0.75rem;
+      margin-bottom: 0.65rem;
+      border-radius: 14px;
+      border: 1px solid rgba(45, 212, 168, 0.4);
+      background: rgba(16, 24, 32, 0.96);
+      backdrop-filter: blur(10px);
+    }
+    .select-bar.show { display: flex; }
+    .select-bar strong { color: var(--accent); }
+    .select-bar button { padding: 0.45rem 0.75rem; font-size: 0.85rem; }
+    .onboard {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 1rem;
+      padding-bottom: calc(1rem + var(--safe-bot));
+    }
+    .onboard.show { display: flex; }
+    .onboard-card {
+      width: min(440px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 1.15rem 1.1rem 1.25rem;
+      animation: sheetIn 0.22s ease;
+    }
+    .onboard-card h2 {
+      font-family: Sora, Manrope, sans-serif;
+      margin: 0 0 0.35rem;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+    .onboard-card .row { margin-top: 0.75rem; }
+    .onboard-card label { font-size: 0.8rem; color: var(--muted); }
 
     .app {
       max-width: 480px;
@@ -606,12 +670,43 @@
         <button type="button" class="secondary" onclick="runMorningJourney()">Start morning</button>
         <button type="button" class="secondary" id="syncBtnToday" onclick="syncOdds()">Sync NG odds</button>
       </div>
-      <div id="todayHint" class="muted" style="margin-top:-0.35rem">Only kickoffs after now · SportyBet / Bet9ja · green edge = Safe tip.</div>
+      <div id="todayHint" class="muted" style="margin-top:-0.35rem">Only kickoffs after now · tick same-book legs → Log as multi (like SportyBet).</div>
+      <div id="selectBar" class="select-bar">
+        <strong id="selectCount">0 selected</strong>
+        <label class="muted" style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.78rem">
+          <input type="checkbox" id="asMulti" checked /> Log as multi
+        </label>
+        <button type="button" onclick="logSelectedTips()">Log selected</button>
+        <button type="button" class="secondary" onclick="clearTipSelection()">Clear</button>
+      </div>
       <div id="staleBanner" class="empty" style="display:none;padding:0.85rem;margin-bottom:0.65rem"></div>
       <div class="today-grid" id="todayList">
         <div class="empty"><strong>Loading matches…</strong>Pulling fixtures &amp; Safe picks.</div>
       </div>
     </section>
+
+    <!-- First-run onboarding (Phase 10C) -->
+    <div class="onboard" id="onboard" aria-hidden="true">
+      <div class="onboard-card">
+        <h2>Welcome to Bet Scanner</h2>
+        <p class="muted" style="margin:0">Nigeria books · Safe / O/U / BTTS tips · log what you place for Auto-settle.</p>
+        <div class="row">
+          <label>Bankroll ₦ <input id="obBankroll" type="number" value="50000" min="1000" step="1000" style="width:8rem" /></label>
+          <label>Unit % <input id="obUnit" type="number" value="1" min="0.1" max="10" step="0.1" style="width:4rem" /></label>
+          <label>Default style
+            <select id="obPick">
+              <option value="double_chance" selected>Double chance</option>
+              <option value="1x2">1X2 favourite</option>
+            </select>
+          </label>
+        </div>
+        <p class="muted" style="margin:0.85rem 0 0;font-size:0.8rem">After Load real bets: tick the tips you placed → Log selected.</p>
+        <div class="action-row" style="margin-top:1rem">
+          <button type="button" onclick="finishOnboarding()">Start</button>
+          <button type="button" class="secondary" onclick="finishOnboarding()">Skip</button>
+        </div>
+      </div>
+    </div>
 
     <!-- TIPS -->
     <section class="view" id="viewTips" data-view="tips">
@@ -624,9 +719,8 @@
         <button type="button" class="secondary" onclick="autoSettle()">Auto-settle finished</button>
       </div>
       <p class="muted" style="margin-top:-0.25rem">
-        “Log Safe” does <strong>not</strong> save O/U or BTTS. After you place those, use
-        <strong>Log this tip</strong> on the match, or <strong>Log O/U + BTTS</strong> here.
-        Auto-settle runs when the match is FINISHED with scores (or tap the button).
+        Best: on Today, <strong>tick</strong> the tips you placed → <strong>Log selected</strong>.
+        Bulk buttons below log whole scans. Auto-settle when matches are FINISHED.
       </p>
       <div id="tipsFeed"><em class="muted">Loading tips…</em></div>
       <div id="tipsBox" hidden></div>
@@ -807,10 +901,90 @@
     const statusEl = document.getElementById('status');
     let marketFilter = 'all';
     let matchesCache = [];
-    /** match_id → Safe pick array (one per bookmaker when both fire) */
+    /** match_id → tip array */
     let picksByMatch = {};
+    /** tipKey → tip object (checkbox selection) */
+    let selectedTips = {};
     let activeMatch = null;
     let lastArbs = [];
+    const ONBOARD_KEY = 'betScannerOnboardV1';
+
+    function tipKey(p) {
+      return [
+        p.match_id,
+        String(p.bookmaker || '').toLowerCase(),
+        String(p.market || '').toLowerCase(),
+        String(p.selection || '').toLowerCase(),
+      ].join('|');
+    }
+
+    function tipSource(p) {
+      const m = String(p.market || '').toLowerCase();
+      if (m === 'ou_2_5' || m === 'btts') return 'goal_markets';
+      if (String(p.profile || '').includes('safe') || m === 'double_chance' || m === '1x2') {
+        return 'safe_builder';
+      }
+      return 'manual';
+    }
+
+    function updateSelectBar() {
+      const n = Object.keys(selectedTips).length;
+      const bar = document.getElementById('selectBar');
+      const count = document.getElementById('selectCount');
+      if (!bar || !count) return;
+      count.textContent = n === 1 ? '1 selected' : `${n} selected`;
+      bar.classList.toggle('show', n > 0);
+    }
+
+    function toggleTipSelect(key, checked) {
+      const tip = findTipByKey(key);
+      if (!tip) return;
+      if (checked) selectedTips[key] = tip;
+      else delete selectedTips[key];
+      updateSelectBar();
+    }
+
+    function findTipByKey(key) {
+      for (const arr of Object.values(picksByMatch)) {
+        for (const p of arr) {
+          if (tipKey(p) === key) return p;
+        }
+      }
+      return selectedTips[key] || null;
+    }
+
+    function clearTipSelection() {
+      selectedTips = {};
+      document.querySelectorAll('.tip-select').forEach(el => { el.checked = false; });
+      updateSelectBar();
+    }
+
+    function finishOnboarding() {
+      const bankroll = document.getElementById('obBankroll')?.value || 50000;
+      const unit = document.getElementById('obUnit')?.value || 1;
+      const pick = document.getElementById('obPick')?.value || 'double_chance';
+      document.getElementById('bankroll').value = bankroll;
+      document.getElementById('unitPct').value = unit;
+      document.getElementById('pickMarket').value = pick;
+      try {
+        localStorage.setItem(ONBOARD_KEY, JSON.stringify({
+          bankroll, unit, pick, at: new Date().toISOString(),
+        }));
+      } catch (_) { /* ignore */ }
+      const el = document.getElementById('onboard');
+      el.classList.remove('show');
+      el.setAttribute('aria-hidden', 'true');
+      setStatus('Ready — Load real bets, tick tips you place, then Log selected.');
+    }
+
+    function maybeShowOnboarding() {
+      try {
+        if (localStorage.getItem(ONBOARD_KEY)) return;
+      } catch (_) { /* show anyway */ }
+      const el = document.getElementById('onboard');
+      el.classList.add('show');
+      el.setAttribute('aria-hidden', 'false');
+    }
 
     function bookLabel(book) {
       const b = String(book || '').toLowerCase();
@@ -1016,21 +1190,30 @@
         const tips = picksFor(m.id).filter(pickFitsFilter);
         const p = tips[0] || primaryPick(m.id);
         const tipHtml = tips.length
-          ? `<div class="mc-tip"><div>${tips.map(t =>
-              `<div style="margin-bottom:0.25rem">
-                ${bookPill(t.bookmaker)}
-                <span class="pill">${esc(marketLabel(t))}</span>
-                <strong>${esc(String(t.selection).toUpperCase())}</strong>
-                ${t.odds != null ? '@ ' + esc(t.odds) : ''}
-              </div>`
-            ).join('')}<div class="place-on">Place on ${[...new Set(tips.map(t => bookLabel(t.bookmaker)))].map(esc).join(' or ')}</div></div>${confBar(p?.confidence_pct)}</div>`
+          ? `<div class="mc-tip"><div>${tips.map(t => {
+              const key = tipKey(t);
+              const checked = selectedTips[key] ? 'checked' : '';
+              return `<label class="tip-check-row" onclick="event.stopPropagation()">
+                <input type="checkbox" class="tip-select" data-tip-key="${esc(key)}" ${checked}
+                  onchange="toggleTipSelect(this.dataset.tipKey, this.checked)" />
+                <span class="tip-check-body">
+                  ${bookPill(t.bookmaker)}
+                  <span class="pill">${esc(marketLabel(t))}</span>
+                  <strong>${esc(String(t.selection).toUpperCase())}</strong>
+                  ${t.odds != null ? '@ ' + esc(t.odds) : ''}
+                </span>
+              </label>`;
+            }).join('')}<div class="place-on">Tick what you placed → Log selected</div></div>${confBar(p?.confidence_pct)}</div>`
           : `<div class="mc-tip"><div class="muted">No tip — open for odds</div><div class="conf"></div></div>`;
-        return `<button type="button" class="match-card ${tips.length ? 'has-tip' : ''}" onclick="openMatch(${m.id})">
+        return `<div class="match-card ${tips.length ? 'has-tip' : ''}" role="button" tabindex="0"
+          onclick="openMatch(${m.id})"
+          onkeydown="if(event.key==='Enter')openMatch(${m.id})">
           <div class="mc-top"><span>${esc(m.competition_code)}</span><span>${esc(kickoffLabel(m.kickoff_at))}</span></div>
           <p class="mc-teams">${esc(m.home_team)} <span style="color:var(--muted);font-weight:500">vs</span> ${esc(m.away_team)}</p>
           ${tipHtml}
-        </button>`;
+        </div>`;
       }).join('');
+      updateSelectBar();
     }
 
     function setStaleBanner(show, html) {
@@ -1257,7 +1440,7 @@
           <p class="muted" style="margin:0">Open <strong>${esc(bookLabel(p.bookmaker))}</strong> → <strong>${esc(marketLabel(p))}</strong> → <strong>${esc(String(p.selection).toUpperCase())}</strong>. Verify live.</p>
           <p class="muted" style="margin:0.45rem 0 0">${esc(p.rationale || '')}</p>
           <div class="tip-grid">
-            <div class="tip-stat"><b>₦${esc(p.suggested_stake_ngn)}</b><span>Suggested stake</span></div>
+            <div class="tip-stat"><b>₦${esc(suggestedStakeNgn(p) ?? p.suggested_stake_ngn ?? '—')}</b><span>Suggested stake</span></div>
             <div class="tip-stat"><b>${p.potential_return_ngn != null ? '₦' + esc(p.potential_return_ngn) : '—'}</b><span>Return ~</span></div>
             <div class="tip-stat"><b>${p.confidence_pct != null ? p.confidence_pct + '%' : '—'}</b><span>${esc(p.confidence_label || 'Confidence')}</span></div>
             <div class="tip-stat"><b>${esc(bookLabel(p.bookmaker))}</b><span>Bookmaker</span></div>
@@ -1266,14 +1449,16 @@
           ${p.learning_note ? `<p class="muted" style="margin:0.75rem 0 0">${esc(p.learning_note)}</p>` : ''}
           <div class="action-row" style="margin-top:0.75rem">
             <button type="button" onclick="logOneTip(${idx})">Log this tip</button>
+            <button type="button" class="secondary" onclick="event.stopPropagation(); const k=tipKey(window.activeMatchTips[${idx}]); selectedTips[k]=window.activeMatchTips[${idx}]; updateSelectBar(); setStatus('Added to selection — close and Log selected, or log more.');">Add to selection</button>
           </div>
         </div>`).join('') + `
         <div class="action-row">
+          <button type="button" onclick="logSelectedTips()">Log selected</button>
           <button type="button" class="secondary" onclick="showView('tips'); closeMatch();">My tips</button>
         </div>
         <p class="muted" style="font-size:0.78rem">
-          After you place on SportyBet/Bet9ja, tap <strong>Log this tip</strong> for each slip
-          you actually played — that enables Auto-settle + hit-rate. “Log Safe” only saves DC/1X2 Safe Builder tips.
+          Prefer Today checkboxes → <strong>Log selected</strong> for exactly the slips you placed.
+          Auto-settle when matches are FINISHED.
         </p>`;
     }
 
@@ -1939,34 +2124,62 @@
         setStatus('No tip to log.', true);
         return;
       }
-      setStatus(`Logging ${marketLabel(p)} ${String(p.selection).toUpperCase()} on ${bookLabel(p.bookmaker)}...`);
+      selectedTips[tipKey(p)] = p;
+      updateSelectBar();
+      await logSelectedTips();
+    }
+
+    function suggestedStakeNgn(p) {
+      const raw = p && p.suggested_stake_ngn;
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 0) return n;
+      const bankroll = Number(document.getElementById('bankroll')?.value);
+      const unit = Number(document.getElementById('unitPct')?.value);
+      if (Number.isFinite(bankroll) && bankroll > 0 && Number.isFinite(unit) && unit > 0) {
+        return Math.max(1, Math.round(bankroll * unit / 100));
+      }
+      return null;
+    }
+
+    async function logSelectedTips() {
+      const tips = Object.values(selectedTips);
+      if (!tips.length) {
+        setStatus('Tick tips on Today first, then Log selected.', true);
+        return;
+      }
+      const notify_telegram = document.getElementById('notifyTg').checked;
+      const as_multi = document.getElementById('asMulti')?.checked !== false;
+      setStatus(`Logging ${tips.length} selected tip(s)${as_multi && tips.length > 1 ? ' as multi…' : '…'}`);
       try {
-        const tip = await postJson('/tips', {
-          match_id: p.match_id,
-          risk_profile: p.profile || 'manual',
-          market: p.market,
-          selection: p.selection,
-          odds_price: p.odds,
-          bookmaker: p.bookmaker,
-          stake_ngn: p.suggested_stake_ngn,
-          source: (String(p.market).includes('ou') || p.market === 'btts')
-            ? 'goal_markets'
-            : 'manual',
-          rationale: p.rationale || null,
+        const data = await postJson('/tips/log-batch', {
+          notify_telegram,
+          as_multi,
+          tips: tips.map(p => ({
+            match_id: p.match_id,
+            risk_profile: p.profile || 'manual',
+            market: p.market,
+            selection: p.selection,
+            odds_price: p.odds,
+            bookmaker: p.bookmaker,
+            stake_ngn: suggestedStakeNgn(p),
+            pick_market: p.pick_market || null,
+            dog_odds: p.dog_odds || null,
+            fav_odds: p.fav_odds || null,
+            source: tipSource(p),
+            rationale: p.rationale || null,
+          })),
         });
         setStatus(
-          `Saved tip #${tip.id}: ${marketLabel(p)} ${String(p.selection).toUpperCase()} ` +
-          `on ${bookLabel(p.bookmaker)}. It will Auto-settle when the match is FINISHED.`
+          data.message +
+          ' Open Tips tab — Auto-settle when matches finish.' +
+          (data.telegram ? ` | TG: ${data.telegram.message}` : '')
         );
+        clearTipSelection();
         await loadTips();
         await loadStats();
+        showView('tips');
       } catch (e) {
-        const msg = String(e.message || e);
-        if (msg.includes('409') || msg.toLowerCase().includes('already exists')) {
-          setStatus('Already logged (pending duplicate). Check Tips tab.', true);
-        } else {
-          setStatus('Error: ' + msg, true);
-        }
+        setStatus('Error: ' + e.message, true);
       }
     }
 
@@ -1990,18 +2203,65 @@
         feed.innerHTML = '<div class="empty"><strong>No tips yet</strong>Scan Safe on Today, then Log Safe → tips.</div>';
         return;
       }
-      feed.innerHTML = data.map(t => `
-        <div class="tip-item" data-tip-id="${t.id}">
-          <div class="t-match">${esc(t.home_team)} vs ${esc(t.away_team)}</div>
-          <div class="t-meta">
-            <span class="pill">${esc(t.risk_profile)}</span>
-            ${esc(t.market)}/${esc(t.selection)}
-            ${t.odds_price != null ? '@ ' + esc(t.odds_price) : ''}
-            · stake ₦${esc(t.stake_ngn ?? '—')}
-            · ${resultPill(t.result)}
-          </div>
-          <div class="settle-row">${settleButtons(t.id, t.result)}</div>
-        </div>`).join('');
+      const singles = [];
+      const multis = {};
+      for (const t of data) {
+        if (t.slip_id) {
+          (multis[t.slip_id] || (multis[t.slip_id] = [])).push(t);
+        } else {
+          singles.push(t);
+        }
+      }
+      const blocks = [];
+      for (const [slipId, legs] of Object.entries(multis)) {
+        legs.sort((a, b) => (a.id || 0) - (b.id || 0));
+        const book = bookLabel(legs[0].bookmaker);
+        let combined = 1;
+        let hasOdds = false;
+        for (const leg of legs) {
+          const o = Number(leg.odds_price);
+          if (Number.isFinite(o) && o > 1) {
+            combined *= o;
+            hasOdds = true;
+          }
+        }
+        const stake = legs.map(l => l.stake_ngn).find(s => s != null && Number(s) > 0);
+        const result = legs[0].result;
+        const headId = legs[0].id;
+        blocks.push(`
+          <div class="tip-item" data-slip-id="${esc(slipId)}">
+            <div class="t-match">Multi · ${esc(book)} · ${legs.length} legs${hasOdds ? ' @ ' + combined.toFixed(3) : ''}</div>
+            <div class="t-meta">
+              <span class="pill">accumulator</span>
+              stake ₦${esc(stake ?? '—')} · ${resultPill(result)}
+            </div>
+            <ul style="margin:0.45rem 0 0;padding-left:1.1rem;font-size:0.82rem;line-height:1.45">
+              ${legs.map(leg => `
+                <li>
+                  ${esc(leg.home_team)} vs ${esc(leg.away_team)} —
+                  ${esc(leg.market)}/${esc(String(leg.selection).toUpperCase())}
+                  ${leg.odds_price != null ? '@ ' + esc(leg.odds_price) : ''}
+                </li>`).join('')}
+            </ul>
+            <div class="settle-row">${settleButtons(headId, result)}</div>
+          </div>`);
+      }
+      for (const t of singles) {
+        blocks.push(`
+          <div class="tip-item" data-tip-id="${t.id}">
+            <div class="t-match">${esc(t.home_team)} vs ${esc(t.away_team)}</div>
+            <div class="t-meta">
+              <span class="pill">${esc(t.risk_profile)}</span>
+              ${esc(t.market)}/${esc(t.selection)}
+              ${t.odds_price != null ? '@ ' + esc(t.odds_price) : ''}
+              · stake ₦${esc(t.stake_ngn ?? '—')}
+              · ${bookPill(t.bookmaker)}
+              · ${resultPill(t.result)}
+            </div>
+            <div class="settle-row">${settleButtons(t.id, t.result)}</div>
+          </div>`);
+      }
+      feed.innerHTML = blocks.join('');
     }
 
     async function loadTips() {
@@ -2116,6 +2376,7 @@
     }
 
     // Boot
+    maybeShowOnboarding();
     refreshToday().catch(() => {});
     loadStats().catch(() => {});
     loadLearning().catch(() => {});

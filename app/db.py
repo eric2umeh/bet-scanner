@@ -81,6 +81,7 @@ def _ensure_tip_columns() -> None:
         "ALTER TABLE tips ADD COLUMN IF NOT EXISTS pick_market VARCHAR(32)",
         "ALTER TABLE tips ADD COLUMN IF NOT EXISTS dog_odds NUMERIC(10, 3)",
         "ALTER TABLE tips ADD COLUMN IF NOT EXISTS fav_odds NUMERIC(10, 3)",
+        "ALTER TABLE tips ADD COLUMN IF NOT EXISTS slip_id VARCHAR(36)",
     ]
     try:
         with engine.begin() as conn:

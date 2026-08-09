@@ -16,6 +16,9 @@ class TipCreate(BaseModel):
     stake_ngn: Decimal | None = None
     source: str = "manual"
     rationale: str | None = None
+    pick_market: str | None = None
+    dog_odds: Decimal | None = None
+    fav_odds: Decimal | None = None
 
 
 class TipOut(BaseModel):
@@ -38,10 +41,32 @@ class TipOut(BaseModel):
     dog_odds: Decimal | None = None
     fav_odds: Decimal | None = None
     source: str
+    slip_id: str | None = None
     rationale: str | None = None
     result: str
     created_at: datetime | None = None
     settled_at: datetime | None = None
+
+
+class TipBatchLogRequest(BaseModel):
+    """Phase 10C/10D — log selected tips; same-book 2+ legs → one multi slip."""
+
+    tips: list[TipCreate] = Field(default_factory=list, max_length=40)
+    notify_telegram: bool = False
+    as_multi: bool = Field(
+        default=True,
+        description="Group 2+ selected tips on the same bookmaker into one multi",
+    )
+
+
+class TipBatchLogResponse(BaseModel):
+    created_count: int
+    skipped_duplicates: int
+    errors: list[str]
+    created: list[TipOut]
+    skipped: list[dict]
+    message: str
+    telegram: dict | None = None
 
 
 class LearningResponse(BaseModel):

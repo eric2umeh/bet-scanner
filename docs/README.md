@@ -18,6 +18,7 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [PHASE_9_PRODUCT_JOURNEY.txt](./PHASE_9_PRODUCT_JOURNEY.txt) | Daily product journey (morning path) |
 | [PHASE_10A_SCOUTER_UI.txt](./PHASE_10A_SCOUTER_UI.txt) | Scouter-inspired mobile Today / Match UI |
 | [PHASE_10B_GOAL_MARKETS.txt](./PHASE_10B_GOAL_MARKETS.txt) | O/U 2.5 + BTTS tips + multi odds sync |
+| [PHASE_10C_SELECT_LOG.txt](./PHASE_10C_SELECT_LOG.txt) | Select-to-log tips + first-run onboarding |
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 
