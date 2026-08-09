@@ -768,6 +768,29 @@
         <div id="learnBox" class="muted">Settled Safe tips steer confidence.</div>
       </div>
 
+      <div class="card-block">
+        <h2>Slip converter</h2>
+        <p class="muted" style="margin:0 0 0.65rem">
+          Paste a <strong>readable slip</strong> (teams + markets). We price-check SportyBet vs Bet9ja.
+          Opaque booking codes alone cannot be decoded — optional code is kept as a note.
+        </p>
+        <label style="display:block;margin-bottom:0.5rem">Slip text
+          <textarea id="cvSlip" rows="5" placeholder="Flamengo vs Vitoria&#10;Double chance 1X&#10;Over 2.5&#10;BTTS No" style="width:100%;max-width:100%;margin-top:0.35rem;resize:vertical;font:inherit;padding:0.65rem;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"></textarea>
+        </label>
+        <div class="row" style="margin-bottom:0.5rem">
+          <label>Code note <input id="cvCode" type="text" placeholder="optional booking code" style="width:9rem" /></label>
+          <label>From book
+            <select id="cvBook">
+              <option value="sportybet">sportybet</option>
+              <option value="bet9ja">bet9ja</option>
+            </select>
+          </label>
+          <button type="button" onclick="convertSlip()">Price-check</button>
+          <button class="secondary" type="button" onclick="copyConvertSummary()">Copy summary</button>
+        </div>
+        <div id="convertBox" class="muted">Load real bets first so odds exist, then paste a slip.</div>
+      </div>
+
       <div id="safeBox" hidden></div>
 
       <details class="advanced" id="advancedTools">
@@ -852,10 +875,10 @@
       </details>
 
       <p class="muted" style="margin-top:1rem;font-size:0.78rem">
-        Phase 10A · Scouter-inspired mobile shell ·
+        Phase 10E · slip converter ·
         <a href="https://bet-scanner-znvg.onrender.com" target="_blank" rel="noopener">live</a> ·
         <a href="/docs" target="_blank">/docs</a> ·
-        <code>docs/PHASE_10A_SCOUTER_UI.txt</code>
+        <code>docs/PHASE_10E_SLIP_CONVERTER.txt</code>
       </p>
     </section>
   </div>
@@ -1746,6 +1769,82 @@
         );
       } catch (e) {
         setStatus('Load real bets failed: ' + e.message, true);
+      }
+    }
+
+    let lastConvertSummary = '';
+
+    async function convertSlip() {
+      const slip_text = document.getElementById('cvSlip')?.value || '';
+      if (slip_text.trim().length < 3) {
+        setStatus('Paste a readable slip first (teams + markets).', true);
+        return;
+      }
+      const code_text = document.getElementById('cvCode')?.value || null;
+      const source_book = document.getElementById('cvBook')?.value || 'sportybet';
+      setStatus('Price-checking slip across SportyBet / Bet9ja…');
+      try {
+        const data = await postJson('/convert/slip', {
+          slip_text,
+          code_text: code_text || null,
+          source_book,
+          days_ahead: 21,
+        });
+        lastConvertSummary = data.place_summary || '';
+        const box = document.getElementById('convertBox');
+        if (!data.legs?.length) {
+          box.innerHTML = `<p>${esc(data.message)}</p>`;
+          setStatus(data.message, true);
+          return;
+        }
+        const rows = data.legs.map((leg, i) => {
+          const fixture = leg.home_team
+            ? `${esc(leg.home_team)} vs ${esc(leg.away_team)}`
+            : esc(leg.raw);
+          const mkt = leg.market
+            ? `${esc(leg.market)}/${esc(String(leg.selection).toUpperCase())}`
+            : '—';
+          const sp = leg.prices?.sportybet ?? '—';
+          const b9 = leg.prices?.bet9ja ?? '—';
+          const best = leg.best_book
+            ? `${esc(bookLabel(leg.best_book))} @ ${esc(leg.best_price)}`
+            : esc(leg.status);
+          return [i + 1, fixture, mkt, sp, b9, best, esc(leg.status)];
+        });
+        const combos = [
+          data.combined_sportybet != null ? `SportyBet ~${data.combined_sportybet}` : null,
+          data.combined_bet9ja != null ? `Bet9ja ~${data.combined_bet9ja}` : null,
+          data.combined_best_mixed != null ? `Best mix ~${data.combined_best_mixed}` : null,
+        ].filter(Boolean).join(' · ');
+        box.innerHTML =
+          `<p>${esc(data.message)}</p>` +
+          (combos ? `<p><strong>${esc(combos)}</strong></p>` : '') +
+          table(['#', 'Match', 'Pick', 'SportyBet', 'Bet9ja', 'Best', 'Status'], rows) +
+          `<pre class="muted" style="white-space:pre-wrap;font-size:0.78rem;margin-top:0.75rem">${esc(lastConvertSummary)}</pre>`;
+        const notes = document.getElementById('tsNotes');
+        if (notes && lastConvertSummary) {
+          notes.value = lastConvertSummary.slice(0, 240);
+        }
+        if (code_text) {
+          const codeEl = document.getElementById('tsCode');
+          if (codeEl && !codeEl.value) codeEl.value = code_text;
+        }
+        setStatus(data.message);
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function copyConvertSummary() {
+      if (!lastConvertSummary) {
+        setStatus('Run Price-check first.', true);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(lastConvertSummary);
+        setStatus('Place summary copied.');
+      } catch {
+        setStatus('Could not copy — select the summary text below.', true);
       }
     }
 

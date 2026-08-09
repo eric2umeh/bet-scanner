@@ -19,6 +19,8 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [PHASE_10A_SCOUTER_UI.txt](./PHASE_10A_SCOUTER_UI.txt) | Scouter-inspired mobile Today / Match UI |
 | [PHASE_10B_GOAL_MARKETS.txt](./PHASE_10B_GOAL_MARKETS.txt) | O/U 2.5 + BTTS tips + multi odds sync |
 | [PHASE_10C_SELECT_LOG.txt](./PHASE_10C_SELECT_LOG.txt) | Select-to-log tips + first-run onboarding |
+| [PHASE_10D_MULTI_SLIPS.txt](./PHASE_10D_MULTI_SLIPS.txt) | Dedupe + multi/accumulator slips |
+| [PHASE_10E_SLIP_CONVERTER.txt](./PHASE_10E_SLIP_CONVERTER.txt) | Slip paste → SportyBet/Bet9ja price-check |
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 

@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse
 
 from app.api.ai import router as ai_router
 from app.api.arbitrage import router as arbitrage_router
+from app.api.convert import router as convert_router
 from app.api.matches import router as matches_router
 from app.api.odds import router as odds_router
 from app.api.ops import router as ops_router
@@ -45,11 +46,11 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 10C: select-to-log tips, "
-        "onboarding, O/U+BTTS, Safe Builder, NG odds multi, tipsters, AI. "
+        "Football betting decision API — Phase 10E: slip price-check converter, "
+        "multi slips, select-to-log, O/U+BTTS, Safe Builder, NG odds, tipsters. "
         "Open / or /docs."
     ),
-    version="0.10.3",
+    version="0.10.4",
     lifespan=lifespan,
 )
 
@@ -62,6 +63,7 @@ app.include_router(value_router)
 app.include_router(ai_router)
 app.include_router(tips_router)
 app.include_router(tipsters_router)
+app.include_router(convert_router)
 app.include_router(ops_router)
 app.include_router(telegram_router)
 

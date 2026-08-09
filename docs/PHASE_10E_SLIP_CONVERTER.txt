@@ -1,0 +1,58 @@
+================================================================================
+PHASE 10E — SLIP CONVERTER / PRICE-CHECK
+================================================================================
+
+Goal:
+  Paste a readable multi (teams + markets) and compare SportyBet vs Bet9ja
+  prices from stored odds — like a human-assisted booking-code converter.
+
+Honest limit:
+  SportyBet / Bet9ja booking codes are opaque. We do NOT decode ABC123 into
+  legs without a paid book API. Paste the slip text (or notes) instead.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  API
+    POST /convert/slip
+      - slip_text (required): multi-line human slip
+      - code_text (optional): opaque code kept as a note
+      - Fuzzy-match upcoming fixtures
+      - Prices for 1X2 / DC / O/U 2.5 / BTTS on both NG books
+      - Combined odds per book + best-price mix
+      - place_summary for copy / tipster notes
+
+  UI (Me → Slip converter)
+    - Textarea + Price-check + Copy summary
+    - Fills tipster Notes (and Code if empty) for Log code
+
+  Parser examples
+    Flamengo vs Vitoria
+    Double chance 1X
+    Over 2.5
+    BTTS No
+
+
+--------------------------------------------------------------------------------
+HOW TO USE
+--------------------------------------------------------------------------------
+
+  1) Today → Load real bets (so odds exist)
+  2) Me → Slip converter → paste slip → Price-check
+  3) Place on the better book; optionally Log code under Tipsters
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/services/code_parse.py
+  app/services/slip_convert.py
+  app/schemas/convert.py
+  app/api/convert.py
+  app/main.py                 (version 0.10.4)
+  app/static/dashboard.html
+  docs/PHASE_10E_SLIP_CONVERTER.txt
+================================================================================

@@ -36,9 +36,10 @@ DEFERRED (later phases)
 --------------------------------------------------------------------------------
 
   Phase 10B — O/U 2.5 + BTTS (see PHASE_10B_GOAL_MARKETS.txt)
-  Phase C — richer odds compare UI
-  Phase D — booking code converter
-  Phase E — onboarding wizard
+  Phase 10C — select-to-log + thin onboarding
+  Phase 10D — multi slips + dedupe
+  Phase 10E — slip converter / price-check (see PHASE_10E_SLIP_CONVERTER.txt)
+  Later — richer odds compare UI, fuller onboarding wizard, auth
 
 
 --------------------------------------------------------------------------------

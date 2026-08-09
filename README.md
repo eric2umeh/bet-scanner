@@ -379,7 +379,9 @@ Guide: `docs/PHASE_10A_SCOUTER_UI.txt`
 | 9 | Product journey — one morning path, advanced folded away |
 | 10A | Scouter-inspired mobile Today / Match UI |
 | 10B | O/U 2.5 + BTTS tips, DC prices, /odds/multi quota save |
-| **10C (now)** | Select-to-log tips + first-run onboarding |
+| 10C | Select-to-log tips + first-run onboarding |
+| 10D | Dedupe + multi/accumulator slips |
+| **10E (now)** | Slip converter — paste slip → SportyBet/Bet9ja price-check |
 
 ---
 
