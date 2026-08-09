@@ -595,8 +595,8 @@
         <button type="button" class="chip active" data-market="all">All</button>
         <button type="button" class="chip" data-market="double_chance">Double chance</button>
         <button type="button" class="chip" data-market="1x2">Winner</button>
-        <button type="button" class="chip" data-market="ou">O/U 2.5 <span class="pill soon">soon</span></button>
-        <button type="button" class="chip" data-market="btts">BTTS <span class="pill soon">soon</span></button>
+        <button type="button" class="chip" data-market="ou_2_5">O/U 2.5</button>
+        <button type="button" class="chip" data-market="btts">BTTS</button>
       </div>
       <div class="action-row">
         <button type="button" onclick="loadRealBets()">Load real bets</button>
@@ -617,9 +617,17 @@
     <section class="view" id="viewTips" data-view="tips">
       <div id="statsBox" class="stats"></div>
       <div class="action-row">
-        <button type="button" onclick="logSafeTips()">Log Safe → tips</button>
-        <button type="button" class="secondary" onclick="autoSettle()">Auto-settle</button>
+        <button type="button" onclick="logSafeTips()">Log Safe only</button>
+        <button type="button" onclick="logGoalTips()">Log O/U + BTTS</button>
       </div>
+      <div class="action-row" style="margin-top:-0.35rem">
+        <button type="button" class="secondary" onclick="autoSettle()">Auto-settle finished</button>
+      </div>
+      <p class="muted" style="margin-top:-0.25rem">
+        “Log Safe” does <strong>not</strong> save O/U or BTTS. After you place those, use
+        <strong>Log this tip</strong> on the match, or <strong>Log O/U + BTTS</strong> here.
+        Auto-settle runs when the match is FINISHED with scores (or tap the button).
+      </p>
       <div id="tipsFeed"><em class="muted">Loading tips…</em></div>
       <div id="tipsBox" hidden></div>
     </section>
@@ -923,15 +931,28 @@
     function pickFitsFilter(p) {
       if (!p) return marketFilter === 'all';
       if (marketFilter === 'all') return true;
+      const mkt = String(p.pick_market || p.market || '').toLowerCase();
       if (marketFilter === 'double_chance') {
-        return (p.pick_market || p.market || '').toLowerCase().includes('double')
-          || ['1X', 'X2', '12'].includes(p.selection);
+        return mkt.includes('double') || ['1X', 'X2', '12'].includes(p.selection);
       }
       if (marketFilter === '1x2') {
-        return (p.pick_market || '') === '1x2'
-          || (p.market || '').toLowerCase() === '1x2';
+        return mkt === '1x2' || mkt === '1X2'.toLowerCase();
+      }
+      if (marketFilter === 'ou_2_5') {
+        return mkt === 'ou_2_5' || mkt.includes('ou');
+      }
+      if (marketFilter === 'btts') {
+        return mkt === 'btts';
       }
       return false;
+    }
+
+    function marketLabel(p) {
+      const m = String(p.market || p.pick_market || '');
+      if (m === 'ou_2_5') return 'O/U 2.5';
+      if (m === 'btts') return 'BTTS';
+      if (m === 'double_chance') return 'Double chance';
+      return m || 'Tip';
     }
 
     function matchFitsFilter(matchId) {
@@ -944,14 +965,6 @@
       const box = document.getElementById('todayList');
       const hint = document.getElementById('todayHint');
 
-      if (marketFilter === 'ou' || marketFilter === 'btts') {
-        hint.textContent = marketFilter === 'ou'
-          ? 'O/U 2.5 tips arrive in Phase B when the odds feed includes totals.'
-          : 'BTTS tips arrive in Phase B when the odds feed includes BTTS.';
-        box.innerHTML = `<div class="empty"><strong>${marketFilter === 'ou' ? 'Over / Under 2.5' : 'BTTS'} — coming soon</strong>Phase A focuses on Double chance &amp; Winner with your Safe Builder.</div>`;
-        return;
-      }
-
       let list = matchesCache.filter(m => isFutureKickoff(m.kickoff_at));
       if (marketFilter !== 'all') {
         list = list.filter(m => matchFitsFilter(m.id));
@@ -959,22 +972,21 @@
 
       const pickOnlyIds = new Set(Object.keys(picksByMatch).map(Number));
       const matchIds = new Set(list.map(m => m.id));
-      // Orphan safe picks (match not in upcoming window) still show as cards
-      if (marketFilter === 'all' || marketFilter === 'double_chance' || marketFilter === '1x2') {
-        for (const id of pickOnlyIds) {
-          if (!matchIds.has(id) && matchFitsFilter(id)) {
-            const p = primaryPick(id);
-            if (!isFutureKickoff(p.kickoff_at)) continue;
-            list.push({
-              id,
-              competition_code: p.competition_code || 'SAFE',
-              home_team: p.home_team || 'Home',
-              away_team: p.away_team || 'Away',
-              kickoff_at: p.kickoff_at,
-              status: 'SCHEDULED',
-              _fromPick: true,
-            });
-          }
+      // Orphan tips (match not in upcoming window) still show as cards
+      for (const id of pickOnlyIds) {
+        if (!matchIds.has(id) && matchFitsFilter(id)) {
+          const p = primaryPick(id);
+          if (!p || !isFutureKickoff(p.kickoff_at)) continue;
+          list.push({
+            id,
+            competition_code: p.competition_code || 'SAFE',
+            home_team: p.home_team || 'Home',
+            away_team: p.away_team || 'Away',
+            kickoff_at: p.kickoff_at,
+            status: 'SCHEDULED',
+            _fromPick: true,
+          });
+          matchIds.add(id);
         }
       }
 
@@ -1007,12 +1019,12 @@
           ? `<div class="mc-tip"><div>${tips.map(t =>
               `<div style="margin-bottom:0.25rem">
                 ${bookPill(t.bookmaker)}
-                <strong>${esc(t.selection)}</strong>
-                · ${esc(t.market)}${t.odds != null ? ' @ ' + esc(t.odds) : ''}
-                · dog ${esc(t.dog_odds)}
+                <span class="pill">${esc(marketLabel(t))}</span>
+                <strong>${esc(String(t.selection).toUpperCase())}</strong>
+                ${t.odds != null ? '@ ' + esc(t.odds) : ''}
               </div>`
-            ).join('')}<div class="place-on">Place on ${tips.map(t => esc(bookLabel(t.bookmaker))).join(' or ')}</div></div>${confBar(p?.confidence_pct)}</div>`
-          : `<div class="mc-tip"><div class="muted">No Safe tip — open for odds</div><div class="conf"></div></div>`;
+            ).join('')}<div class="place-on">Place on ${[...new Set(tips.map(t => bookLabel(t.bookmaker)))].map(esc).join(' or ')}</div></div>${confBar(p?.confidence_pct)}</div>`
+          : `<div class="mc-tip"><div class="muted">No tip — open for odds</div><div class="conf"></div></div>`;
         return `<button type="button" class="match-card ${tips.length ? 'has-tip' : ''}" onclick="openMatch(${m.id})">
           <div class="mc-top"><span>${esc(m.competition_code)}</span><span>${esc(kickoffLabel(m.kickoff_at))}</span></div>
           <p class="mc-teams">${esc(m.home_team)} <span style="color:var(--muted);font-weight:500">vs</span> ${esc(m.away_team)}</p>
@@ -1068,42 +1080,63 @@
       const unit_pct = document.getElementById('unitPct').value || 1;
       const pick_market = pickMarket();
       const q = `bankroll_ngn=${bankroll}&unit_pct=${unit_pct}&pick_market=${encodeURIComponent(pick_market)}`;
+      const pq = `bankroll_ngn=${bankroll}&unit_pct=${unit_pct}&markets=ou_2_5,btts`;
       try {
-        const [sporty, bet9ja] = await Promise.all([
+        const [sporty, bet9ja, predSporty, predBet9ja] = await Promise.all([
           getJson(`/safe-builder/scan?bookmaker=sportybet&${q}`),
           getJson(`/safe-builder/scan?bookmaker=bet9ja&${q}`).catch(() => ({ picks: [], message: 'Bet9ja scan skipped' })),
+          getJson(`/predictions/scan?bookmaker=sportybet&${pq}`).catch(() => ({ picks: [] })),
+          getJson(`/predictions/scan?bookmaker=bet9ja&${pq}`).catch(() => ({ picks: [] })),
         ]);
         picksByMatch = {};
-        const picks = [...(sporty.picks || []), ...(bet9ja.picks || [])];
+        const picks = [
+          ...(sporty.picks || []),
+          ...(bet9ja.picks || []),
+          ...(predSporty.picks || []),
+          ...(predBet9ja.picks || []),
+        ];
         for (const p of picks) {
           if (p.match_id == null) continue;
           const bucket = picksByMatch[p.match_id] || [];
-          // One tip per bookmaker per match
-          if (!bucket.some(x => String(x.bookmaker).toLowerCase() === String(p.bookmaker).toLowerCase())) {
+          const key = `${String(p.bookmaker).toLowerCase()}|${String(p.market).toLowerCase()}|${String(p.selection).toLowerCase()}`;
+          if (!bucket.some(x =>
+            `${String(x.bookmaker).toLowerCase()}|${String(x.market).toLowerCase()}|${String(x.selection).toLowerCase()}` === key
+          )) {
             bucket.push(p);
           }
           picksByMatch[p.match_id] = bucket;
         }
-        // Prefer SportyBet first inside each match
         for (const mid of Object.keys(picksByMatch)) {
           picksByMatch[mid].sort((a, b) => {
-            const rank = (bk) => (String(bk).toLowerCase() === 'sportybet' ? 0 : 1);
-            return rank(a.bookmaker) - rank(b.bookmaker);
+            const rankBook = (bk) => (String(bk).toLowerCase() === 'sportybet' ? 0 : 1);
+            const rankMkt = (m) => {
+              const x = String(m).toLowerCase();
+              if (x.includes('double')) return 0;
+              if (x === '1x2') return 1;
+              if (x === 'ou_2_5') return 2;
+              if (x === 'btts') return 3;
+              return 9;
+            };
+            return rankMkt(a.market) - rankMkt(b.market)
+              || rankBook(a.bookmaker) - rankBook(b.bookmaker);
           });
         }
+        const safeN = (sporty.picks || []).length + (bet9ja.picks || []).length;
+        const goalN = (predSporty.picks || []).length + (predBet9ja.picks || []).length;
         if (!picks.length) {
           document.getElementById('safeBox').innerHTML =
             `<p>${esc(sporty.message || '')}</p><p>${esc(bet9ja.message || '')}</p>`;
         } else {
           document.getElementById('safeBox').innerHTML =
-            `<p>SportyBet: ${sporty.count ?? (sporty.picks || []).length} · Bet9ja: ${bet9ja.count ?? (bet9ja.picks || []).length}</p>` +
+            `<p>Safe: ${safeN} · O/U+BTTS: ${goalN}</p>` +
             table(
-              ['Book', 'Match', 'Pick', 'Dog', 'Stake ₦'],
+              ['Book', 'Market', 'Match', 'Pick', 'Odds', 'Stake ₦'],
               picks.map(p => [
                 bookPill(p.bookmaker),
+                esc(marketLabel(p)),
                 `${esc(p.home_team)} vs ${esc(p.away_team)}`,
-                `${esc(p.market)} / ${esc(p.selection)}`,
-                esc(p.dog_odds),
+                esc(String(p.selection).toUpperCase()),
+                p.odds ?? '—',
                 p.suggested_stake_ngn,
               ])
             );
@@ -1117,7 +1150,7 @@
         return {
           count: tipCount(),
           picks,
-          message: `Safe tips: ${tipCount()} (SportyBet ${(sporty.picks || []).length}, Bet9ja ${(bet9ja.picks || []).length}).`,
+          message: `Tips: ${tipCount()} (Safe ${safeN}, O/U+BTTS ${goalN}).`,
           learning: learn,
         };
       } catch (e) {
@@ -1214,12 +1247,14 @@
           </div>`;
         return;
       }
-      el.innerHTML = list.map(p => `
+      // Keep tip objects for one-click log (index into activeMatchTips)
+      window.activeMatchTips = list;
+      el.innerHTML = list.map((p, idx) => `
         <div class="tip-hero">
-          <p class="label">${esc(p.profile)} · ${esc(p.pick_market || p.market)}</p>
+          <p class="label">${esc(marketLabel(p))} · ${esc(p.profile)}</p>
           <div class="place-on">Place this bet on ${bookPill(p.bookmaker)}</div>
-          <h3>${esc(p.selection)}${p.odds != null ? ' @ ' + esc(p.odds) : ''}</h3>
-          <p class="muted" style="margin:0">Open <strong>${esc(bookLabel(p.bookmaker))}</strong> app → find this match → market <strong>${esc(p.market)}</strong> → <strong>${esc(p.selection)}</strong>. Verify price live before staking.</p>
+          <h3>${esc(String(p.selection).toUpperCase())}${p.odds != null ? ' @ ' + esc(p.odds) : ''}</h3>
+          <p class="muted" style="margin:0">Open <strong>${esc(bookLabel(p.bookmaker))}</strong> → <strong>${esc(marketLabel(p))}</strong> → <strong>${esc(String(p.selection).toUpperCase())}</strong>. Verify live.</p>
           <p class="muted" style="margin:0.45rem 0 0">${esc(p.rationale || '')}</p>
           <div class="tip-grid">
             <div class="tip-stat"><b>₦${esc(p.suggested_stake_ngn)}</b><span>Suggested stake</span></div>
@@ -1229,12 +1264,17 @@
           </div>
           ${confBar(p.confidence_pct)}
           ${p.learning_note ? `<p class="muted" style="margin:0.75rem 0 0">${esc(p.learning_note)}</p>` : ''}
+          <div class="action-row" style="margin-top:0.75rem">
+            <button type="button" onclick="logOneTip(${idx})">Log this tip</button>
+          </div>
         </div>`).join('') + `
         <div class="action-row">
-          <button type="button" onclick="logSafeTips()">Log Safe picks</button>
           <button type="button" class="secondary" onclick="showView('tips'); closeMatch();">My tips</button>
         </div>
-        <p class="muted" style="font-size:0.78rem">Confirm the bookmaker badge before placing. Odds can move — always check live in the app.</p>`;
+        <p class="muted" style="font-size:0.78rem">
+          After you place on SportyBet/Bet9ja, tap <strong>Log this tip</strong> for each slip
+          you actually played — that enables Auto-settle + hit-rate. “Log Safe” only saves DC/1X2 Safe Builder tips.
+        </p>`;
     }
 
     function renderMatchSummary(m, p) {
@@ -1260,49 +1300,70 @@
       const el = document.getElementById('panelOdds');
       try {
         const [sporty, bet9ja] = await Promise.all([
-          getJson(`/odds/latest?bookmaker=sportybet&match_id=${matchId}&limit=40`).catch(() => []),
-          getJson(`/odds/latest?bookmaker=bet9ja&match_id=${matchId}&limit=40`).catch(() => []),
+          getJson(`/odds/latest?bookmaker=sportybet&match_id=${matchId}&limit=80`).catch(() => []),
+          getJson(`/odds/latest?bookmaker=bet9ja&match_id=${matchId}&limit=80`).catch(() => []),
         ]);
-        function pack(rows) {
-          const o = { home: null, draw: null, away: null };
+        function packMarket(rows, market, keys) {
+          const o = {};
+          for (const k of keys) o[k] = null;
           for (const r of rows) {
-            if (r.market !== '1X2') continue;
-            o[r.selection] = r.price;
+            if (r.market !== market) continue;
+            const sel = String(r.selection).toLowerCase();
+            if (sel in o) o[sel] = r.price;
           }
           return o;
-        }
-        const s = pack(sporty);
-        const b = pack(bet9ja);
-        const hasAny = s.home || s.draw || s.away || b.home || b.draw || b.away;
-        if (!hasAny) {
-          el.innerHTML = `<div class="empty"><strong>No stored odds</strong>Sync NG odds from Me (uses free quota), then reopen.</div>`;
-          return;
         }
         function cell(a, c) {
           const av = a != null ? Number(a) : null;
           const bv = c != null ? Number(c) : null;
-          const best = av != null && (bv == null || av >= bv);
+          const bestA = av != null && (bv == null || av >= bv);
           const bestB = bv != null && (av == null || bv > av);
-          return { a: av, b: bv, bestA: best && av != null, bestB: bestB && bv != null };
+          return { a: av, b: bv, bestA, bestB };
         }
-        const H = cell(s.home, b.home);
-        const D = cell(s.draw, b.draw);
-        const A = cell(s.away, b.away);
-        el.innerHTML = `
-          <p class="muted">1X2 compare · higher price highlighted. Verify live before placing.</p>
-          <div class="odds-head"><span>Book</span><span>Home</span><span>Draw</span><span>Away</span></div>
-          <div class="odds-row">
-            <span>SportyBet</span>
-            <span class="${H.bestA ? 'best' : ''}">${H.a ?? '—'}</span>
-            <span class="${D.bestA ? 'best' : ''}">${D.a ?? '—'}</span>
-            <span class="${A.bestA ? 'best' : ''}">${A.a ?? '—'}</span>
-          </div>
-          <div class="odds-row">
-            <span>Bet9ja</span>
-            <span class="${H.bestB ? 'best' : ''}">${H.b ?? '—'}</span>
-            <span class="${D.bestB ? 'best' : ''}">${D.b ?? '—'}</span>
-            <span class="${A.bestB ? 'best' : ''}">${A.b ?? '—'}</span>
-          </div>`;
+        function twoBookBlock(title, labels, sportyPack, bet9jaPack, keys) {
+          const cells = keys.map(k => cell(sportyPack[k], bet9jaPack[k]));
+          const has = cells.some(c => c.a != null || c.b != null);
+          if (!has) return '';
+          return `
+            <p class="muted" style="margin:0.85rem 0 0.35rem">${esc(title)} · higher price highlighted</p>
+            <div class="odds-head"><span>Book</span>${labels.map(l => `<span>${esc(l)}</span>`).join('')}</div>
+            <div class="odds-row">
+              <span>SportyBet</span>
+              ${cells.map(c => `<span class="${c.bestA ? 'best' : ''}">${c.a ?? '—'}</span>`).join('')}
+            </div>
+            <div class="odds-row">
+              <span>Bet9ja</span>
+              ${cells.map(c => `<span class="${c.bestB ? 'best' : ''}">${c.b ?? '—'}</span>`).join('')}
+            </div>`;
+        }
+        const s1 = packMarket(sporty, '1X2', ['home', 'draw', 'away']);
+        const b1 = packMarket(bet9ja, '1X2', ['home', 'draw', 'away']);
+        const sou = packMarket(sporty, 'ou_2_5', ['over', 'under']);
+        const bou = packMarket(bet9ja, 'ou_2_5', ['over', 'under']);
+        const sb = packMarket(sporty, 'btts', ['yes', 'no']);
+        const bb = packMarket(bet9ja, 'btts', ['yes', 'no']);
+        function packDc(rows) {
+          const o = { '1x': null, 'x2': null, '12': null };
+          for (const r of rows) {
+            if (r.market !== 'double_chance') continue;
+            const sel = String(r.selection).toLowerCase();
+            if (sel in o) o[sel] = r.price;
+          }
+          return o;
+        }
+        const sDc = packDc(sporty);
+        const bDc = packDc(bet9ja);
+        const html = [
+          twoBookBlock('1X2', ['Home', 'Draw', 'Away'], s1, b1, ['home', 'draw', 'away']),
+          twoBookBlock('Double chance', ['1X', 'X2', '12'], sDc, bDc, ['1x', 'x2', '12']),
+          twoBookBlock('O/U 2.5', ['Over', 'Under'], sou, bou, ['over', 'under']),
+          twoBookBlock('BTTS', ['Yes', 'No'], sb, bb, ['yes', 'no']),
+        ].join('');
+        if (!html) {
+          el.innerHTML = `<div class="empty"><strong>No stored odds</strong>Tap Load real bets (uses free quota), then reopen.</div>`;
+          return;
+        }
+        el.innerHTML = `<p class="muted">Verify live on SportyBet / Bet9ja before placing.</p>` + html;
       } catch (e) {
         el.innerHTML = `<div class="empty"><strong>Odds error</strong>${esc(e.message)}</div>`;
       }
@@ -1823,7 +1884,7 @@
       const unit_pct = document.getElementById('unitPct').value;
       const notify_telegram = document.getElementById('notifyTg').checked;
       const pick_market = pickMarket();
-      setStatus(`Logging Safe Builder picks (${pick_market})...`);
+      setStatus(`Logging Safe Builder only (${pick_market}) — not O/U/BTTS...`);
       try {
         const data = await postJson('/tips/log-safe-scan', {
           bookmaker: 'sportybet',
@@ -1832,12 +1893,80 @@
           notify_telegram,
           pick_market,
         });
-        setStatus(data.message + (data.telegram ? ` | TG: ${data.telegram.message}` : ''));
+        setStatus(
+          data.message +
+          ' (Safe only — use Log this tip or Log O/U + BTTS for goal markets.)' +
+          (data.telegram ? ` | TG: ${data.telegram.message}` : '')
+        );
         await loadTips();
         await loadStats();
         showView('tips');
       } catch (e) {
         setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function logGoalTips() {
+      const bankroll = document.getElementById('bankroll').value;
+      const unit_pct = document.getElementById('unitPct').value;
+      const notify_telegram = document.getElementById('notifyTg').checked;
+      setStatus('Logging O/U 2.5 + BTTS tips on SportyBet...');
+      try {
+        const data = await postJson('/tips/log-predictions-scan', {
+          bookmaker: 'sportybet',
+          bankroll_ngn: bankroll,
+          unit_pct,
+          markets: 'ou_2_5,btts',
+          notify_telegram,
+        });
+        setStatus(
+          data.message +
+          (data.telegram ? ` | TG: ${data.telegram.message}` : '') +
+          ' Open Tips tab — Auto-settle when matches finish.'
+        );
+        await loadTips();
+        await loadStats();
+        showView('tips');
+      } catch (e) {
+        setStatus('Error: ' + e.message, true);
+      }
+    }
+
+    async function logOneTip(idx) {
+      const list = window.activeMatchTips || [];
+      const p = list[idx];
+      if (!p || p.match_id == null) {
+        setStatus('No tip to log.', true);
+        return;
+      }
+      setStatus(`Logging ${marketLabel(p)} ${String(p.selection).toUpperCase()} on ${bookLabel(p.bookmaker)}...`);
+      try {
+        const tip = await postJson('/tips', {
+          match_id: p.match_id,
+          risk_profile: p.profile || 'manual',
+          market: p.market,
+          selection: p.selection,
+          odds_price: p.odds,
+          bookmaker: p.bookmaker,
+          stake_ngn: p.suggested_stake_ngn,
+          source: (String(p.market).includes('ou') || p.market === 'btts')
+            ? 'goal_markets'
+            : 'manual',
+          rationale: p.rationale || null,
+        });
+        setStatus(
+          `Saved tip #${tip.id}: ${marketLabel(p)} ${String(p.selection).toUpperCase()} ` +
+          `on ${bookLabel(p.bookmaker)}. It will Auto-settle when the match is FINISHED.`
+        );
+        await loadTips();
+        await loadStats();
+      } catch (e) {
+        const msg = String(e.message || e);
+        if (msg.includes('409') || msg.toLowerCase().includes('already exists')) {
+          setStatus('Already logged (pending duplicate). Check Tips tab.', true);
+        } else {
+          setStatus('Error: ' + msg, true);
+        }
       }
     }
 
