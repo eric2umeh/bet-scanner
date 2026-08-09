@@ -1,0 +1,16 @@
+---
+description: After each bulk phase, draft commit message + GitHub PR summary
+alwaysApply: true
+---
+
+# Bulk phase → commit + PR draft
+
+When a **bulk phase** (or sizable multi-file product slice) is finished — or when the user asks for commit/PR text:
+
+1. Inspect `git status`, `git diff --stat`, and recent `git log` (do not commit unless asked).
+2. **Show a commit message** (1–2 sentences, why-focused; match repo style).
+3. **Show a GitHub PR summary**: title + body with Summary bullets and Test plan checklist.
+4. List **files included** (and call out secrets / `.env` — never commit secrets).
+5. Do **not** commit or open the PR unless the user explicitly asks.
+
+Trigger examples: Phase 10A shipped, “show commit message”, “PR summary”, end of a multi-file feature batch.

@@ -31,22 +31,22 @@ def list_todays_matches(
     settings: Settings = Depends(get_settings),
 ) -> list[Match]:
     """
-    Return matches whose kickoff falls on 'today' in APP_TIMEZONE.
+    Return remaining matches today (kickoff still in the future).
 
-    Tip: after enabling API-Football, this is much more useful for
-    "what's happening now / later today".
+    Past kickoffs are excluded — already started/finished games are not
+    useful for placing new bets.
     """
     tz = ZoneInfo(settings.app_timezone)
     local_now = datetime.now(tz)
     start_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_local = start_local + timedelta(days=1)
 
-    start_utc = start_local.astimezone(ZoneInfo("UTC"))
+    now_utc = local_now.astimezone(ZoneInfo("UTC"))
     end_utc = end_local.astimezone(ZoneInfo("UTC"))
 
     stmt = (
         select(Match)
-        .where(Match.kickoff_at >= start_utc, Match.kickoff_at < end_utc)
+        .where(Match.kickoff_at >= now_utc, Match.kickoff_at < end_utc)
         .order_by(Match.kickoff_at.asc())
     )
     return list(db.scalars(stmt))

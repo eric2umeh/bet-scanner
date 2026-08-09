@@ -65,7 +65,8 @@ class Settings(BaseSettings):
     # Docs: https://docs.odds-api.io/quickstart
     odds_api_io_key: str = ""
     odds_api_io_bookmakers: str = "SportyBet,Bet9ja"
-    odds_api_io_event_limit: int = 12
+    # Keep low: each event ≈ 1 /odds call (free tier ~100 req/hr)
+    odds_api_io_event_limit: int = 15
 
     # BetRelay (optional / often paid) — https://betrelay.com.ng/api-docs
     betrelay_api_key: str = ""

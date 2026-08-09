@@ -37,7 +37,7 @@ FREE PATH: ODDS-API.IO
      ODDS_PROVIDERS=odds-api-io
      ODDS_API_IO_KEY=paste_your_key_here
      ODDS_API_IO_BOOKMAKERS=SportyBet,Bet9ja
-     ODDS_API_IO_EVENT_LIMIT=12
+     ODDS_API_IO_EVENT_LIMIT=15
 
 4) Keep The Odds API paused (saves its 500/month credits):
 

@@ -60,17 +60,23 @@ class OddsApiIoProvider:
 
     def fetch_h2h_odds(self) -> list[OddQuote]:
         """
-        Fetch a small batch of football events, then 1X2 (ML) odds
-        from configured NG books.
+        Fetch a small batch of football events with kickoff still ahead of
+        *now* (wall clock), then 1X2 (ML) odds from configured NG books.
 
         Request budget tip:
-          1 events call + N odds calls. Keep event_limit low while learning.
+          ~1 /events call per book + 1 /odds call per selected event.
+          Skip already-started kickoffs so we don't burn free hourly quota.
         """
         events = self._list_events()
         quotes: list[OddQuote] = []
+        skipped_past = 0
         for event in events:
             event_id = event.get("id")
             if event_id is None:
+                continue
+            kickoff = _parse_dt(event.get("date"))
+            if not _is_future_kickoff(kickoff):
+                skipped_past += 1
                 continue
             try:
                 payload = self._get_event_odds(event_id)
@@ -83,31 +89,41 @@ class OddsApiIoProvider:
         by_book: dict[str, int] = {}
         for q in quotes:
             by_book[q.bookmaker] = by_book.get(q.bookmaker, 0) + 1
-        print(f"[odds-api-io] quotes={len(quotes)} by_book={by_book}")
+        print(
+            f"[odds-api-io] quotes={len(quotes)} by_book={by_book} "
+            f"skipped_past={skipped_past}"
+        )
         return quotes
 
     def _list_events(self) -> list[dict]:
         """
-        List football events per NG book, then round-robin merge.
+        List pending (not live) football events per NG book, keep future only,
+        then round-robin merge with a hard cap = event_limit.
 
-        odds-api.io's `bookmaker=` filter returns different event sets.
-        Using only SportyBet meant Bet9ja almost never refreshed — so
-        /arbitrage/scan (180m age + both books) returned 0 surebets.
+        Cap is NOT multiplied by book count — each selected event costs an
+        /odds request on the free ~100/hr quota.
         """
+        # pending only — live games already started (not useful for new slips)
+        status = "pending"
+
         if not self.bookmakers:
             data = self._get(
                 "/events",
                 {
                     "apiKey": self.api_key,
                     "sport": "football",
-                    "status": "pending,live",
+                    "status": status,
                     "limit": self.event_limit,
                 },
             )
             if not isinstance(data, list):
                 raise OddsApiIoError(f"Unexpected /events response: {type(data)}")
-            print(f"[odds-api-io] events={len(data)} (limit={self.event_limit})")
-            return data
+            future = _future_events_only(data)
+            print(
+                f"[odds-api-io] events={len(future)}/{len(data)} future "
+                f"(limit={self.event_limit})"
+            )
+            return future[: self.event_limit]
 
         per_book: list[list[dict]] = []
         for book in self.bookmakers:
@@ -116,7 +132,7 @@ class OddsApiIoProvider:
                 {
                     "apiKey": self.api_key,
                     "sport": "football",
-                    "status": "pending,live",
+                    "status": status,
                     "limit": self.event_limit,
                     "bookmaker": book,
                 },
@@ -125,11 +141,15 @@ class OddsApiIoProvider:
                 raise OddsApiIoError(
                     f"Unexpected /events response for {book}: {type(data)}"
                 )
-            print(f"[odds-api-io] events={len(data)} bookmaker={book}")
-            per_book.append(data)
+            future = _future_events_only(data)
+            print(
+                f"[odds-api-io] events={len(future)}/{len(data)} future "
+                f"bookmaker={book}"
+            )
+            per_book.append(future)
 
-        # Round-robin so each book contributes (cap keeps free-tier quota sane)
-        cap = min(40, self.event_limit * len(self.bookmakers))
+        # Hard cap = event_limit (e.g. 15) — not limit × books
+        cap = self.event_limit
         selected: list[dict] = []
         seen: set = set()
         index = 0
@@ -140,12 +160,11 @@ class OddsApiIoProvider:
                     continue
                 event = events[index]
                 event_id = event.get("id")
+                progressed = True
                 if event_id is None or event_id in seen:
-                    progressed = True
                     continue
                 seen.add(event_id)
                 selected.append(event)
-                progressed = True
                 if len(selected) >= cap:
                     break
             if not progressed:
@@ -153,7 +172,7 @@ class OddsApiIoProvider:
             index += 1
 
         print(
-            f"[odds-api-io] events={len(selected)} "
+            f"[odds-api-io] events={len(selected)} future "
             f"(merged from {len(self.bookmakers)} books, cap={cap})"
         )
         return selected
@@ -266,3 +285,25 @@ def _parse_dt(raw: str | None) -> datetime:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt
+
+
+def _is_future_kickoff(kickoff: datetime, *, grace_seconds: int = 60) -> bool:
+    """
+    True if kickoff is still ahead of the current UTC clock.
+
+    Not a fixed hour (e.g. 3pm) — at 7:00am you keep 10am/3pm/7pm;
+    you only drop games that already kicked off before 7:00am.
+    """
+    now = datetime.now(timezone.utc)
+    if kickoff.tzinfo is None:
+        kickoff = kickoff.replace(tzinfo=timezone.utc)
+    return kickoff.timestamp() > now.timestamp() - grace_seconds
+
+
+def _future_events_only(events: list[dict]) -> list[dict]:
+    """Drop kickoffs already started before we spend /odds quota on them."""
+    out: list[dict] = []
+    for event in events:
+        if _is_future_kickoff(_parse_dt(event.get("date"))):
+            out.append(event)
+    return out

@@ -101,6 +101,13 @@ def scan_safe_picks(
     picks: list[dict] = []
     for mid, books in by_match.items():
         match = matches.get(mid)
+        # Skip kickoffs already started/finished — not placeable as new bets
+        if match is not None and match.kickoff_at is not None:
+            ko = match.kickoff_at
+            if ko.tzinfo is None:
+                ko = ko.replace(tzinfo=timezone.utc)
+            if ko <= now:
+                continue
         for book, sels in books.items():
             if not {"home", "draw", "away"} <= set(sels):
                 continue
@@ -110,6 +117,15 @@ def scan_safe_picks(
                 away=sels["away"]["price"],
                 bookmaker=book,
             )
+            # Skip palpable longshots (same ceiling as surebet scan).
+            # Free feeds often return 50–100 underdogs that aren't real slips.
+            max_odds = Decimal(str(settings.arb_max_odds))
+            if (
+                prices.home > max_odds
+                or prices.draw > max_odds
+                or prices.away > max_odds
+            ):
+                continue
             pick = evaluate_match(
                 prices,
                 pick_market=mode,

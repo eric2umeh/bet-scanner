@@ -8,8 +8,8 @@ Start with the [Betting glossary](./docs/GLOSSARY.txt) if you’re new to bettin
 **Live app:** [https://bet-scanner-znvg.onrender.com](https://bet-scanner-znvg.onrender.com)  
 **Local:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/) · API panel: [`/docs`](http://127.0.0.1:8000/docs)
 
-**Morning path:** Start morning → Safe picks → log tips → settle → hit-rate.  
-Guide: [`docs/PHASE_9_PRODUCT_JOURNEY.txt`](./docs/PHASE_9_PRODUCT_JOURNEY.txt)
+**Morning path:** Today → Start morning → Safe picks → log tips → settle.  
+UI guide: [`docs/PHASE_10A_SCOUTER_UI.txt`](./docs/PHASE_10A_SCOUTER_UI.txt) · Journey: [`docs/PHASE_9_PRODUCT_JOURNEY.txt`](./docs/PHASE_9_PRODUCT_JOURNEY.txt)
 
 Stack: FastAPI + Supabase + Safe Builder / value / surebets / tipsters / AI brief / daily ops · hosted on Render.
 
@@ -345,18 +345,18 @@ Guide: `docs/PHASE_8_RENDER_DEPLOY.txt` · Blueprint: `render.yaml`
 
 ---
 
-## Phase 9 — Product journey (current)
+## Phase 10A — Scouter-inspired mobile UI (current)
 
-One clear morning path on the dashboard; advanced tools folded away.
+Mobile Today / Match shell on the dashboard (dark tips-app feel).
 
-| Action | Purpose |
+| Surface | Purpose |
 |---|---|
-| **1. Start morning** | Ops (no odds) + Safe scan + tips/stats refresh |
-| **2. Safe picks** | Scan → log what you place |
-| **3. Settle** | Won/Lost or auto-settle → hit-rate / learning |
-| **Advanced** | Value, surebets, tipsters, raw odds |
+| **Today** | Match cards + market chips + Safe tips |
+| **Match sheet** | Tips · Odds compare (SportyBet/Bet9ja) · Summary |
+| **Tips** | Hit-rate + settle |
+| **Me** | Bankroll, morning ops, Advanced tools |
 
-Guide: `docs/PHASE_9_PRODUCT_JOURNEY.txt`
+Guide: `docs/PHASE_10A_SCOUTER_UI.txt`
 
 ---
 
@@ -376,7 +376,8 @@ Guide: `docs/PHASE_9_PRODUCT_JOURNEY.txt`
 | 6 | Tipster / booking codes + verified leaderboard |
 | 7 | Daily ops morning run (cron + API + Telegram digest) |
 | 8 | Deploy on Render (web + optional cron; Supabase stays) |
-| **9 (now)** | Product journey — one morning path, advanced folded away |
+| 9 | Product journey — one morning path, advanced folded away |
+| **10A (now)** | Scouter-inspired mobile Today / Match UI |
 
 ---
 

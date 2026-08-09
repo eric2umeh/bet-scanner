@@ -1,0 +1,80 @@
+================================================================================
+PHASE 10A — SCOUTER-INSPIRED MOBILE TODAY / MATCH UI
+================================================================================
+
+Goal:
+  Make the dashboard feel like a mobile tips app (Scouter-style flow),
+  while keeping Safe Builder + NG books + Advanced tools.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  Bottom tabs: Today · Tips · Me
+
+  Today
+    - Market chips: All · Double chance · Winner · O/U 2.5 (soon) · BTTS (soon)
+    - Match cards with Safe tip + confidence bar when rules fire
+    - Start morning / Scan Safe / Refresh
+
+  Match sheet (tap a card)
+    - Tips — Safe Builder pick, stake, confidence
+    - Odds — SportyBet vs Bet9ja 1X2 compare (best price highlighted)
+    - Summary — fav/dog context (no xG theater yet)
+
+  Tips tab
+    - Hit-rate strip + settle cards
+
+  Me tab
+    - Bankroll / pick style / morning ops / AI brief / learning
+    - Advanced tools (value, surebets, tipsters) still folded away
+
+
+--------------------------------------------------------------------------------
+DEFERRED (later phases)
+--------------------------------------------------------------------------------
+
+  Phase B — O/U 2.5 + BTTS prediction cards (needs odds markets)
+  Phase C — richer odds compare UI
+  Phase D — booking code converter
+  Phase E — onboarding wizard
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/static/dashboard.html
+  docs/PHASE_10A_SCOUTER_UI.txt
+  app/main.py  (version 0.10.0)
+
+
+--------------------------------------------------------------------------------
+HOW TO TRY (real data)
+--------------------------------------------------------------------------------
+
+  Local:  http://127.0.0.1:8000/
+  Live:   https://bet-scanner-znvg.onrender.com
+
+  Green edges need FRESH SportyBet odds (Safe scan ignores odds older than
+  ~3 hours). Start morning alone does NOT sync odds (saves free quota).
+
+  1) Open on a phone width (or DevTools mobile)
+  2) Today → Load real bets  (syncs NG odds + Safe scan)
+  3) Green-edged cards = underdog >7, prices ≤15 (junk 50–100 filtered)
+  4) Tap a card → Tips / Odds / Summary
+
+  If you see 0 Safe tips: odds are stale → Load real bets again.
+
+  Quota tips (odds-api.io ~100 req/hr):
+  - ODDS_API_IO_EVENT_LIMIT=15 (hard cap on /odds calls per sync)
+  - Only kickoffs still ahead of the *current clock* (APP_TIMEZONE /
+    Africa/Lagos). Example: Load real bets at 7:00am → hide anything that
+    already kicked off before 7:00am; 10am / 3pm / 7pm that day still show.
+    Not a hardcoded 3pm cutoff.
+  - Prefer Load real bets sparingly while testing
+================================================================================
+
+
+

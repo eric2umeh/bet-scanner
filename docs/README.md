@@ -16,6 +16,7 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [PHASE_7_DAILY_OPS.txt](./PHASE_7_DAILY_OPS.txt) | Daily ops morning run (cron + API) |
 | [PHASE_8_RENDER_DEPLOY.txt](./PHASE_8_RENDER_DEPLOY.txt) | Deploy FastAPI + cron on Render |
 | [PHASE_9_PRODUCT_JOURNEY.txt](./PHASE_9_PRODUCT_JOURNEY.txt) | Daily product journey (morning path) |
+| [PHASE_10A_SCOUTER_UI.txt](./PHASE_10A_SCOUTER_UI.txt) | Scouter-inspired mobile Today / Match UI |
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 
