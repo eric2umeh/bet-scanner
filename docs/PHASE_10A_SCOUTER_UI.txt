@@ -35,7 +35,7 @@ WHAT SHIPPED
 DEFERRED (later phases)
 --------------------------------------------------------------------------------
 
-  Phase B — O/U 2.5 + BTTS prediction cards (needs odds markets)
+  Phase 10B — O/U 2.5 + BTTS (see PHASE_10B_GOAL_MARKETS.txt)
   Phase C — richer odds compare UI
   Phase D — booking code converter
   Phase E — onboarding wizard

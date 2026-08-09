@@ -1,0 +1,79 @@
+================================================================================
+PHASE 10B — O/U 2.5 + BTTS (+ real Double Chance prices)
+================================================================================
+
+Goal:
+  Major Scouter-style markets on NG books without burning extra odds quota.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  Odds sync (odds-api.io)
+    - Still only *future* pending events (kickoff > now)
+    - Uses /v3/odds/multi (1 request per up to 10 events)
+    - Same call pulls: ML (1X2), Totals (O/U 2.5), BTTS, Double Chance
+    - ODDS_API_IO_EVENT_LIMIT=15 → ~2 event lists + ~2 multi calls
+
+  Predictions
+    - GET /predictions/scan?markets=ou_2_5,btts&bookmaker=sportybet
+    - Market-lean tips (favourite / shorter side) — not guarantees
+
+  Safe Builder
+    - Attaches real Double Chance @ price when feed has it
+
+  Dashboard
+    - Today chips: All · DC · Winner · O/U 2.5 · BTTS (live)
+    - Match Odds tab compares 1X2 / DC / O/U / BTTS across books
+
+
+--------------------------------------------------------------------------------
+HONEST FRAMING
+--------------------------------------------------------------------------------
+
+  O/U and BTTS tips follow the market favourite side on one book.
+  Always verify live on SportyBet / Bet9ja before staking.
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/providers/odds_api_io.py
+  app/services/scan_goal_markets.py
+  app/services/scan_safe_builder.py
+  app/api/predictions.py
+  app/schemas/predictions.py
+  app/static/dashboard.html
+  app/main.py  (version 0.10.1)
+  docs/PHASE_10B_GOAL_MARKETS.txt
+
+
+--------------------------------------------------------------------------------
+LOGGING + AUTO-SETTLE
+--------------------------------------------------------------------------------
+
+  “Log Safe only” → Safe Builder DC/1X2 only (NOT O/U or BTTS).
+
+  After you place O/U or BTTS on SportyBet/Bet9ja:
+    - Open the match → Tips → “Log this tip” (best — exact slip), or
+    - Tips tab → “Log O/U + BTTS” (logs current SportyBet scan)
+
+  Auto-settle:
+    - Needs match status FINISHED + home/away scores in DB
+    - Supports 1X2, double_chance, ou_2_5, btts
+    - Tips tab → Auto-settle finished (or Start morning)
+
+
+--------------------------------------------------------------------------------
+HOW TO TRY
+--------------------------------------------------------------------------------
+
+  1) Hard-refresh /
+  2) Today → Load real bets  (once — spare the hourly quota)
+  3) Tap O/U 2.5 or BTTS chips
+  4) Open a green card → Tips + Odds tabs
+  5) After placing → Log this tip → Tips tab to confirm pending
+================================================================================
+

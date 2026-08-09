@@ -377,7 +377,8 @@ Guide: `docs/PHASE_10A_SCOUTER_UI.txt`
 | 7 | Daily ops morning run (cron + API + Telegram digest) |
 | 8 | Deploy on Render (web + optional cron; Supabase stays) |
 | 9 | Product journey — one morning path, advanced folded away |
-| **10A (now)** | Scouter-inspired mobile Today / Match UI |
+| 10A | Scouter-inspired mobile Today / Match UI |
+| **10B (now)** | O/U 2.5 + BTTS tips, DC prices, /odds/multi quota save |
 
 ---
 
