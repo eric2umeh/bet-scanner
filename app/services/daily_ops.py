@@ -94,7 +94,7 @@ def run_daily_ops(
     settle_result = None
     if auto_settle:
         try:
-            settle_result = auto_settle_finished(db)
+            settle_result = auto_settle_finished(db, settings)
             steps.append(
                 {
                     "step": "auto_settle",

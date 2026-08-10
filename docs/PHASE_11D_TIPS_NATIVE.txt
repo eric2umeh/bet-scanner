@@ -37,6 +37,11 @@ NOTE
   Log as multi = tracking in Bet Scanner DB.
   Placing on SportyBet is still manual (same-match often singles there).
 
+  Auto-settle needs FINISHED + FT scores on the tip's match row.
+  Odds-created rows stay SCHEDULED until score backfill runs (API-Football
+  all-leagues by kickoff date, then copy scores by team match). Multi legs
+  settle individually once each match has scores.
+
 
 --------------------------------------------------------------------------------
 FILES
@@ -44,6 +49,8 @@ FILES
 
   mobile/app/(tabs)/tips.tsx
   mobile/src/api/tips.ts
+  app/services/match_score_backfill.py
+  app/services/tips.py
   docs/PHASE_11D_TIPS_NATIVE.txt
 
 ================================================================================

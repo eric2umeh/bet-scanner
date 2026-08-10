@@ -11,7 +11,9 @@ from uuid import uuid4
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.config import Settings, get_settings
 from app.models import Match, Tip
+from app.services.match_score_backfill import refresh_scores_for_matches
 from app.services.tip_settle import selection_won
 
 
@@ -518,18 +520,26 @@ def settle_tip(
     ).one()
 
 
-def auto_settle_finished(db: Session) -> dict:
+def auto_settle_finished(db: Session, settings: Settings | None = None) -> dict:
     """
     Settle each pending tip whose match is FINISHED with scores.
 
     Multi legs are judged one-by-one (per market). Slip overall is derived
     in the UI: won only if every leg won; lost if any leg lost.
+
+    Before judging, refresh scores onto odds-linked match rows (API-Football
+    all-leagues fetch by kickoff date) so MLS/USL/Liga MX tips can settle.
     """
     tips = db.scalars(
         select(Tip)
         .options(joinedload(Tip.match))
         .where(Tip.result == "pending")
     ).unique().all()
+
+    cfg = settings or get_settings()
+    score_refresh = refresh_scores_for_matches(
+        db, cfg, [t.match for t in tips if t.match is not None]
+    )
 
     settled: list[dict] = []
     unresolved: list[dict] = []
@@ -555,12 +565,17 @@ def auto_settle_finished(db: Session) -> dict:
         settled.append(tip_to_dict(tip))
 
     db.commit()
+    msg = f"Auto-settled {len(settled)} tip(s) from finished matches."
+    refresh_msg = score_refresh.get("message") or ""
+    if refresh_msg:
+        msg = f"{refresh_msg} {msg}"
     return {
         "settled_count": len(settled),
         "unresolved_count": len(unresolved),
         "settled": settled,
         "unresolved": unresolved[:20],
-        "message": f"Auto-settled {len(settled)} tip(s) from finished matches.",
+        "score_refresh": score_refresh,
+        "message": msg,
     }
 
 

@@ -69,7 +69,24 @@ class ApiFootballProvider:
             fixtures.extend(self._fetch_for_date(day.isoformat()))
         return fixtures
 
-    def _fetch_for_date(self, day: str) -> list[FixtureMatch]:
+    def fetch_for_dates(
+        self,
+        days: list[str],
+        *,
+        all_leagues: bool = False,
+    ) -> list[FixtureMatch]:
+        """
+        Fetch fixtures for explicit YYYY-MM-DD dates.
+
+        all_leagues=True skips the major-league filter (needed for MLS / USL /
+        Liga MX tips that odds-api-io creates).
+        """
+        fixtures: list[FixtureMatch] = []
+        for day in days:
+            fixtures.extend(self._fetch_for_date(day, all_leagues=all_leagues))
+        return fixtures
+
+    def _fetch_for_date(self, day: str, *, all_leagues: bool = False) -> list[FixtureMatch]:
         """
         GET /fixtures?date=YYYY-MM-DD
 
@@ -88,6 +105,9 @@ class ApiFootballProvider:
         #  - one league id (simple). Prefer all-day for "now & tomorrow".
         if self.settings.api_football_league_ids and "," in self.settings.api_football_league_ids:
             # Multiple leagues: fetch without league filter, then keep only known ids
+            params.pop("league", None)
+
+        if all_leagues:
             params.pop("league", None)
 
         url = f"{self.BASE_URL}/fixtures"
@@ -111,7 +131,7 @@ class ApiFootballProvider:
             raise ApiFootballError(f"API-Football errors: {errors}")
 
         rows = payload.get("response") or []
-        allowed = self._allowed_league_ids()
+        allowed = None if all_leagues else self._allowed_league_ids()
 
         out: list[FixtureMatch] = []
         for row in rows:

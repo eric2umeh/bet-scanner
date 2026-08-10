@@ -368,9 +368,12 @@ def tips_learning_endpoint(db: Session = Depends(get_db)) -> LearningResponse:
 
 
 @router.post("/auto-settle", response_model=AutoSettleResponse)
-def auto_settle_endpoint(db: Session = Depends(get_db)) -> AutoSettleResponse:
+def auto_settle_endpoint(
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> AutoSettleResponse:
     """Use finished match scores to mark pending tips won/lost."""
-    result = auto_settle_finished(db)
+    result = auto_settle_finished(db, settings)
     return AutoSettleResponse(
         settled_count=result["settled_count"],
         unresolved_count=result["unresolved_count"],
