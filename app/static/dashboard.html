@@ -821,8 +821,12 @@
           <label style="flex-direction:row;align-items:center;gap:0.4rem;margin-top:1.1rem">
             <input id="notifyTg" type="checkbox" /> Telegram on log
           </label>
+          <button type="button" onclick="saveMeSettings()" style="margin-top:1rem">Save settings</button>
           <button class="secondary" type="button" onclick="sizeBankroll()" style="margin-top:1rem">Size unit</button>
         </div>
+        <p id="meSettingsHint" class="muted" style="margin:0.65rem 0 0">
+          Save stores bankroll, unit %, pick style, Telegram checkbox, and app access key in this browser.
+        </p>
       </div>
 
       <div class="card-block">
@@ -1135,6 +1139,8 @@
       return data;
     }
 
+    const ME_SETTINGS_KEY = 'betScannerMeSettingsV1';
+
     function loadStoredApiKey() {
       try {
         const el = document.getElementById('appApiKey');
@@ -1153,6 +1159,43 @@
         if (v) localStorage.setItem('betScannerAppApiKey', v);
         else localStorage.removeItem('betScannerAppApiKey');
       } catch { /* ignore */ }
+    }
+
+    function loadMeSettings() {
+      try {
+        loadStoredApiKey();
+        const raw = localStorage.getItem(ME_SETTINGS_KEY);
+        if (!raw) return;
+        const s = JSON.parse(raw);
+        if (s.bankroll != null) document.getElementById('bankroll').value = s.bankroll;
+        if (s.unitPct != null) document.getElementById('unitPct').value = s.unitPct;
+        if (s.pickMarket) document.getElementById('pickMarket').value = s.pickMarket;
+        if (typeof s.notifyTg === 'boolean') {
+          document.getElementById('notifyTg').checked = s.notifyTg;
+        }
+      } catch { /* ignore */ }
+    }
+
+    function saveMeSettings() {
+      try {
+        saveStoredApiKey();
+        const bankroll = Number(document.getElementById('bankroll').value) || 50000;
+        const unitPct = Number(document.getElementById('unitPct').value) || 1;
+        const pickMarket = document.getElementById('pickMarket').value || 'double_chance';
+        const notifyTg = !!document.getElementById('notifyTg').checked;
+        const hasKey = !!(document.getElementById('appApiKey')?.value || '').trim();
+        localStorage.setItem(ME_SETTINGS_KEY, JSON.stringify({
+          bankroll, unitPct, pickMarket, notifyTg, at: new Date().toISOString(),
+        }));
+        const hint = document.getElementById('meSettingsHint');
+        const msg = hasKey
+          ? `Saved. Bankroll ₦${bankroll} · unit ${unitPct}% · access key on.`
+          : `Saved. Bankroll ₦${bankroll} · unit ${unitPct}% · no access key.`;
+        if (hint) hint.textContent = msg;
+        setStatus(msg);
+      } catch (e) {
+        setStatus('Could not save settings: ' + (e.message || e), true);
+      }
     }
 
     async function postJson(url, body) {
@@ -2743,7 +2786,7 @@
     }
 
     // Boot
-    loadStoredApiKey();
+    loadMeSettings();
     maybeShowOnboarding();
     refreshToday().catch(() => {});
     loadStats().catch(() => {});
