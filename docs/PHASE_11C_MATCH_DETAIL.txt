@@ -1,0 +1,55 @@
+================================================================================
+PHASE 11C — EXPO MATCH DETAIL (TIPS / ODDS / SUMMARY)
+================================================================================
+
+Goal:
+  Tap a Today match → native detail with Tips, Odds compare, Summary.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  Route
+    app/match/[id].tsx
+
+  Tips
+    - Cached Safe / O/U / BTTS picks for the match
+    - Add to selection
+
+  Odds
+    - GET /odds/latest SportyBet + Bet9ja
+    - Tally, age, market chips, price Δ
+    - + buttons add best book to selection
+
+  Summary
+    - Fav / dog from primary Safe tip when present
+
+  Today
+    - Tap match card → open detail
+    - Tip checkbox still toggles without opening
+
+
+--------------------------------------------------------------------------------
+HOW TO TRY
+--------------------------------------------------------------------------------
+
+  1) Today → Refresh (or Load real bets if sync enabled)
+  2) Tap a match card
+  3) Odds tab → compare books → + add to selection
+  4) Back → Log selected
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  mobile/app/match/[id].tsx
+  mobile/app/_layout.tsx
+  mobile/app/(tabs)/index.tsx
+  mobile/src/store/matchCache.ts
+  mobile/src/lib/oddsCompare.ts
+  mobile/src/api/odds.ts
+  docs/PHASE_11C_MATCH_DETAIL.txt
+
+================================================================================

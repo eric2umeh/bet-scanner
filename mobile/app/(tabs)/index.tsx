@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +19,7 @@ import { scanGoalMarkets } from '../../src/api/predictions';
 import { scanSafeBuilder } from '../../src/api/safe';
 import { logTipBatch } from '../../src/api/tips';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
+import { setMatchCache } from '../../src/store/matchCache';
 import {
   clearSelection,
   getSelectedCount,
@@ -56,6 +58,7 @@ function dedupePicks(picks: TipPick[]): TipPick[] {
 }
 
 export default function TodayScreen() {
+  const router = useRouter();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [picks, setPicks] = useState<TipPick[]>([]);
@@ -107,7 +110,7 @@ export default function TodayScreen() {
       ...(predB.picks || []),
     ]);
     setPicks(all);
-    return all.length;
+    return { n: all.length, picks: all };
   }, []);
 
   const refresh = useCallback(async () => {
@@ -122,10 +125,11 @@ export default function TodayScreen() {
       setApiOk(!!health);
       setApiVersion(health?.version ?? null);
       setMatches(today);
-      const n = await loadScans(s);
+      const { n, picks: all } = await loadScans(s);
+      setMatchCache(today, all);
       setStatus(
         today.length
-          ? `${today.length} match(es) · ${n} tip(s)`
+          ? `${today.length} match(es) · ${n} tip(s) · tap card for Odds`
           : 'No matches today — try Load real bets after fixtures sync'
       );
     } catch (e) {
@@ -149,7 +153,8 @@ export default function TodayScreen() {
       const sync = await syncOdds();
       const today = await fetchTodayMatches();
       setMatches(today);
-      const n = await loadScans(s);
+      const { n, picks: all } = await loadScans(s);
+      setMatchCache(today, all);
       setStatus(`${sync.message || 'Odds synced'} · ${n} tip(s)`);
       Alert.alert('Real bets', `${sync.message || 'Synced'}\n${n} tip(s) found.`);
     } catch (e) {
@@ -248,14 +253,18 @@ export default function TodayScreen() {
         {visibleMatches.map((m) => {
           const tips = picksByMatch[m.id] || [];
           return (
-            <View key={m.id} style={styles.card}>
+            <Pressable
+              key={m.id}
+              style={styles.card}
+              onPress={() => router.push(`/match/${m.id}`)}
+            >
               <Text style={styles.league}>
                 {m.competition_code} · {m.status}
               </Text>
               <Text style={styles.match}>
                 {m.home_team} vs {m.away_team}
               </Text>
-              <Text style={styles.muted}>{kickoffLabel(m.kickoff_at)}</Text>
+              <Text style={styles.muted}>{kickoffLabel(m.kickoff_at)} · tap for Odds</Text>
               {!tips.length ? (
                 <Text style={[styles.muted, { marginTop: 8 }]}>No tip for this filter</Text>
               ) : (
@@ -285,7 +294,7 @@ export default function TodayScreen() {
                   );
                 })
               )}
-            </View>
+            </Pressable>
           );
         })}
       </ScrollView>

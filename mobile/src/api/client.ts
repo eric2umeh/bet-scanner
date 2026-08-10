@@ -12,7 +12,8 @@ export const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ||
   'https://bet-scanner-znvg.onrender.com';
 
-const DEFAULT_TIMEOUT_MS = 12000;
+/** Render free tier can take 30–60s to wake from sleep. */
+const DEFAULT_TIMEOUT_MS = 55000;
 
 async function parseError(res: Response): Promise<string> {
   const text = await res.text();
@@ -25,9 +26,9 @@ async function parseError(res: Response): Promise<string> {
   }
 }
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+async function fetchOnce<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), DEFAULT_TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(`${API_URL}${path}`, {
       ...init,
@@ -42,12 +43,27 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
       throw new Error(
-        `Timed out reaching ${API_URL}. Phone cannot use localhost — use Render URL or Mac LAN IP on same Wi‑Fi.`
+        `Timed out reaching ${API_URL} (${Math.round(timeoutMs / 1000)}s). ` +
+          `If this is Render free tier, open the URL in a browser to wake it, wait ~1 min, then Refresh. ` +
+          `Or point EXPO_PUBLIC_API_URL at your Mac LAN IP while uvicorn --host 0.0.0.0 runs.`
       );
     }
     throw e;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  try {
+    return await fetchOnce<T>(path, init);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // One retry — often the first call only woke the dyno
+    if (msg.includes('Timed out') || msg.includes('Network request failed')) {
+      return fetchOnce<T>(path, init);
+    }
+    throw e;
   }
 }
 
