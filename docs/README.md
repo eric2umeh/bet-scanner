@@ -23,6 +23,7 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [PHASE_10E_SLIP_CONVERTER.txt](./PHASE_10E_SLIP_CONVERTER.txt) | Slip paste → SportyBet/Bet9ja price-check |
 | [PHASE_10F_ODDS_COMPARE.txt](./PHASE_10F_ODDS_COMPARE.txt) | Richer match Odds compare UI |
 | [PHASE_11_EXPO_NATIVE.txt](./PHASE_11_EXPO_NATIVE.txt) | Expo React Native app plan (not PWA) |
+| [PHASE_11B_TODAY_NATIVE.txt](./PHASE_11B_TODAY_NATIVE.txt) | Expo Today: matches, tips, Load real bets |
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 

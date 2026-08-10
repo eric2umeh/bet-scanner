@@ -1,0 +1,45 @@
+================================================================================
+PHASE 11B — EXPO TODAY (MATCHES + TIPS + LOAD REAL BETS)
+================================================================================
+
+Goal:
+  Native Today tab mirrors the web dashboard morning path.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  Today
+    - GET /matches/today
+    - Safe scans (SportyBet + Bet9ja) + O/U/BTTS predictions
+    - Market chips: All / DC / 1X2 / O/U / BTTS
+    - Load real bets → POST /odds/sync then rescan
+    - Tick tips → Log selected → POST /tips/log-batch (as_multi)
+
+  Me (thin)
+    - Bankroll / unit % / pick style → AsyncStorage
+
+  API helpers
+    mobile/src/api/{matches,safe,predictions,odds,tips}.ts
+    mobile/src/store/{settings,selection}.ts
+
+
+--------------------------------------------------------------------------------
+HOW TO TRY
+--------------------------------------------------------------------------------
+
+  1) API reachable from phone (Render URL in mobile/.env recommended)
+  2) npx expo start --tunnel --clear
+  3) Today → Load real bets → tick tips → Log selected
+
+
+--------------------------------------------------------------------------------
+NEXT
+--------------------------------------------------------------------------------
+
+  11C  Match detail (Tips / Odds compare / Summary)
+  11D  Tips tab settle + multi cards polish
+  11E  Slip converter + morning ops
+
+================================================================================
