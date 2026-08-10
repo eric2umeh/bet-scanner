@@ -182,7 +182,7 @@ export default function TodayScreen() {
       });
       clearSelection();
       setStatus(data.message);
-      Alert.alert('Logged', data.message);
+      Alert.alert('Logged', `${data.message}\nOpen the Tips tab to see them.`);
     } catch (e) {
       Alert.alert('Log failed', e instanceof Error ? e.message : String(e));
     } finally {

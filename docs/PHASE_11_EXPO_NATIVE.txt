@@ -213,7 +213,7 @@ STACK CHOICES (LOCKED)
   11A  Scaffold Expo + tabs + API client + /health ping screen  ← DONE
   11B  Today: matches + Safe/goal picks + Load real bets      ← DONE
   11C  Match detail: Tips + Odds compare + selection          ← DONE
-  11D  Tips tab settle + multi cards polish
+  11D  Tips tab settle + multi cards polish                   ← DONE
   11E  Me: slip converter + morning ops
   11F  Polish: offline toast, pull-to-refresh, app icons, EAS Build
 

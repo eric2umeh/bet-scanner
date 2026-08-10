@@ -6,6 +6,11 @@ export type TipOut = {
   match_id: number;
   home_team: string;
   away_team: string;
+  competition_code?: string;
+  kickoff_at?: string | null;
+  match_status?: string | null;
+  home_score?: number | null;
+  away_score?: number | null;
   market: string;
   selection: string;
   bookmaker?: string | null;
@@ -14,6 +19,7 @@ export type TipOut = {
   result: string;
   slip_id?: string | null;
   risk_profile: string;
+  source?: string;
 };
 
 export function tipSource(p: TipPick): string {
@@ -75,4 +81,23 @@ export function fetchTipStats() {
     total: number;
     message: string;
   }>('/tips/stats');
+}
+
+export function settleTip(
+  tipId: number,
+  result: string,
+  opts?: { apply_to_slip?: boolean }
+) {
+  return postJson<TipOut>(`/tips/${tipId}/settle`, {
+    result,
+    apply_to_slip: !!opts?.apply_to_slip,
+  });
+}
+
+export function autoSettleTips() {
+  return postJson<{
+    settled_count: number;
+    unresolved_count: number;
+    message: string;
+  }>('/tips/auto-settle', {});
 }

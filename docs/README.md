@@ -25,6 +25,7 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [PHASE_11_EXPO_NATIVE.txt](./PHASE_11_EXPO_NATIVE.txt) | Expo React Native app plan (not PWA) |
 | [PHASE_11B_TODAY_NATIVE.txt](./PHASE_11B_TODAY_NATIVE.txt) | Expo Today: matches, tips, Load real bets |
 | [PHASE_11C_MATCH_DETAIL.txt](./PHASE_11C_MATCH_DETAIL.txt) | Expo match detail Tips / Odds / Summary |
+| [PHASE_11D_TIPS_NATIVE.txt](./PHASE_11D_TIPS_NATIVE.txt) | Expo Tips tab: multi cards, settle, auto-settle |
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 

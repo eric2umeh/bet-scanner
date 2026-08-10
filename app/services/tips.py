@@ -460,6 +460,8 @@ def settle_tip(
     db: Session,
     tip_id: int,
     result: str,
+    *,
+    apply_to_slip: bool = False,
 ) -> Tip:
     if result not in ("won", "lost", "void", "pending"):
         raise ValueError("result must be won|lost|void|pending")
@@ -493,18 +495,21 @@ def settle_tip(
             sib.settled_at = now
             sib.rationale = ((sib.rationale or "") + " | auto-voided duplicate").strip(" |")
 
-        # Multi: settle all legs together when user marks one leg
-        if tip.slip_id and result in ("won", "lost", "void"):
+        # Optional: settle entire multi slip with the same result
+        if apply_to_slip and tip.slip_id and result in ("won", "lost", "void", "pending"):
             legs = db.scalars(
                 select(Tip).where(
                     Tip.slip_id == tip.slip_id,
                     Tip.id != tip.id,
-                    Tip.result == "pending",
                 )
             ).all()
             for leg in legs:
-                leg.result = result
-                leg.settled_at = tip.settled_at
+                if result == "pending":
+                    leg.result = "pending"
+                    leg.settled_at = None
+                elif leg.result == "pending" or apply_to_slip:
+                    leg.result = result
+                    leg.settled_at = tip.settled_at
 
     db.commit()
     db.refresh(tip)
@@ -515,10 +520,10 @@ def settle_tip(
 
 def auto_settle_finished(db: Session) -> dict:
     """
-    Settle pending tips whose match is FINISHED with scores.
+    Settle each pending tip whose match is FINISHED with scores.
 
-    Multi slips (shared slip_id): wait until every leg can be judged, then
-    won only if all legs won (accumulator rules).
+    Multi legs are judged one-by-one (per market). Slip overall is derived
+    in the UI: won only if every leg won; lost if any leg lost.
     """
     tips = db.scalars(
         select(Tip)
@@ -530,15 +535,10 @@ def auto_settle_finished(db: Session) -> dict:
     unresolved: list[dict] = []
     now = datetime.now(timezone.utc)
 
-    singles = [t for t in tips if not t.slip_id]
-    by_slip: dict[str, list[Tip]] = {}
-    for t in tips:
-        if t.slip_id:
-            by_slip.setdefault(t.slip_id, []).append(t)
-
-    for tip in singles:
+    for tip in tips:
         m = tip.match
         if m is None:
+            unresolved.append({"tip_id": tip.id, "reason": "no match"})
             continue
         status = (m.status or "").upper()
         if status != "FINISHED" or m.home_score is None or m.away_score is None:
@@ -553,46 +553,6 @@ def auto_settle_finished(db: Session) -> dict:
         tip.result = "won" if won else "lost"
         tip.settled_at = now
         settled.append(tip_to_dict(tip))
-
-    for slip_id, legs in by_slip.items():
-        judgements: list[bool] = []
-        blocked = False
-        for tip in legs:
-            m = tip.match
-            if m is None:
-                unresolved.append({"tip_id": tip.id, "slip_id": slip_id, "reason": "no match"})
-                blocked = True
-                break
-            status = (m.status or "").upper()
-            if status != "FINISHED" or m.home_score is None or m.away_score is None:
-                unresolved.append(
-                    {
-                        "tip_id": tip.id,
-                        "slip_id": slip_id,
-                        "reason": "multi waiting — match not finished",
-                    }
-                )
-                blocked = True
-                break
-            won = selection_won(tip.market, tip.selection, m.home_score, m.away_score)
-            if won is None:
-                unresolved.append(
-                    {
-                        "tip_id": tip.id,
-                        "slip_id": slip_id,
-                        "reason": f"cannot judge {tip.market}/{tip.selection}",
-                    }
-                )
-                blocked = True
-                break
-            judgements.append(won)
-        if blocked:
-            continue
-        overall = all(judgements)
-        for tip in legs:
-            tip.result = "won" if overall else "lost"
-            tip.settled_at = now
-            settled.append(tip_to_dict(tip))
 
     db.commit()
     return {

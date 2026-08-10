@@ -387,7 +387,12 @@ def settle_tip_endpoint(
     db: Session = Depends(get_db),
 ) -> TipOut:
     try:
-        tip = settle_tip(db, tip_id, body.result.lower().strip())
+        tip = settle_tip(
+            db,
+            tip_id,
+            body.result.lower().strip(),
+            apply_to_slip=bool(body.apply_to_slip),
+        )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

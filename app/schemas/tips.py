@@ -84,6 +84,10 @@ class LearningResponse(BaseModel):
 
 class TipSettleRequest(BaseModel):
     result: str = Field(examples=["won"], description="won | lost | void | pending")
+    apply_to_slip: bool = Field(
+        default=False,
+        description="If true and tip is in a multi, apply result to all pending legs",
+    )
 
 
 class LogSafeScanRequest(BaseModel):

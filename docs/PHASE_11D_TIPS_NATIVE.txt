@@ -1,0 +1,49 @@
+================================================================================
+PHASE 11D — EXPO TIPS TAB (LIST / MULTI / SETTLE)
+================================================================================
+
+Goal:
+  Show logged tips on the phone (including multi slips) and settle them.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  Tips tab
+    - GET /tips + /tips/stats
+    - Multi cards grouped by slip_id (combined odds, legs list)
+    - Singles as separate cards
+    - Manual settle: Won / Lost / Void / Pending
+      (multi: settling head tip settles whole slip — API)
+    - Auto-settle finished → POST /tips/auto-settle
+    - Pull to refresh; reloads on tab focus
+
+
+--------------------------------------------------------------------------------
+HOW TO TRY
+--------------------------------------------------------------------------------
+
+  1) Today → tick same-book legs → Multi on → Log selected
+  2) Tips tab → see Multi · SportyBet · N legs
+  3) After matches finish → Auto-settle finished
+     or mark Won/Lost manually
+
+
+--------------------------------------------------------------------------------
+NOTE
+--------------------------------------------------------------------------------
+
+  Log as multi = tracking in Bet Scanner DB.
+  Placing on SportyBet is still manual (same-match often singles there).
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  mobile/app/(tabs)/tips.tsx
+  mobile/src/api/tips.ts
+  docs/PHASE_11D_TIPS_NATIVE.txt
+
+================================================================================
