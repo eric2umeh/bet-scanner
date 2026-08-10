@@ -1,4 +1,8 @@
 .env
+mobile/.env
+mobile/node_modules/
+mobile-sdk57-bak/
+**/node_modules/
 .venv/
 venv/
 __pycache__/

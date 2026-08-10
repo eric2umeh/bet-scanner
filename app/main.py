@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.api.ai import router as ai_router
@@ -46,12 +47,21 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 10F: richer odds compare, "
-        "slip converter, multi slips, select-to-log, Safe Builder, NG odds. "
+        "Football betting decision API — Phase 11 Expo-ready: CORS enabled, "
+        "odds compare, slip converter, multi slips, Safe Builder, NG odds. "
         "Open / or /docs."
     ),
-    version="0.10.5",
+    version="0.10.6",
     lifespan=lifespan,
+)
+
+# Expo / React Native clients (LAN device, simulators, production web origins)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(matches_router)

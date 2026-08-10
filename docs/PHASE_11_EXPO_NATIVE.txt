@@ -1,0 +1,259 @@
+================================================================================
+PHASE 11 — EXPO (REACT NATIVE) APP — COMPLETE PLAN
+================================================================================
+
+Goal:
+  Ship a real iOS/Android app (Expo), not a PWA. Keep FastAPI + Supabase as
+  the backend. Replace dashboard.html as the primary client over time.
+
+
+--------------------------------------------------------------------------------
+ARCHITECTURE
+--------------------------------------------------------------------------------
+
+  ┌─────────────────────┐         HTTPS / LAN          ┌──────────────────┐
+  │  Expo app (mobile/) │  ─────────────────────────►  │  FastAPI (Render │
+  │  React Native       │     JSON REST                │  or localhost)   │
+  │  TypeScript         │  ◄─────────────────────────  │  + Supabase PG   │
+  └─────────────────────┘                              └──────────────────┘
+
+  Web dashboard (app/static/dashboard.html) stays for debugging /docs learners.
+  Product path = Expo.
+
+
+--------------------------------------------------------------------------------
+STACK CHOICES (LOCKED)
+--------------------------------------------------------------------------------
+
+  App runtime     Expo SDK 54 (Play Store Expo Go) + Expo Router
+                  NOTE: SDK 55+ is NOT on Play/App Store Expo Go yet (2026).
+                  Always scaffold with: --template tabs@sdk-54
+  Language        TypeScript
+  UI              React Native + your own theme (match dark shell colors)
+  Data fetching   fetch wrapper (later: TanStack Query)
+  Local state     React state + Zustand (selection / bankroll)
+  Persistence     expo-secure-store (tokens later) + AsyncStorage (settings)
+  Backend         Existing FastAPI — DO NOT rebuild APIs in JS
+  Auth (later)    Supabase Auth or simple API key — Phase 12
+
+
+--------------------------------------------------------------------------------
+0) BACKEND PREP (REQUIRED BEFORE PHONE CAN CALL API)
+--------------------------------------------------------------------------------
+
+  A) CORS must allow the Expo origin (and * in dev).
+     See app/main.py — CORSMiddleware.
+
+  B) Phone/simulator cannot use http://127.0.0.1 from the device.
+     - iOS Simulator: http://127.0.0.1:8000 works
+     - Android Emulator: http://10.0.2.2:8000 → host machine
+     - Physical phone: http://YOUR_LAN_IP:8000 (same Wi‑Fi)
+     - Production: https://bet-scanner-znvg.onrender.com
+
+  C) Run API bound to all interfaces when testing on a phone:
+       uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+
+--------------------------------------------------------------------------------
+1) INSTALL (Mac) — DO THESE IN ORDER
+--------------------------------------------------------------------------------
+
+  Prerequisites you already have or need:
+    - Node 20+ (you have Node 22 ✓)
+    - Xcode (iOS Simulator) — Mac App Store
+    - Android Studio (optional, Android emulator)
+    - Expo Go app on your phone (App Store / Play Store) for quick device test
+
+  Create the app (from bet-scanner repo root):
+
+    cd "/Users/MAC/Desktop/next/bet-scanner"
+    npx create-expo-app@latest mobile --template tabs
+
+  Or blank + add router yourself:
+
+    npx create-expo-app@latest mobile -t blank-typescript
+    cd mobile
+    npx expo install expo-router react-native-safe-area-context react-native-screens \
+      expo-linking expo-constants expo-status-bar @react-native-async-storage/async-storage
+
+  Start:
+
+    cd mobile
+    npx expo start
+
+  Then:
+    - press i  → iOS Simulator
+    - press a  → Android emulator
+    - scan QR  → Expo Go on physical phone
+
+
+--------------------------------------------------------------------------------
+2) FOLDER LAYOUT (TARGET)
+--------------------------------------------------------------------------------
+
+  mobile/
+    app/                      # Expo Router screens
+      _layout.tsx             # root + tabs
+      (tabs)/
+        _layout.tsx           # Today | Tips | Me
+        index.tsx             # Today
+        tips.tsx
+        me.tsx
+      match/[id].tsx          # Match sheet (Tips / Odds / Summary)
+      onboarding.tsx
+    src/
+      api/
+        client.ts             # base URL + getJson/postJson
+        matches.ts
+        tips.ts
+        odds.ts
+        safe.ts
+        predictions.ts
+        convert.ts
+        ops.ts
+      store/
+        settings.ts           # bankroll, unit %, pick style
+        selection.ts          # checkbox tips → log-batch
+      theme/
+        colors.ts             # same tokens as dashboard (--bg, --accent…)
+      types/
+        api.ts                # Tip, Match, Odd shapes
+    app.json / app.config.ts
+    .env                      # EXPO_PUBLIC_API_URL=...
+
+
+--------------------------------------------------------------------------------
+3) SCREENS ↔ CURRENT DASHBOARD ↔ APIs
+--------------------------------------------------------------------------------
+
+  TAB: Today  (dashboard viewToday)
+    GET  /matches/today
+    GET  /safe-builder/scan?bookmaker=sportybet&pick_market=…
+    GET  /safe-builder/scan?bookmaker=bet9ja&…
+    GET  /predictions/scan?bookmaker=sportybet&markets=ou_2_5,btts
+    GET  /predictions/scan?bookmaker=bet9ja&…
+    POST /odds/sync                    ← "Load real bets" (quota!)
+    POST /ops/morning                  ← "Start morning" (optional)
+
+  Actions on Today:
+    - Market chips filter (client-only)
+    - Checkbox selection → store
+    - Log selected → POST /tips/log-batch  { tips, as_multi, notify_telegram }
+
+  SCREEN: Match detail  (match sheet)
+    Params: match id
+    Tips panel: picks already loaded for that match_id
+    Odds panel:
+      GET /odds/latest?bookmaker=sportybet&match_id={id}&limit=80
+      GET /odds/latest?bookmaker=bet9ja&match_id={id}&limit=80
+      (reuse Phase 10F compare UX: tally, Δ, filters, add to selection)
+    Summary: fav/dog from Safe pick if present
+    Log this tip / Add to selection → same selection store
+
+  TAB: Tips  (viewTips)
+    GET  /tips?limit=50
+    GET  /tips/stats
+    POST /tips/auto-settle
+    POST /tips/{id}/settle  { result: won|lost|void|pending }
+    POST /tips/log-safe-scan           ← bulk (secondary)
+    POST /tips/log-predictions-scan    ← bulk (secondary)
+    Render slip_id groups as Multi cards (Phase 10D)
+
+  TAB: Me  (viewMe)
+    Settings (AsyncStorage): bankroll, unit %, pick style, telegram flag
+    POST /safe-builder/bankroll/size   ← size unit
+    POST /ops/morning
+    POST /odds/sync
+    POST /ai/brief                     ← AI brief (optional)
+    GET  /tips/learning
+    Slip converter:
+      POST /convert/slip  { slip_text, code_text?, source_book }
+    Advanced (later screens or stack):
+      GET  /value/scan
+      GET  /arbitrage/scan
+      Tipsters: POST/GET /tipsters, /tipsters/codes, settle, leaderboard
+
+  SCREEN: Onboarding (first launch)
+    Mirror Phase 10C localStorage keys → AsyncStorage
+    Then navigate to Today
+
+
+--------------------------------------------------------------------------------
+4) API CLIENT PATTERN
+--------------------------------------------------------------------------------
+
+  // mobile/src/api/client.ts
+  const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+
+  export async function getJson<T>(path: string): Promise<T> {
+    const res = await fetch(`${API_URL}${path}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
+  export async function postJson<T>(path: string, body: unknown): Promise<T> {
+    const res = await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
+  .env examples:
+    EXPO_PUBLIC_API_URL=http://192.168.1.20:8000          # phone on LAN
+    EXPO_PUBLIC_API_URL=https://bet-scanner-znvg.onrender.com  # live
+
+
+--------------------------------------------------------------------------------
+5) MVP BUILD ORDER (SHIP SLICES)
+--------------------------------------------------------------------------------
+
+  11A  Scaffold Expo + tabs + API client + /health ping screen  ← DONE
+  11B  Today: matches + Safe/goal picks + Load real bets
+  11C  Match detail: Tips + Odds compare + selection
+  11D  Log selected (log-batch + as_multi) + Tips tab + settle
+  11E  Me: settings, slip converter, morning ops
+  11F  Polish: offline toast, pull-to-refresh, app icons, EAS Build
+
+  Store submission (EAS):
+    npm i -g eas-cli
+    eas login
+    eas build --platform android   # first (easier than iOS)
+    eas build --platform ios       # needs Apple Developer account ($99/yr)
+
+
+--------------------------------------------------------------------------------
+6) WHAT NOT TO DO
+--------------------------------------------------------------------------------
+
+  - Do not wrap dashboard.html in a WebView and call it "native"
+  - Do not put ODDS_API_IO_KEY or DB URLs in the Expo app
+  - Do not spam POST /odds/sync (free quota ~100 req/hr)
+  - Do not block on auth before 11A–11D work
+
+
+--------------------------------------------------------------------------------
+7) SUCCESS CHECKLIST
+--------------------------------------------------------------------------------
+
+  [ ] Expo app opens on simulator
+  [ ] GET /health from app shows version
+  [ ] Today lists matches from API
+  [ ] Load real bets syncs odds + shows tips
+  [ ] Match Odds shows SportyBet vs Bet9ja
+  [ ] Log selected creates tips (multi when same book)
+  [ ] Tips tab settles / auto-settle works
+  [ ] Me slip converter returns price-check
+
+
+--------------------------------------------------------------------------------
+FILES (THIS PHASE DOC + BACKEND)
+--------------------------------------------------------------------------------
+
+  docs/PHASE_11_EXPO_NATIVE.txt   ← this plan
+  app/main.py                     ← CORS for Expo
+  mobile/                         ← created in 11A (not committed until scaffolded)
+
+================================================================================

@@ -382,7 +382,8 @@ Guide: `docs/PHASE_10A_SCOUTER_UI.txt`
 | 10C | Select-to-log tips + first-run onboarding |
 | 10D | Dedupe + multi/accumulator slips |
 | 10E | Slip converter — paste slip → SportyBet/Bet9ja price-check |
-| **10F (now)** | Richer match Odds compare (gaps, filters, add to selection) |
+| 10F | Richer match Odds compare (gaps, filters, add to selection) |
+| **11 (now)** | Expo React Native app — see `docs/PHASE_11_EXPO_NATIVE.txt` |
 
 ---
 
