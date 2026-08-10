@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -71,6 +72,7 @@ export default function MeScreen() {
   const [opsBusy, setOpsBusy] = useState(false);
   const [opsResult, setOpsResult] = useState<DailyOpsResponse | null>(null);
   const [healthLine, setHealthLine] = useState<string | null>(null);
+  const [pulling, setPulling] = useState(false);
   /** On-screen status — Alert.alert is a no-op on Expo web. */
   const [status, setStatus] = useState<string | null>(null);
   const [statusBad, setStatusBad] = useState(false);
@@ -80,17 +82,40 @@ export default function MeScreen() {
     setStatusBad(bad);
   }
 
-  useEffect(() => {
-    loadSettings().then((s) => {
-      setSettings(s);
-      setBankroll(String(s.bankroll));
-      setUnitPct(String(s.unitPct));
-      setPickMarket(s.pickMarket);
-    });
-    pingHealth()
-      .then((h) => setHealthLine(`${h.status}${h.version ? ` · v${h.version}` : ''}`))
-      .catch(() => setHealthLine('unreachable'));
+  const loadMe = useCallback(async (announce: boolean) => {
+    const s = await loadSettings();
+    setSettings(s);
+    setBankroll(String(s.bankroll));
+    setUnitPct(String(s.unitPct));
+    setPickMarket(s.pickMarket);
+    try {
+      const h = await pingHealth();
+      setHealthLine(`Server OK${h.version ? ` · v${h.version}` : ''}`);
+      if (announce) {
+        setStatus('Reloaded · server reachable.');
+        setStatusBad(false);
+      }
+    } catch {
+      setHealthLine('Cannot reach server');
+      if (announce) {
+        setStatus('Cannot reach the Bet Scanner server right now.');
+        setStatusBad(true);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    void loadMe(false);
+  }, [loadMe]);
+
+  async function onPullRefresh() {
+    setPulling(true);
+    try {
+      await loadMe(true);
+    } finally {
+      setPulling(false);
+    }
+  }
 
   function parsedSettings(): AppSettings {
     return {
@@ -178,6 +203,13 @@ export default function MeScreen() {
       style={styles.screen}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl
+          refreshing={pulling}
+          onRefresh={onPullRefresh}
+          tintColor={colors.accent}
+        />
+      }
     >
       <Text style={styles.title}>Me</Text>
       <Text style={styles.muted}>

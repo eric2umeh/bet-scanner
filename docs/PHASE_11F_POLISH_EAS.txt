@@ -1,0 +1,76 @@
+================================================================================
+PHASE 11F — EXPO POLISH + EAS BUILD READY
+================================================================================
+
+Goal:
+  Connection feedback, pull-to-refresh everywhere that needs it, store-ready
+  app identity, and an EAS config so Android APK builds are one login away.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  Connection banner (all screens)
+    - No internet → clear warning at the top
+    - Server unreachable → “may be waking up” message
+    - Uses NetInfo + periodic /health check
+
+  Pull down to refresh
+    - Today / Tips (already)
+    - Me → reload settings + server check
+    - Match detail → reload bookmaker odds
+
+  Plain-language polish
+    - Tips: “Settle finished tips”
+    - Me: morning routine / compare a betting slip (from 11E follow-ups)
+
+  App identity
+    - Android package + iOS bundle: com.betscanner.app
+    - Splash background matches app shell (#0b1014)
+    - Icons/splash under mobile/assets/images/ (replace anytime)
+
+  EAS
+    - mobile/eas.json → development / preview (APK) / production
+
+
+--------------------------------------------------------------------------------
+HOW TO TRY
+--------------------------------------------------------------------------------
+
+  1) Airplane mode → red banner appears
+  2) Pull down on Me / Tips / Today / a match
+  3) When ready for a real APK (needs Expo account):
+
+       cd mobile
+       npm i -g eas-cli
+       eas login
+       eas init          # writes projectId into app.json
+       eas build --platform android --profile preview
+
+
+--------------------------------------------------------------------------------
+NOTE
+--------------------------------------------------------------------------------
+
+  We did not run `eas build` here (needs your Expo login + cloud minutes).
+  Expo Go still works for day-to-day; EAS is for installable APK / store.
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  mobile/src/components/ConnectionBanner.tsx
+  mobile/app/_layout.tsx
+  mobile/app/(tabs)/me.tsx
+  mobile/app/(tabs)/tips.tsx
+  mobile/app/(tabs)/index.tsx
+  mobile/app/match/[id].tsx
+  mobile/app.json
+  mobile/eas.json
+  mobile/package.json
+  docs/PHASE_11F_POLISH_EAS.txt
+  docs/PHASE_11_EXPO_NATIVE.txt
+
+================================================================================

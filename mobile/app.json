@@ -13,9 +13,14 @@
       "backgroundColor": "#0b1014"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.betscanner.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.betscanner.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0b1014"
@@ -29,6 +34,13 @@
     },
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "27b6a070-e8b3-4a73-b73a-3b3d103e34e4"
+      }
+    },
+    "owner": "eric2umeh"
   }
 }

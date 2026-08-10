@@ -210,7 +210,10 @@ export default function TodayScreen() {
         <Text style={styles.kicker}>Bet Scanner</Text>
         <Text style={styles.title}>Today</Text>
         <Text style={styles.muted}>
-          {apiOk ? `API v${apiVersion || '?'}` : 'API offline'} · {API_URL.replace(/^https?:\/\//, '')}
+          {apiOk
+            ? `Server OK · v${apiVersion || '?'}`
+            : 'Cannot reach server'}{' '}
+          · {API_URL.replace(/^https?:\/\//, '')}
         </Text>
         <Text style={styles.status}>{status}</Text>
 

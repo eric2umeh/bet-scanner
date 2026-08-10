@@ -168,16 +168,17 @@ export default function TipsScreen() {
 
   async function onAutoSettle() {
     setBusy(true);
+    setStatus('Settling finished tips from final scores…');
     try {
       const data = await autoSettleTips();
-      setStatus(data.message);
-      Alert.alert(
-        'Auto-settle',
-        `${data.message}\n\nUses finished match scores only. Pending kickoffs stay pending. Multi legs settle one-by-one when each game finishes.`
+      setStatus(
+        `${data.message} Open games stay pending. Each multi selection settles when that match ends.`
       );
       await refresh();
     } catch (e) {
-      Alert.alert('Auto-settle failed', e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus(msg);
+      Alert.alert('Could not settle tips', msg);
     } finally {
       setBusy(false);
     }
@@ -235,8 +236,9 @@ export default function TipsScreen() {
       >
         <Text style={styles.title}>Tips</Text>
         <Text style={styles.muted}>
-          Auto-settle: marks Won/Lost from FT scores when a match is FINISHED. Does not invent
-          voids. Multi legs settle per game; open a multi to mark each leg.
+          Settle finished tips marks Won or Lost from final match scores. Games that have not
+          ended stay pending. For a multi, each selection settles when that match finishes —
+          open the multi to mark a single selection by hand.
         </Text>
         <Text style={styles.status}>{status}</Text>
 
@@ -263,7 +265,7 @@ export default function TipsScreen() {
 
         <View style={styles.row}>
           <Pressable style={[styles.btn, busy && styles.disabled]} onPress={onAutoSettle} disabled={busy}>
-            <Text style={styles.btnText}>Auto-settle finished</Text>
+            <Text style={styles.btnText}>Settle finished tips</Text>
           </Pressable>
           <Pressable style={[styles.btnSecondary, busy && styles.disabled]} onPress={refresh} disabled={busy}>
             <Text style={styles.btnSecondaryText}>Refresh</Text>

@@ -215,12 +215,15 @@ STACK CHOICES (LOCKED)
   11C  Match detail: Tips + Odds compare + selection          ← DONE
   11D  Tips tab settle + multi cards polish                   ← DONE
   11E  Me: slip converter + morning ops                       ← DONE
-  11F  Polish: offline toast, pull-to-refresh, app icons, EAS Build
+  11F  Polish: offline banner, pull-to-refresh, EAS ready     ← DONE
+       (see PHASE_11F_POLISH_EAS.txt)
 
-  Store submission (EAS):
+  Store submission (EAS) — run when you want an APK:
+    cd mobile
     npm i -g eas-cli
     eas login
-    eas build --platform android   # first (easier than iOS)
+    eas init
+    eas build --platform android --profile preview
     eas build --platform ios       # needs Apple Developer account ($99/yr)
 
 
@@ -238,14 +241,16 @@ STACK CHOICES (LOCKED)
 7) SUCCESS CHECKLIST
 --------------------------------------------------------------------------------
 
-  [ ] Expo app opens on simulator
-  [ ] GET /health from app shows version
-  [ ] Today lists matches from API
-  [ ] Load real bets syncs odds + shows tips
-  [ ] Match Odds shows SportyBet vs Bet9ja
-  [ ] Log selected creates tips (multi when same book)
-  [ ] Tips tab settles / auto-settle works
+  [x] Expo app opens on simulator / Expo Go
+  [x] GET /health from app shows version
+  [x] Today lists matches from API
+  [x] Load real bets syncs odds + shows tips
+  [x] Match Odds shows SportyBet vs Bet9ja
+  [x] Log selected creates tips (multi when same book)
+  [x] Tips tab settles / settle finished tips works
   [x] Me slip converter returns price-check
+  [x] Offline / server banner + pull-to-refresh
+  [ ] eas build Android preview APK (needs Expo login)
 
 
 --------------------------------------------------------------------------------

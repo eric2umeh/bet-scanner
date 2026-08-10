@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -222,7 +223,16 @@ export default function MatchDetailScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={loadingOdds}
+            onRefresh={loadOdds}
+            tintColor={colors.accent}
+          />
+        }
+      >
         <Pressable onPress={() => router.back()} style={styles.back}>
           <Text style={styles.backText}>← Back</Text>
         </Pressable>
