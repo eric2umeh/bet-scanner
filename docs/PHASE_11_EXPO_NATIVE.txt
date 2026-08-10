@@ -214,7 +214,7 @@ STACK CHOICES (LOCKED)
   11B  Today: matches + Safe/goal picks + Load real bets      ← DONE
   11C  Match detail: Tips + Odds compare + selection          ← DONE
   11D  Tips tab settle + multi cards polish                   ← DONE
-  11E  Me: slip converter + morning ops
+  11E  Me: slip converter + morning ops                       ← DONE
   11F  Polish: offline toast, pull-to-refresh, app icons, EAS Build
 
   Store submission (EAS):
@@ -245,7 +245,7 @@ STACK CHOICES (LOCKED)
   [ ] Match Odds shows SportyBet vs Bet9ja
   [ ] Log selected creates tips (multi when same book)
   [ ] Tips tab settles / auto-settle works
-  [ ] Me slip converter returns price-check
+  [x] Me slip converter returns price-check
 
 
 --------------------------------------------------------------------------------

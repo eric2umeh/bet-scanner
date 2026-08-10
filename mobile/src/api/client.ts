@@ -54,29 +54,41 @@ async function fetchOnce<T>(path: string, init?: RequestInit, timeoutMs = DEFAUL
   }
 }
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+async function fetchJson<T>(
+  path: string,
+  init?: RequestInit,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<T> {
   try {
-    return await fetchOnce<T>(path, init);
+    return await fetchOnce<T>(path, init, timeoutMs);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     // One retry — often the first call only woke the dyno
     if (msg.includes('Timed out') || msg.includes('Network request failed')) {
-      return fetchOnce<T>(path, init);
+      return fetchOnce<T>(path, init, timeoutMs);
     }
     throw e;
   }
 }
 
-export async function getJson<T>(path: string): Promise<T> {
-  return fetchJson<T>(path);
+export async function getJson<T>(path: string, opts?: { timeoutMs?: number }): Promise<T> {
+  return fetchJson<T>(path, undefined, opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 }
 
-export async function postJson<T>(path: string, body: unknown = {}): Promise<T> {
-  return fetchJson<T>(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+export async function postJson<T>(
+  path: string,
+  body: unknown = {},
+  opts?: { timeoutMs?: number }
+): Promise<T> {
+  return fetchJson<T>(
+    path,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+    opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  );
 }
 
 export type HealthResponse = {
