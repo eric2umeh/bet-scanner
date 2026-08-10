@@ -1,0 +1,50 @@
+================================================================================
+PHASE 12B — EXPO TIPSTERS TAB
+================================================================================
+
+Goal:
+  Track Instagram / Telegram tipster booking codes on the phone (same APIs as
+  the web dashboard Phase 6).
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  New tab: Tipsters
+    - Add tipster (name, handle, platform)
+    - Log booking code + optional stake / odds / notes
+    - Recent codes with Won / Lost / Void / Pending
+    - Leaderboard snippet (settled hit-rate)
+    - Pull down to refresh
+
+  Honest limit:
+    Opaque SportyBet / Bet9ja codes are stored, not decoded.
+
+
+--------------------------------------------------------------------------------
+HOW TO TRY
+--------------------------------------------------------------------------------
+
+  1) Tipsters → Add tipster
+  2) Paste a booking code → Log code
+  3) After the bet finishes → Won / Lost / Void
+
+
+--------------------------------------------------------------------------------
+NEXT
+--------------------------------------------------------------------------------
+
+  Phase 12C — Supabase Auth / per-user accounts (optional later)
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  mobile/app/(tabs)/tipsters.tsx
+  mobile/app/(tabs)/_layout.tsx
+  mobile/src/api/tipsters.ts
+  docs/PHASE_12B_TIPSTERS_NATIVE.txt
+
+================================================================================

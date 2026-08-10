@@ -29,6 +29,7 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [PHASE_11E_ME_NATIVE.txt](./PHASE_11E_ME_NATIVE.txt) | Expo Me: slip compare + morning routine |
 | [PHASE_11F_POLISH_EAS.txt](./PHASE_11F_POLISH_EAS.txt) | Offline banner, pull-to-refresh, EAS |
 | [PHASE_12A_ACCESS_KEY.txt](./PHASE_12A_ACCESS_KEY.txt) | Optional APP_API_KEY + Expo quick setup |
+| [PHASE_12B_TIPSTERS_NATIVE.txt](./PHASE_12B_TIPSTERS_NATIVE.txt) | Expo Tipsters: codes, settle, leaderboard |
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 

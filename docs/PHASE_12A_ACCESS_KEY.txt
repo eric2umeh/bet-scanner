@@ -53,12 +53,11 @@ HOW TO USE
 
 
 --------------------------------------------------------------------------------
-NOT IN THIS SLICE (Phase 12B+)
+FOLLOW-ONS
 --------------------------------------------------------------------------------
 
-  - Supabase Auth (email login / per-user accounts)
-  - Tipsters tab on Expo
-  - Multi-user tip ownership
+  - Phase 12B — Tipsters tab on Expo (see PHASE_12B_TIPSTERS_NATIVE.txt)
+  - Phase 12C — Supabase Auth / per-user tip ownership
 
 
 --------------------------------------------------------------------------------

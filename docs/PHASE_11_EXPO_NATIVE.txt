@@ -35,7 +35,8 @@ STACK CHOICES (LOCKED)
   Persistence     expo-secure-store (tokens later) + AsyncStorage (settings)
   Backend         Existing FastAPI — DO NOT rebuild APIs in JS
   Auth            Phase 12A = optional APP_API_Key (done)
-                  Phase 12B+ = Supabase Auth / per-user (later)
+                  Phase 12B = Tipsters on Expo (done)
+                  Phase 12C = Supabase Auth / per-user (later)
 
 
 --------------------------------------------------------------------------------
