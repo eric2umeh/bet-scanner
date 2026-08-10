@@ -26,6 +26,9 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [PHASE_11B_TODAY_NATIVE.txt](./PHASE_11B_TODAY_NATIVE.txt) | Expo Today: matches, tips, Load real bets |
 | [PHASE_11C_MATCH_DETAIL.txt](./PHASE_11C_MATCH_DETAIL.txt) | Expo match detail Tips / Odds / Summary |
 | [PHASE_11D_TIPS_NATIVE.txt](./PHASE_11D_TIPS_NATIVE.txt) | Expo Tips tab: multi cards, settle, auto-settle |
+| [PHASE_11E_ME_NATIVE.txt](./PHASE_11E_ME_NATIVE.txt) | Expo Me: slip compare + morning routine |
+| [PHASE_11F_POLISH_EAS.txt](./PHASE_11F_POLISH_EAS.txt) | Offline banner, pull-to-refresh, EAS |
+| [PHASE_12A_ACCESS_KEY.txt](./PHASE_12A_ACCESS_KEY.txt) | Optional APP_API_KEY + Expo quick setup |
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 

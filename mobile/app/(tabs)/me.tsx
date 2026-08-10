@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-import { API_URL, pingHealth } from '../../src/api/client';
+import { API_URL, pingHealth, setCachedAccessKey } from '../../src/api/client';
 import {
   convertSlip,
   type ConvertedLeg,
@@ -19,6 +19,7 @@ import {
 import { runDailyOps, type DailyOpsResponse } from '../../src/api/ops';
 import { shareOrCopyText } from '../../src/lib/shareText';
 import { bookLabel } from '../../src/lib/tipKey';
+import { loadAccessKey, saveAccessKey } from '../../src/store/accessKey';
 import {
   loadSettings,
   saveSettings,
@@ -62,6 +63,7 @@ export default function MeScreen() {
   const [bankroll, setBankroll] = useState('50000');
   const [unitPct, setUnitPct] = useState('1');
   const [pickMarket, setPickMarket] = useState<'double_chance' | '1x2'>('double_chance');
+  const [accessKey, setAccessKey] = useState('');
 
   const [slipText, setSlipText] = useState('');
   const [codeText, setCodeText] = useState('');
@@ -83,11 +85,13 @@ export default function MeScreen() {
   }
 
   const loadMe = useCallback(async (announce: boolean) => {
-    const s = await loadSettings();
+    const [s, key] = await Promise.all([loadSettings(), loadAccessKey()]);
     setSettings(s);
     setBankroll(String(s.bankroll));
     setUnitPct(String(s.unitPct));
     setPickMarket(s.pickMarket);
+    setAccessKey(key);
+    setCachedAccessKey(key || null);
     try {
       const h = await pingHealth();
       setHealthLine(`Server OK${h.version ? ` · v${h.version}` : ''}`);
@@ -128,8 +132,14 @@ export default function MeScreen() {
   async function onSave() {
     const next = parsedSettings();
     await saveSettings(next);
+    await saveAccessKey(accessKey);
+    setCachedAccessKey(accessKey.trim() || null);
     setSettings(next);
-    flash(`Saved · unit stake ≈ ₦${unitStakeNgn(next)}`);
+    flash(
+      accessKey.trim()
+        ? `Saved · unit stake ≈ ₦${unitStakeNgn(next)} · access key on`
+        : `Saved · unit stake ≈ ₦${unitStakeNgn(next)}`
+    );
   }
 
   async function onPriceCheck() {
@@ -260,6 +270,21 @@ export default function MeScreen() {
         {settings ? (
           <Text style={styles.muted}>Suggested unit ≈ ₦{unitStakeNgn(settings)}</Text>
         ) : null}
+        <Text style={styles.label}>App access key (optional)</Text>
+        <Text style={styles.hint}>
+          You invent this password yourself on the server (Render env APP_API_KEY). Leave blank
+          unless you turned that on — most setups do not need it yet.
+        </Text>
+        <TextInput
+          style={styles.input}
+          value={accessKey}
+          onChangeText={setAccessKey}
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+          placeholder="Paste access key"
+          placeholderTextColor={colors.muted}
+        />
         <Pressable style={styles.btn} onPress={onSave}>
           <Text style={styles.btnText}>Save settings</Text>
         </Pressable>

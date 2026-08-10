@@ -810,6 +810,7 @@
         <h2>Your settings</h2>
         <div class="row">
           <label>Bankroll ₦ <input id="bankroll" type="number" value="50000" min="1000" step="1000" style="width:7.5rem" /></label>
+          <label>App access key <input id="appApiKey" type="password" placeholder="if APP_API_KEY set" autocomplete="off" style="width:12rem" /></label>
           <label>Unit % <input id="unitPct" type="number" value="1" min="0.1" max="10" step="0.1" style="width:4rem" /></label>
           <label>Pick style
             <select id="pickMarket">
@@ -1134,10 +1135,34 @@
       return data;
     }
 
+    function loadStoredApiKey() {
+      try {
+        const el = document.getElementById('appApiKey');
+        const stored = localStorage.getItem('betScannerAppApiKey') || '';
+        if (el && !el.value) el.value = stored;
+        return (el?.value || stored || '').trim();
+      } catch {
+        return '';
+      }
+    }
+
+    function saveStoredApiKey() {
+      try {
+        const el = document.getElementById('appApiKey');
+        const v = (el?.value || '').trim();
+        if (v) localStorage.setItem('betScannerAppApiKey', v);
+        else localStorage.removeItem('betScannerAppApiKey');
+      } catch { /* ignore */ }
+    }
+
     async function postJson(url, body) {
+      saveStoredApiKey();
+      const key = loadStoredApiKey();
+      const headers = { 'Content-Type': 'application/json' };
+      if (key) headers['X-API-Key'] = key;
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(body || {}),
       });
       const data = await res.json().catch(() => ({}));
@@ -2718,6 +2743,7 @@
     }
 
     // Boot
+    loadStoredApiKey();
     maybeShowOnboarding();
     refreshToday().catch(() => {});
     loadStats().catch(() => {});

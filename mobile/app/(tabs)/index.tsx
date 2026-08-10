@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { API_URL, pingHealth } from '../../src/api/client';
 import { fetchTodayMatches } from '../../src/api/matches';
@@ -59,6 +60,7 @@ function dedupePicks(picks: TipPick[]): TipPick[] {
 
 export default function TodayScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [picks, setPicks] = useState<TipPick[]>([]);
@@ -303,24 +305,30 @@ export default function TodayScreen() {
       </ScrollView>
 
       {selectedN > 0 ? (
-        <View style={styles.selectBar}>
-          <Text style={styles.selectCount}>
-            {selectedN} selected
-          </Text>
-          <View style={styles.multiRow}>
-            <Text style={styles.muted}>Multi</Text>
-            <Switch
-              value={asMulti}
-              onValueChange={setAsMulti}
-              trackColor={{ true: colors.accent, false: colors.line }}
-            />
+        <View style={[styles.selectBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <View style={styles.selectTop}>
+            <Text style={styles.selectCount}>{selectedN} selected</Text>
+            <View style={styles.multiRow}>
+              <Text style={styles.multiLabel}>Log as multi</Text>
+              <Switch
+                value={asMulti}
+                onValueChange={setAsMulti}
+                trackColor={{ true: colors.accent, false: colors.line }}
+              />
+            </View>
           </View>
-          <Pressable style={styles.btn} onPress={onLogSelected} disabled={busy}>
-            <Text style={styles.btnText}>Log selected</Text>
-          </Pressable>
-          <Pressable style={styles.btnSecondary} onPress={clearSelection}>
-            <Text style={styles.btnSecondaryText}>Clear</Text>
-          </Pressable>
+          <View style={styles.selectActions}>
+            <Pressable
+              style={[styles.btn, styles.selectBtnFlex, busy && styles.btnDisabled]}
+              onPress={onLogSelected}
+              disabled={busy}
+            >
+              <Text style={styles.btnText}>Log selected</Text>
+            </Pressable>
+            <Pressable style={[styles.btnSecondary, styles.selectBtnFlex]} onPress={clearSelection}>
+              <Text style={styles.btnSecondaryText}>Clear</Text>
+            </Pressable>
+          </View>
         </View>
       ) : null}
     </View>
@@ -330,7 +338,7 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   screen: { flex: 1 },
-  content: { padding: 16, paddingBottom: 120 },
+  content: { padding: 16, paddingBottom: 28 },
   kicker: { color: colors.accent, fontWeight: '700', fontSize: 13 },
   title: { color: colors.ink, fontSize: 28, fontWeight: '700', marginTop: 4 },
   muted: { color: colors.muted, marginTop: 4, fontSize: 13, lineHeight: 18 },
@@ -412,17 +420,22 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { color: colors.ink, fontWeight: '700', fontSize: 16 },
   selectBar: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    bottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
     backgroundColor: colors.surface,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingTop: 10,
     gap: 8,
   },
-  selectCount: { color: colors.ink, fontWeight: '700' },
-  multiRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  selectTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  selectCount: { color: colors.ink, fontWeight: '700', fontSize: 14 },
+  multiRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  multiLabel: { color: colors.muted, fontSize: 13, fontWeight: '600' },
+  selectActions: { flexDirection: 'row', gap: 8 },
+  selectBtnFlex: { flex: 1, marginTop: 0 },
 });

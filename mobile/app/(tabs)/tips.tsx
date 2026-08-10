@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   autoSettleTips,
@@ -102,6 +103,7 @@ function matchWhen(t: TipOut, compact = false): string {
 }
 
 export default function TipsScreen() {
+  const insets = useSafeAreaInsets();
   const [tips, setTips] = useState<TipOut[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [status, setStatus] = useState('Loading tips…');
@@ -229,7 +231,10 @@ export default function TipsScreen() {
     <View style={styles.root}>
       <ScrollView
         style={styles.screen}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: 28 + Math.max(insets.bottom, 8) + 56 },
+        ]}
         refreshControl={
           <RefreshControl refreshing={busy} onRefresh={refresh} tintColor={colors.accent} />
         }
@@ -401,7 +406,7 @@ export default function TipsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   screen: { flex: 1 },
-  content: { padding: 16, paddingBottom: 40 },
+  content: { padding: 16 },
   title: { color: colors.ink, fontSize: 28, fontWeight: '700' },
   muted: { color: colors.muted, marginTop: 6, fontSize: 13, lineHeight: 18 },
   status: { color: colors.ink, marginTop: 10, fontSize: 13 },

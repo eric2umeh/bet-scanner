@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchLatestOdds, type OddRow } from '../../src/api/odds';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
@@ -70,6 +71,7 @@ function makeOddsPick(
 
 export default function MatchDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const matchId = Number(id);
   const [panel, setPanel] = useState<Panel>('tips');
@@ -224,7 +226,13 @@ export default function MatchDetailScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom:
+              28 + Math.max(insets.bottom, 8) + (selectedN > 0 ? 72 : 24),
+          },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={loadingOdds}
@@ -475,7 +483,7 @@ export default function MatchDetailScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: 16, paddingBottom: 40 },
+  content: { padding: 16 },
   back: { marginBottom: 8, alignSelf: 'flex-start' },
   backText: { color: colors.accent, fontWeight: '700', fontSize: 15 },
   league: { color: colors.muted, fontSize: 12, fontWeight: '600' },

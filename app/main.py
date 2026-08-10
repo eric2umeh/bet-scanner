@@ -31,6 +31,7 @@ from app.api.tipsters import router as tipsters_router
 from app.api.value import router as value_router
 from app.config import get_settings
 from app.db import init_db
+from app.middleware.api_key import AppApiKeyMiddleware
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -47,11 +48,11 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 11 Expo-ready: CORS enabled, "
-        "odds compare, slip converter, multi slips, Safe Builder, NG odds. "
+        "Football betting decision API — Phase 12A optional APP_API_KEY on writes, "
+        "Expo clients, odds compare, slip converter, multi slips, Safe Builder. "
         "Open / or /docs."
     ),
-    version="0.10.6",
+    version="0.11.0",
     lifespan=lifespan,
 )
 
@@ -63,6 +64,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# After CORS so preflight OPTIONS is not blocked by the key check.
+app.add_middleware(AppApiKeyMiddleware)
 
 app.include_router(matches_router)
 app.include_router(odds_router)

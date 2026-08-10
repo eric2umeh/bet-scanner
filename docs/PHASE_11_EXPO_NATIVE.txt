@@ -34,7 +34,8 @@ STACK CHOICES (LOCKED)
   Local state     React state + Zustand (selection / bankroll)
   Persistence     expo-secure-store (tokens later) + AsyncStorage (settings)
   Backend         Existing FastAPI — DO NOT rebuild APIs in JS
-  Auth (later)    Supabase Auth or simple API key — Phase 12
+  Auth            Phase 12A = optional APP_API_Key (done)
+                  Phase 12B+ = Supabase Auth / per-user (later)
 
 
 --------------------------------------------------------------------------------

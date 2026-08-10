@@ -8,12 +8,28 @@
  *   Android Emulator:                      http://10.0.2.2:8000
  */
 
+import { loadAccessKey } from '../store/accessKey';
+
 export const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ||
   'https://bet-scanner-znvg.onrender.com';
 
 /** Render free tier can take 30–60s to wake from sleep. */
 const DEFAULT_TIMEOUT_MS = 55000;
+
+let cachedAccessKey: string | null = null;
+
+/** Call after saving the access key on Me / setup. */
+export function setCachedAccessKey(key: string | null) {
+  cachedAccessKey = key?.trim() || null;
+}
+
+async function resolveAccessKey(): Promise<string> {
+  if (cachedAccessKey != null) return cachedAccessKey;
+  const k = await loadAccessKey();
+  cachedAccessKey = k;
+  return k;
+}
 
 async function parseError(res: Response): Promise<string> {
   const text = await res.text();
@@ -26,6 +42,12 @@ async function parseError(res: Response): Promise<string> {
   }
 }
 
+async function authHeaders(): Promise<Record<string, string>> {
+  const key = await resolveAccessKey();
+  if (!key) return {};
+  return { 'X-API-Key': key };
+}
+
 async function fetchOnce<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -35,6 +57,7 @@ async function fetchOnce<T>(path: string, init?: RequestInit, timeoutMs = DEFAUL
       signal: ctrl.signal,
       headers: {
         Accept: 'application/json',
+        ...(await authHeaders()),
         ...(init?.headers || {}),
       },
     });

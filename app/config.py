@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     app_env: str = "development"
     debug: bool = True
 
+    # Phase 12A — optional shared secret for POST/PUT/PATCH/DELETE.
+    # Empty = open (local learning). Set on Render so only your phone/dashboard can write.
+    app_api_key: str = ""
+
     database_url: str = (
         "postgresql+psycopg://betscanner:betscanner@localhost:5432/betscanner"
     )

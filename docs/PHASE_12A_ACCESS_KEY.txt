@@ -1,0 +1,81 @@
+================================================================================
+PHASE 12A — APP ACCESS KEY + EXPO QUICK SETUP
+================================================================================
+
+Goal:
+  Optional shared secret so strangers cannot log tips / run morning routine /
+  sync odds on your live API. Plus a first-run setup screen on the phone.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  Backend
+    - APP_API_KEY env (empty = open, same as before)
+    - When set: POST/PUT/PATCH/DELETE need header X-API-Key (or Bearer)
+    - GET /health, /docs, and the HTML page stay public
+    - API version 0.11.0
+
+  Expo
+    - Quick setup screen (bankroll, unit %, tip style, optional access key)
+    - Key stored with Secure Store (AsyncStorage on web)
+    - All API writes send X-API-Key when saved
+    - Me → edit access key anytime
+
+  Web dashboard
+    - Me → App access key field (saved in browser localStorage)
+
+
+--------------------------------------------------------------------------------
+PLAIN ENGLISH
+--------------------------------------------------------------------------------
+
+  The access key is NOT something you download from a website.
+  It is a password YOU invent (e.g. a long random string) if you want to lock
+  write actions on your live API so random people cannot log tips for you.
+
+  Right now you can ignore it. Empty key = app works with no password.
+
+
+--------------------------------------------------------------------------------
+HOW TO USE
+--------------------------------------------------------------------------------
+
+  Default (recommended while learning)
+    Do nothing. Leave APP_API_KEY empty. Phone Me key field empty.
+
+  Later — lock the live server
+    1) Invent a long password (password manager / openssl rand -hex 24)
+    2) Render → Environment → add APP_API_KEY = that password → Redeploy
+    3) Phone Me → paste the same password → Save settings
+    4) Web dashboard Me → paste the same password
+
+
+--------------------------------------------------------------------------------
+NOT IN THIS SLICE (Phase 12B+)
+--------------------------------------------------------------------------------
+
+  - Supabase Auth (email login / per-user accounts)
+  - Tipsters tab on Expo
+  - Multi-user tip ownership
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/config.py
+  app/middleware/api_key.py
+  app/main.py
+  app/static/dashboard.html
+  .env.example
+  mobile/app/onboarding.tsx
+  mobile/app/_layout.tsx
+  mobile/app/(tabs)/me.tsx
+  mobile/src/api/client.ts
+  mobile/src/store/accessKey.ts
+  mobile/src/store/onboarding.ts
+  docs/PHASE_12A_ACCESS_KEY.txt
+
+================================================================================
