@@ -40,6 +40,7 @@ def tip_to_dict(tip: Tip) -> dict:
         "fav_odds": tip.fav_odds,
         "source": tip.source,
         "slip_id": tip.slip_id,
+        "owner_id": tip.owner_id,
         "rationale": tip.rationale,
         "result": tip.result,
         "created_at": tip.created_at,
@@ -73,10 +74,12 @@ def find_existing_tip(
     selection: str,
     source: str | None = None,
     bookmaker: str | None = None,
+    owner_id: str | None = None,
 ) -> Tip | None:
     """
     Any non-void tip for the same placeable pick blocks a new log.
     Source is ignored so Today log + match-page log don't double-create.
+    When owner_id is set, only that user's tips count as duplicates.
     """
     q = (
         select(Tip)
@@ -88,6 +91,8 @@ def find_existing_tip(
         )
         .order_by(Tip.id.asc())
     )
+    if owner_id:
+        q = q.where(Tip.owner_id == owner_id)
     rows = list(db.scalars(q).unique().all())
     want_sel = _norm_sel(selection)
     want_book = _norm_book(bookmaker) if bookmaker else None
@@ -206,6 +211,7 @@ def create_tip(
     source: str = "manual",
     slip_id: str | None = None,
     rationale: str | None = None,
+    owner_id: str | None = None,
     skip_duplicate: bool = True,
 ) -> tuple[Tip | None, str]:
     """
@@ -222,6 +228,7 @@ def create_tip(
             market=market,
             selection=selection,
             bookmaker=bookmaker,
+            owner_id=owner_id,
         )
         if dup is not None:
             return dup, "duplicate"
@@ -242,6 +249,7 @@ def create_tip(
         fav_odds=fav_odds,
         source=source,
         slip_id=slip_id,
+        owner_id=owner_id,
         rationale=rationale,
         result="pending",
     )
@@ -259,6 +267,7 @@ def log_selected_tips(
     tips: list[dict],
     *,
     as_multi: bool = True,
+    owner_id: str | None = None,
 ) -> dict:
     """
     Persist checkbox-selected tips. When as_multi and 2+ tips share a bookmaker,
@@ -327,6 +336,7 @@ def log_selected_tips(
             source=str(t.get("source") or "manual"),
             slip_id=slip_id,
             rationale=t.get("rationale"),
+            owner_id=owner_id,
             skip_duplicate=True,
         )
         if status == "created" and tip is not None:
@@ -416,6 +426,7 @@ def list_tips(
     source: str | None = None,
     limit: int = 50,
     hide_void: bool = False,
+    owner_id: str | None = None,
 ) -> list[dict]:
     # Clean existing duplicates so Load tips doesn't show Beijing twice
     cleanup_duplicate_tips(db)
@@ -427,6 +438,8 @@ def list_tips(
         q = q.where(Tip.result != "void")
     if source:
         q = q.where(Tip.source == source)
+    if owner_id:
+        q = q.where(Tip.owner_id == owner_id)
     q = q.limit(limit * 3)  # fetch extra before dedupe
     rows = [tip_to_dict(t) for t in db.scalars(q).unique().all()]
 

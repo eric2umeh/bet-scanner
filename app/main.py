@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse
 
 from app.api.ai import router as ai_router
 from app.api.arbitrage import router as arbitrage_router
+from app.api.auth import router as auth_router
 from app.api.convert import router as convert_router
 from app.api.matches import router as matches_router
 from app.api.odds import router as odds_router
@@ -48,11 +49,11 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 12A optional APP_API_KEY on writes, "
-        "Expo clients, odds compare, slip converter, multi slips, Safe Builder. "
+        "Football betting decision API — Phase 12C optional Supabase Auth, "
+        "APP_API_KEY on writes, Expo clients, Safe Builder, tipsters. "
         "Open / or /docs."
     ),
-    version="0.11.0",
+    version="0.12.0",
     lifespan=lifespan,
 )
 
@@ -67,6 +68,7 @@ app.add_middleware(
 # After CORS so preflight OPTIONS is not blocked by the key check.
 app.add_middleware(AppApiKeyMiddleware)
 
+app.include_router(auth_router)
 app.include_router(matches_router)
 app.include_router(odds_router)
 app.include_router(arbitrage_router)
@@ -82,12 +84,13 @@ app.include_router(telegram_router)
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health() -> dict[str, str | bool]:
     """Lightweight liveness check for Render / load balancers."""
     return {
         "status": "ok",
         "env": settings.app_env,
         "version": app.version,
+        "auth_configured": bool((settings.supabase_jwt_secret or "").strip()),
     }
 
 

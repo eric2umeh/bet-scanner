@@ -28,7 +28,15 @@ class Settings(BaseSettings):
 
     # Phase 12A — optional shared secret for POST/PUT/PATCH/DELETE.
     # Empty = open (local learning). Set on Render so only your phone/dashboard can write.
+    # Send as header X-API-Key only (Authorization Bearer is reserved for user login).
     app_api_key: str = ""
+
+    # Phase 12C — Supabase Auth (optional). JWT secret from Project Settings → API.
+    supabase_url: str = ""
+    supabase_anon_key: str = ""
+    supabase_jwt_secret: str = ""
+    # When true and JWT secret is set, tip writes require a signed-in user.
+    auth_required_for_tips: bool = False
 
     database_url: str = (
         "postgresql+psycopg://betscanner:betscanner@localhost:5432/betscanner"

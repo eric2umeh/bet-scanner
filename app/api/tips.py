@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_db
+from app.deps.auth import AuthUser, get_current_user
 from app.schemas.tips import (
     AutoSettleResponse,
     LearningResponse,
@@ -64,6 +65,7 @@ router = APIRouter(prefix="/tips", tags=["tips"])
 def create_tip_endpoint(
     body: TipCreate,
     db: Session = Depends(get_db),
+    user: AuthUser | None = Depends(get_current_user),
 ) -> TipOut:
     tip, status = create_tip(
         db,
@@ -76,6 +78,7 @@ def create_tip_endpoint(
         stake_ngn=body.stake_ngn,
         source=body.source,
         rationale=body.rationale,
+        owner_id=user.id if user else None,
         skip_duplicate=True,
     )
     if tip is None:
@@ -97,10 +100,16 @@ def log_tip_batch(
     body: TipBatchLogRequest,
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
+    user: AuthUser | None = Depends(get_current_user),
 ) -> TipBatchLogResponse:
     """Save checked tips; same-book 2+ → one multi slip (Phase 10D)."""
     payloads = [t.model_dump() for t in body.tips]
-    result = log_selected_tips(db, payloads, as_multi=body.as_multi)
+    result = log_selected_tips(
+        db,
+        payloads,
+        as_multi=body.as_multi,
+        owner_id=user.id if user else None,
+    )
     created = result["created"]
 
     telegram_info = None
@@ -345,8 +354,18 @@ def list_tips_endpoint(
     ),
     limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
+    user: AuthUser | None = Depends(get_current_user),
 ) -> list[TipOut]:
-    return [TipOut(**t) for t in list_tips(db, result=result, source=source, limit=limit)]
+    return [
+        TipOut(**t)
+        for t in list_tips(
+            db,
+            result=result,
+            source=source,
+            limit=limit,
+            owner_id=user.id if user else None,
+        )
+    ]
 
 
 @router.get("/stats", response_model=TipStatsResponse)

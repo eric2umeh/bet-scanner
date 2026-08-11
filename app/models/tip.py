@@ -39,6 +39,9 @@ class Tip(Base):
     # Phase 10D — legs that share slip_id are one multi/accumulator
     slip_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
+    # Phase 12C — Supabase Auth user id (uuid string); null = legacy / anonymous
+    owner_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+
     rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # pending | won | lost | void

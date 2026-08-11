@@ -1,0 +1,85 @@
+================================================================================
+PHASE 12C — SUPABASE AUTH (OPTIONAL LOGIN)
+================================================================================
+
+Goal:
+  Let you create an email account so tips you log can belong to you.
+  Still optional — leave env vars empty and the app works as before.
+
+
+--------------------------------------------------------------------------------
+PLAIN ENGLISH
+--------------------------------------------------------------------------------
+
+  App access key (12A) = one password for the whole server (house key).
+  Account login (12C)   = your personal email login (your room).
+
+  You can use neither, either, or both.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  Backend
+    - tips.owner_id column
+    - Verify Supabase JWT (Authorization: Bearer)
+    - X-API-Key only for APP_API_KEY (Bearer no longer used for that)
+    - GET /auth/status
+    - Logged-in tip list/create scoped to that user
+    - AUTH_REQUIRED_FOR_TIPS=false by default
+
+  Expo Me → Account
+    - Sign up / Sign in / Sign out
+    - Password minimum 8 characters (app-enforced)
+    - Session stored securely; API calls send the login token
+
+  Also set in Supabase (Auth → Providers → Email / password settings)
+    minimum password length ≥ 8 so the server matches the app.
+
+
+--------------------------------------------------------------------------------
+HOW TO TURN ON
+--------------------------------------------------------------------------------
+
+  1) Supabase dashboard → Authentication → enable Email provider
+  2) Project Settings → API:
+       - Project URL
+       - anon public key
+       - JWT Secret
+  3) Server .env / Render:
+       SUPABASE_JWT_SECRET=<jwt secret>
+       SUPABASE_URL=<url>          (optional, for docs)
+       SUPABASE_ANON_KEY=<anon>    (optional, for docs)
+  4) mobile/.env  (IMPORTANT: Expo does NOT read the repo-root .env)
+       EXPO_PUBLIC_SUPABASE_URL=<url>
+       EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon>
+  5) Restart Expo with cache clear:
+       cd mobile && npx expo start --clear
+  6) Me → Account → Sign up / Sign in → Log tips
+
+  Later, to force login for tip writes:
+       AUTH_REQUIRED_FOR_TIPS=true
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/deps/auth.py
+  app/api/auth.py
+  app/models/tip.py
+  app/services/tips.py
+  app/api/tips.py
+  app/middleware/api_key.py
+  app/db.py
+  app/main.py
+  requirements.txt
+  mobile/src/lib/supabase.ts
+  mobile/src/store/session.ts
+  mobile/src/api/client.ts
+  mobile/app/(tabs)/me.tsx
+  mobile/app/_layout.tsx
+  docs/PHASE_12C_SUPABASE_AUTH.txt
+
+================================================================================

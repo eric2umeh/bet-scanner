@@ -42,6 +42,7 @@ class TipOut(BaseModel):
     fav_odds: Decimal | None = None
     source: str
     slip_id: str | None = None
+    owner_id: str | None = None
     rationale: str | None = None
     result: str
     created_at: datetime | None = None

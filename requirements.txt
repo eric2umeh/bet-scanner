@@ -16,3 +16,6 @@ httpx==0.28.1
 
 # Dates / timezone helpers
 python-dateutil==2.9.0.post0
+
+# Phase 12C — verify Supabase Auth JWTs
+PyJWT==2.10.1

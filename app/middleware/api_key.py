@@ -2,9 +2,10 @@
 Phase 12A — optional APP_API_KEY gate for mutating requests.
 
 When APP_API_KEY is empty, all routes stay open (local / learning default).
-When set, POST/PUT/PATCH/DELETE must send the same value as:
+When set, POST/PUT/PATCH/DELETE must send:
   X-API-Key: <key>
-  or Authorization: Bearer <key>
+
+Authorization: Bearer is reserved for Supabase user login (Phase 12C).
 
 GET /health, docs, and the HTML dashboard stay public.
 """
@@ -28,13 +29,7 @@ _MUTATING = {"POST", "PUT", "PATCH", "DELETE"}
 
 
 def _extract_key(request: Request) -> str:
-    header = (request.headers.get("x-api-key") or "").strip()
-    if header:
-        return header
-    auth = (request.headers.get("authorization") or "").strip()
-    if auth.lower().startswith("bearer "):
-        return auth[7:].strip()
-    return ""
+    return (request.headers.get("x-api-key") or "").strip()
 
 
 class AppApiKeyMiddleware(BaseHTTPMiddleware):

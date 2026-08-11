@@ -9,6 +9,7 @@
  */
 
 import { loadAccessKey } from '../store/accessKey';
+import { getAccessToken } from '../store/session';
 
 export const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ||
@@ -43,9 +44,12 @@ async function parseError(res: Response): Promise<string> {
 }
 
 async function authHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
   const key = await resolveAccessKey();
-  if (!key) return {};
-  return { 'X-API-Key': key };
+  if (key) headers['X-API-Key'] = key;
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 async function fetchOnce<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {

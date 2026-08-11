@@ -35,7 +35,7 @@ HOW TO TRY
 NEXT
 --------------------------------------------------------------------------------
 
-  Phase 12C — Supabase Auth / per-user accounts (optional later)
+  Phase 12C — Supabase Auth (see PHASE_12C_SUPABASE_AUTH.txt)
 
 
 --------------------------------------------------------------------------------

@@ -17,9 +17,18 @@ import {
   type SlipConvertResponse,
 } from '../../src/api/convert';
 import { runDailyOps, type DailyOpsResponse } from '../../src/api/ops';
+import { MIN_PASSWORD_LENGTH } from '../../src/lib/password';
 import { shareOrCopyText } from '../../src/lib/shareText';
 import { bookLabel } from '../../src/lib/tipKey';
 import { loadAccessKey, saveAccessKey } from '../../src/store/accessKey';
+import {
+  getSessionEmail,
+  isSupabaseConfigured,
+  signIn,
+  signOut,
+  signUp,
+  subscribeSession,
+} from '../../src/store/session';
 import {
   loadSettings,
   saveSettings,
@@ -64,6 +73,10 @@ export default function MeScreen() {
   const [unitPct, setUnitPct] = useState('1');
   const [pickMarket, setPickMarket] = useState<'double_chance' | '1x2'>('double_chance');
   const [accessKey, setAccessKey] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
 
   const [slipText, setSlipText] = useState('');
   const [codeText, setCodeText] = useState('');
@@ -112,6 +125,11 @@ export default function MeScreen() {
     void loadMe(false);
   }, [loadMe]);
 
+  useEffect(() => {
+    setSessionEmail(getSessionEmail());
+    return subscribeSession(() => setSessionEmail(getSessionEmail()));
+  }, []);
+
   async function onPullRefresh() {
     setPulling(true);
     try {
@@ -140,6 +158,51 @@ export default function MeScreen() {
         ? `Saved · unit stake ≈ ₦${unitStakeNgn(next)} · access key on`
         : `Saved · unit stake ≈ ₦${unitStakeNgn(next)}`
     );
+  }
+
+  async function onSignIn() {
+    flash('Signing in…');
+    setAuthBusy(true);
+    try {
+      await signIn(email, password);
+      flash(`Signed in as ${getSessionEmail() || email}. Your tips stay with this account.`);
+      setPassword('');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : String(e), true);
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function onSignUp() {
+    flash('Creating account…');
+    setAuthBusy(true);
+    try {
+      const session = await signUp(email, password);
+      if (!session) {
+        flash('Account created. Check your email to confirm, then sign in.');
+      } else {
+        flash(`Signed up as ${getSessionEmail() || email}.`);
+      }
+      setPassword('');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : String(e), true);
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function onSignOut() {
+    flash('Signing out…');
+    setAuthBusy(true);
+    try {
+      await signOut();
+      flash('Signed out.');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : String(e), true);
+    } finally {
+      setAuthBusy(false);
+    }
   }
 
   async function onPriceCheck() {
@@ -228,12 +291,79 @@ export default function MeScreen() {
       </Text>
       {status ? (
         <View style={[styles.statusBox, statusBad && styles.statusBad]}>
-          {(converting || opsBusy) && (
+          {(converting || opsBusy || authBusy) && (
             <ActivityIndicator color={statusBad ? colors.bad : colors.accent} style={{ marginRight: 8 }} />
           )}
           <Text style={[styles.statusText, statusBad && styles.statusTextBad]}>{status}</Text>
         </View>
       ) : null}
+
+      <View style={styles.card}>
+        <Text style={styles.section}>Account</Text>
+        {sessionEmail ? (
+          <>
+            <Text style={styles.muted}>Signed in as {sessionEmail}</Text>
+            <Text style={styles.hint}>
+              Tips you log are saved under this account.
+            </Text>
+            <Pressable
+              style={[styles.btnSecondary, authBusy && styles.btnDisabled]}
+              disabled={authBusy}
+              onPress={onSignOut}
+            >
+              <Text style={styles.btnSecondaryText}>Sign out</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={styles.hint}>
+              Email login for your tips. Different from the app access key in Settings below.
+            </Text>
+            {!isSupabaseConfigured() ? (
+              <Text style={[styles.hint, { color: colors.bad }]}>
+                Restart Expo after adding keys to mobile/.env (EXPO_PUBLIC_SUPABASE_URL and
+                EXPO_PUBLIC_SUPABASE_ANON_KEY). Root .env alone is not enough for the phone app.
+              </Text>
+            ) : null}
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoCorrect={false}
+              placeholder="you@email.com"
+              placeholderTextColor={colors.muted}
+            />
+            <Text style={styles.label}>Password (min {MIN_PASSWORD_LENGTH} characters)</Text>
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholder={`at least ${MIN_PASSWORD_LENGTH} characters`}
+              placeholderTextColor={colors.muted}
+            />
+            <View style={styles.row}>
+              <Pressable
+                style={[styles.btn, styles.btnFlex, authBusy && styles.btnDisabled]}
+                disabled={authBusy || !isSupabaseConfigured()}
+                onPress={onSignIn}
+              >
+                <Text style={styles.btnText}>Sign in</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btnSecondary, styles.btnFlex, authBusy && styles.btnDisabled]}
+                disabled={authBusy || !isSupabaseConfigured()}
+                onPress={onSignUp}
+              >
+                <Text style={styles.btnSecondaryText}>Sign up</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.section}>Settings</Text>

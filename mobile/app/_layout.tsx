@@ -11,6 +11,7 @@ import { setCachedAccessKey } from '../src/api/client';
 import { ConnectionBanner } from '../src/components/ConnectionBanner';
 import { loadAccessKey } from '../src/store/accessKey';
 import { isOnboardingDone } from '../src/store/onboarding';
+import { initSession } from '../src/store/session';
 import { colors } from '../src/theme/colors';
 
 export { ErrorBoundary } from 'expo-router';
@@ -67,6 +68,7 @@ export default function RootLayout() {
     let cancelled = false;
     (async () => {
       const key = await loadAccessKey();
+      await initSession();
       if (cancelled) return;
       setCachedAccessKey(key || null);
       setGateReady(true);

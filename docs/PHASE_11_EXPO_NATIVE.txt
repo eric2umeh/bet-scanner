@@ -36,7 +36,7 @@ STACK CHOICES (LOCKED)
   Backend         Existing FastAPI — DO NOT rebuild APIs in JS
   Auth            Phase 12A = optional APP_API_Key (done)
                   Phase 12B = Tipsters on Expo (done)
-                  Phase 12C = Supabase Auth / per-user (later)
+                  Phase 12C = Supabase Auth (done; optional until env set)
 
 
 --------------------------------------------------------------------------------
