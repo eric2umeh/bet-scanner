@@ -1,8 +1,10 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useState } from 'react';
 import {
+  Platform,
   Pressable,
   StyleSheet,
+  Text,
   TextInput,
   View,
   type TextInputProps,
@@ -14,9 +16,11 @@ type Props = TextInputProps;
 
 /**
  * Password / secret field with show-hide toggle (eye icon).
+ * Flex row layout so the toggle stays visible on web (absolute overlay often hides behind <input>).
  */
 export function PasswordInput({ style, ...rest }: Props) {
   const [visible, setVisible] = useState(false);
+  const label = visible ? 'Hide' : 'Show';
 
   return (
     <View style={styles.wrap}>
@@ -32,13 +36,16 @@ export function PasswordInput({ style, ...rest }: Props) {
         onPress={() => setVisible((v) => !v)}
         accessibilityRole="button"
         accessibilityLabel={visible ? 'Hide password' : 'Show password'}
-        hitSlop={8}
+        hitSlop={6}
       >
         <FontAwesome
           name={visible ? 'eye-slash' : 'eye'}
-          size={18}
-          color={visible ? colors.accent : colors.muted}
+          size={20}
+          color={visible ? colors.accent : colors.ink}
         />
+        {Platform.OS === 'web' ? (
+          <Text style={[styles.toggleLabel, visible && styles.toggleLabelOn]}>{label}</Text>
+        ) : null}
       </Pressable>
     </View>
   );
@@ -46,25 +53,46 @@ export function PasswordInput({ style, ...rest }: Props) {
 
 const styles = StyleSheet.create({
   wrap: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  input: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.bg,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 10,
+    minHeight: 44,
+  },
+  input: {
+    flex: 1,
+    minWidth: 0,
     paddingHorizontal: 12,
-    paddingRight: 44,
-    paddingVertical: 10,
+    paddingVertical: Platform.OS === 'web' ? 11 : 10,
     color: colors.ink,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+        } as object)
+      : null),
   },
   toggle: {
-    position: 'absolute',
-    right: 4,
-    height: 40,
-    width: 40,
+    flexShrink: 0,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    minWidth: 44,
+    minHeight: 44,
+    zIndex: 2,
+  },
+  toggleLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '600',
+    userSelect: 'none',
+  },
+  toggleLabelOn: {
+    color: colors.accent,
   },
 });
