@@ -24,6 +24,18 @@ export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${SUPABAS
 
 npx expo export --platform web
 
+DIST="$ROOT/mobile/dist"
+ICO_SRC="$ROOT/mobile/assets/images/favicon.png"
+if [[ -f "$ICO_SRC" && -d "$DIST" ]]; then
+  # Expo export can keep a stale favicon.ico — regenerate from our PNG.
+  npx --yes png-to-ico "$ICO_SRC" > "$DIST/favicon.ico"
+  cp "$ICO_SRC" "$DIST/favicon.png"
+  if [[ -f "$DIST/index.html" ]]; then
+  perl -pi -e 's|href="/favicon\.ico"|href="/favicon.ico?v='$(date +%s)'"|' "$DIST/index.html" 2>/dev/null || \
+    sed -i.bak 's|href="/favicon.ico"|href="/favicon.ico?v='"$(date +%s)"'"|' "$DIST/index.html" && rm -f "$DIST/index.html.bak"
+  fi
+fi
+
 echo ""
 echo "=============================================="
 echo "  Next: hard-refresh http://127.0.0.1:8000/"
