@@ -576,6 +576,23 @@
       padding: 0.95rem 1rem;
       margin-bottom: 0.75rem;
     }
+    .auth-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      margin-top: 0.5rem;
+    }
+    .auth-fields label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .auth-fields input {
+      width: 100%;
+      max-width: 20rem;
+    }
     .card-block h2 {
       font-family: Sora, Manrope, sans-serif;
       font-size: 0.95rem;
@@ -806,6 +823,35 @@
 
     <!-- ME -->
     <section class="view" id="viewMe" data-view="me">
+      <div class="card-block" id="authCard">
+        <h2>Account</h2>
+        <p id="authNotConfigured" class="muted" hidden>
+          Email login is not configured on this server. Set <code>SUPABASE_URL</code> and
+          <code>SUPABASE_ANON_KEY</code> in the API <code>.env</code> (same values as Expo
+          <code>EXPO_PUBLIC_*</code>), then restart uvicorn / redeploy Render.
+        </p>
+        <div id="authSignedIn" hidden>
+          <p class="muted" style="margin:0">Signed in as <strong id="authEmailDisplay"></strong></p>
+          <p class="muted">Tips you log are saved under this account.</p>
+          <button type="button" class="secondary" id="authSignOutBtn" onclick="onSignOut()">Sign out</button>
+        </div>
+        <div id="authForm">
+          <p class="muted">Email login for your tips. Different from the app access key in Settings below.</p>
+          <div class="auth-fields">
+            <label>Email
+              <input id="authEmail" type="email" autocomplete="email" placeholder="you@email.com" />
+            </label>
+            <label>Password (min 8 characters)
+              <input id="authPassword" type="password" autocomplete="current-password" placeholder="at least 8 characters" />
+            </label>
+          </div>
+          <div class="row" style="margin-top:0.75rem">
+            <button type="button" id="authSignInBtn" onclick="onSignIn()">Sign in</button>
+            <button type="button" class="secondary" id="authSignUpBtn" onclick="onSignUp()">Sign up</button>
+          </div>
+        </div>
+      </div>
+
       <div class="card-block">
         <h2>Your settings</h2>
         <div class="row">
@@ -1014,6 +1060,13 @@
     let activeMatch = null;
     let lastArbs = [];
     const ONBOARD_KEY = 'betScannerOnboardV1';
+    const MIN_PASSWORD_LENGTH = 8;
+    const AUTH_TIMEOUT_MS = 12000;
+
+    let supabaseClient = null;
+    let accessToken = null;
+    let sessionEmail = null;
+    let authBusy = false;
 
     function tipKey(p) {
       return [
@@ -1127,8 +1180,214 @@
       return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function assertEmail(email) {
+      const value = String(email || '').trim().toLowerCase();
+      if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        throw new Error('Enter a valid email address.');
+      }
+      return value;
+    }
+
+    function assertPassword(password) {
+      const value = password ?? '';
+      if (value.length < MIN_PASSWORD_LENGTH) {
+        throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      }
+      return value;
+    }
+
+    function formatAuthError(err, action) {
+      if (err instanceof Error && err.message.startsWith('Password must be')) {
+        return err.message;
+      }
+      const message = (err && err.message) ? String(err.message) : '';
+      const code = (err && err.code) ? String(err.code) : '';
+      const lower = `${code} ${message}`.toLowerCase();
+      if (lower.includes('email not confirmed') || code === 'email_not_confirmed') {
+        return 'This email is not confirmed yet. Open the link in your inbox, then sign in.';
+      }
+      if (lower.includes('user already registered') || code === 'user_already_exists') {
+        return 'An account with this email already exists. Use Sign in instead.';
+      }
+      if (
+        lower.includes('invalid login credentials') ||
+        code === 'invalid_credentials' ||
+        lower.includes('invalid_credentials')
+      ) {
+        return action === 'sign_in'
+          ? 'Wrong email or password — or no account for this email yet. Use Sign up if you are new.'
+          : 'Could not create the account. Check the email and try again.';
+      }
+      if (lower.includes('invalid email') || code === 'validation_failed') {
+        return 'Enter a valid email address.';
+      }
+      if (lower.includes('password') && (lower.includes('least') || lower.includes('weak'))) {
+        return message || 'Password is too weak. Use at least 8 characters.';
+      }
+      if (lower.includes('network') || lower.includes('fetch') || lower.includes('timeout')) {
+        return 'Network problem talking to login. Check internet and try again.';
+      }
+      if (message.trim()) return message.trim();
+      return action === 'sign_in' ? 'Sign in failed.' : 'Sign up failed.';
+    }
+
+    function withAuthTimeout(promise, label) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`${label} timed out. Check internet and try again.`));
+          }, AUTH_TIMEOUT_MS);
+        }),
+      ]);
+    }
+
+    function setAuthBusy(busy) {
+      authBusy = busy;
+      ['authSignInBtn', 'authSignUpBtn', 'authSignOutBtn'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = busy;
+      });
+    }
+
+    function renderAuthBox() {
+      const notCfg = document.getElementById('authNotConfigured');
+      const signed = document.getElementById('authSignedIn');
+      const form = document.getElementById('authForm');
+      if (!notCfg || !signed || !form) return;
+      if (!supabaseClient) {
+        notCfg.hidden = false;
+        signed.hidden = true;
+        form.hidden = true;
+        return;
+      }
+      notCfg.hidden = true;
+      if (sessionEmail) {
+        signed.hidden = false;
+        form.hidden = true;
+        const em = document.getElementById('authEmailDisplay');
+        if (em) em.textContent = sessionEmail;
+      } else {
+        signed.hidden = true;
+        form.hidden = false;
+      }
+    }
+
+    function applySession(session) {
+      accessToken = session?.access_token ?? null;
+      sessionEmail = session?.user?.email ?? null;
+      renderAuthBox();
+    }
+
+    async function initAuth() {
+      try {
+        const cfg = await getJson('/auth/config');
+        if (!cfg.supabase_url || !cfg.supabase_anon_key) {
+          supabaseClient = null;
+          applySession(null);
+          return;
+        }
+        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.49.8');
+        supabaseClient = createClient(cfg.supabase_url, cfg.supabase_anon_key, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+          },
+        });
+        const { data } = await supabaseClient.auth.getSession();
+        applySession(data.session ?? null);
+        supabaseClient.auth.onAuthStateChange((_event, session) => {
+          applySession(session);
+          if (session) {
+            loadTips().catch(() => {});
+            loadStats().catch(() => {});
+          }
+        });
+      } catch (e) {
+        console.warn('Auth init failed', e);
+        supabaseClient = null;
+        applySession(null);
+      }
+    }
+
+    async function onSignIn() {
+      if (!supabaseClient || authBusy) return;
+      setAuthBusy(true);
+      setStatus('Signing in…');
+      try {
+        const email = assertEmail(document.getElementById('authEmail')?.value);
+        const password = assertPassword(document.getElementById('authPassword')?.value);
+        const { data, error } = await withAuthTimeout(
+          supabaseClient.auth.signInWithPassword({ email, password }),
+          'Sign in'
+        );
+        if (error) throw error;
+        applySession(data.session);
+        setStatus(`Signed in as ${sessionEmail || email}. Your tips stay with this account.`);
+        document.getElementById('authPassword').value = '';
+        await loadTips().catch(() => {});
+        await loadStats().catch(() => {});
+      } catch (e) {
+        setStatus(formatAuthError(e, 'sign_in'), true);
+      } finally {
+        setAuthBusy(false);
+      }
+    }
+
+    async function onSignUp() {
+      if (!supabaseClient || authBusy) return;
+      setAuthBusy(true);
+      setStatus('Creating account…');
+      try {
+        const email = assertEmail(document.getElementById('authEmail')?.value);
+        const password = assertPassword(document.getElementById('authPassword')?.value);
+        const { data, error } = await withAuthTimeout(
+          supabaseClient.auth.signUp({ email, password }),
+          'Sign up'
+        );
+        if (error) throw error;
+        applySession(data.session);
+        if (data.session) {
+          setStatus(`Signed in as ${sessionEmail || email}.`);
+          document.getElementById('authPassword').value = '';
+        } else {
+          setStatus('Account created. Check your email to confirm, then sign in.');
+        }
+      } catch (e) {
+        setStatus(formatAuthError(e, 'sign_up'), true);
+      } finally {
+        setAuthBusy(false);
+      }
+    }
+
+    async function onSignOut() {
+      if (!supabaseClient || authBusy) return;
+      setAuthBusy(true);
+      setStatus('Signing out…');
+      try {
+        await supabaseClient.auth.signOut();
+        applySession(null);
+        setStatus('Signed out.');
+        await loadTips().catch(() => {});
+        await loadStats().catch(() => {});
+      } catch (e) {
+        setStatus(e instanceof Error ? e.message : String(e), true);
+      } finally {
+        setAuthBusy(false);
+      }
+    }
+
+    async function apiHeaders(extra = {}) {
+      const headers = { Accept: 'application/json', ...extra };
+      const key = loadStoredApiKey();
+      if (key) headers['X-API-Key'] = key;
+      if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+      return headers;
+    }
+
     async function getJson(url) {
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: await apiHeaders() });
       const text = await res.text();
       let data;
       try { data = JSON.parse(text); } catch { data = text; }
@@ -1200,12 +1459,9 @@
 
     async function postJson(url, body) {
       saveStoredApiKey();
-      const key = loadStoredApiKey();
-      const headers = { 'Content-Type': 'application/json' };
-      if (key) headers['X-API-Key'] = key;
       const res = await fetch(url, {
         method: 'POST',
-        headers,
+        headers: await apiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(body || {}),
       });
       const data = await res.json().catch(() => ({}));
@@ -2447,7 +2703,10 @@
       btns.forEach(b => { b.disabled = true; });
       setStatus('Syncing NG odds (uses free quota)...');
       try {
-        const res = await fetch('/odds/sync', { method: 'POST' });
+        const res = await fetch('/odds/sync', {
+          method: 'POST',
+          headers: await apiHeaders(),
+        });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
         setStatus(data.message || 'Sync done.');
@@ -2788,9 +3047,11 @@
     // Boot
     loadMeSettings();
     maybeShowOnboarding();
-    refreshToday().catch(() => {});
-    loadStats().catch(() => {});
-    loadLearning().catch(() => {});
+    initAuth().finally(() => {
+      refreshToday().catch(() => {});
+      loadStats().catch(() => {});
+      loadLearning().catch(() => {});
+    });
   </script>
 </body>
 </html>
