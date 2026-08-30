@@ -28,6 +28,7 @@ import {
   unitStakeNgn,
   type AppSettings,
 } from '../../src/store/settings';
+import { PasswordInput } from '../../src/components/PasswordInput';
 import { colors } from '../../src/theme/colors';
 
 /** API step keys → plain labels for the Me screen. */
@@ -268,11 +269,9 @@ export default function MeScreen() {
               placeholderTextColor={colors.muted}
             />
             <Text style={styles.label}>Password (min {MIN_PASSWORD_LENGTH} characters)</Text>
-            <TextInput
-              style={styles.input}
+            <PasswordInput
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
               placeholder={`at least ${MIN_PASSWORD_LENGTH} characters`}
               placeholderTextColor={colors.muted}
             />
@@ -336,13 +335,9 @@ export default function MeScreen() {
           You invent this password yourself on the server (Render env APP_API_KEY). Leave blank
           unless you turned that on — most setups do not need it yet.
         </Text>
-        <TextInput
-          style={styles.input}
+        <PasswordInput
           value={accessKey}
           onChangeText={setAccessKey}
-          autoCapitalize="none"
-          autoCorrect={false}
-          secureTextEntry
           placeholder="Paste access key"
           placeholderTextColor={colors.muted}
         />
