@@ -1,5 +1,5 @@
 ================================================================================
-PHASE 13A — EXPO EDGE TAB (VALUE + SUREBETS)
+PHASE 13A — EXPO VALUE + SUREBETS (ME → ADVANCED)
 ================================================================================
 
 Goal:
@@ -11,7 +11,7 @@ Goal:
 WHAT SHIPPED
 --------------------------------------------------------------------------------
 
-  New tab: Edge
+  Me → Advanced tools → Value & surebets (matches web dashboard)
     - Value: GET /value/scan using Me bankroll + unit %
     - Surebets: GET /arbitrage/scan with sample stake = bankroll
     - Log value tips → POST /tips/log-value-scan
@@ -30,8 +30,8 @@ HOW TO TRY
 
   1) Me → set bankroll / unit % (or onboarding)
   2) Sync odds (Me morning routine or dashboard Sync)
-  3) Edge → Value → scan; optional Log value tips
-  4) Edge → Surebets → scan; Copy stake plan / Log surebets
+  3) Me → Advanced tools → Value → scan; optional Log value tips
+  4) Same section → Surebets → scan; Copy stake plan / Log surebets
   5) Tips tab → settle logged tips after FT
 
 
@@ -49,8 +49,9 @@ NEXT
 FILES
 --------------------------------------------------------------------------------
 
-  mobile/app/(tabs)/edge.tsx
-  mobile/app/(tabs)/_layout.tsx
+  mobile/src/components/EdgePanel.tsx
+  mobile/src/components/AdvancedTools.tsx
+  mobile/app/(tabs)/me.tsx
   mobile/src/api/edge.ts
   docs/PHASE_13A_EDGE_NATIVE.txt
 
