@@ -37,6 +37,7 @@ STACK CHOICES (LOCKED)
   Auth            Phase 12A = optional APP_API_Key (done)
                   Phase 12B = Tipsters on Expo (done)
                   Phase 12C = Supabase Auth (done; optional until env set)
+  Advanced        Phase 13A = Edge tab: value + surebets (done)
 
 
 --------------------------------------------------------------------------------
@@ -170,10 +171,10 @@ STACK CHOICES (LOCKED)
     GET  /tips/learning
     Slip converter:
       POST /convert/slip  { slip_text, code_text?, source_book }
-    Advanced (later screens or stack):
-      GET  /value/scan
-      GET  /arbitrage/scan
-      Tipsters: POST/GET /tipsters, /tipsters/codes, settle, leaderboard
+    Advanced (Edge tab — Phase 13A):
+      GET  /value/scan · POST /tips/log-value-scan
+      GET  /arbitrage/scan · POST /tips/log-arbitrage-scan
+    Tipsters tab (12B): POST/GET /tipsters, /tipsters/codes, settle, leaderboard
 
   SCREEN: Onboarding (first launch)
     Mirror Phase 10C localStorage keys → AsyncStorage
