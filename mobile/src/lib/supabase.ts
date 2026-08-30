@@ -10,21 +10,62 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(url && anon);
 }
 
-/**
- * SecureStore has a size limit; Auth sessions fit. Web uses AsyncStorage.
- */
+/** Expo SecureStore warns / will throw above 2048 bytes; JWT sessions are larger. */
+const SECURE_CHUNK = 1800;
+
+function chunkKey(key: string, i: number) {
+  return `${key}__${i}`;
+}
+
+async function nativeRemove(key: string) {
+  await SecureStore.deleteItemAsync(key);
+  for (let i = 0; ; i++) {
+    const k = chunkKey(key, i);
+    const part = await SecureStore.getItemAsync(k);
+    if (part == null) break;
+    await SecureStore.deleteItemAsync(k);
+  }
+}
+
+async function nativeSet(key: string, value: string) {
+  await nativeRemove(key);
+  if (value.length <= SECURE_CHUNK) {
+    await SecureStore.setItemAsync(key, value);
+    return;
+  }
+  for (let i = 0, o = 0; o < value.length; i++, o += SECURE_CHUNK) {
+    await SecureStore.setItemAsync(chunkKey(key, i), value.slice(o, o + SECURE_CHUNK));
+  }
+}
+
+async function nativeGet(key: string) {
+  const whole = await SecureStore.getItemAsync(key);
+  if (whole != null) {
+    if (whole.length > SECURE_CHUNK) await nativeSet(key, whole);
+    return whole;
+  }
+  const parts: string[] = [];
+  for (let i = 0; ; i++) {
+    const part = await SecureStore.getItemAsync(chunkKey(key, i));
+    if (part == null) break;
+    parts.push(part);
+  }
+  return parts.length ? parts.join('') : null;
+}
+
+/** Native: chunked SecureStore. Web: AsyncStorage (no SecureStore). */
 const ExpoSecureStoreAdapter = {
   getItem: (key: string) => {
     if (Platform.OS === 'web') return AsyncStorage.getItem(key);
-    return SecureStore.getItemAsync(key);
+    return nativeGet(key);
   },
   setItem: (key: string, value: string) => {
     if (Platform.OS === 'web') return AsyncStorage.setItem(key, value);
-    return SecureStore.setItemAsync(key, value);
+    return nativeSet(key, value);
   },
   removeItem: (key: string) => {
     if (Platform.OS === 'web') return AsyncStorage.removeItem(key);
-    return SecureStore.deleteItemAsync(key);
+    return nativeRemove(key);
   },
 };
 
