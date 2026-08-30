@@ -10,6 +10,18 @@ from app.deps.auth import AuthUser, get_current_user
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+@router.get("/config")
+def auth_config(settings: Settings = Depends(get_settings)) -> dict:
+    """Public Supabase keys for web / Expo clients (anon key is safe to expose)."""
+    url = (settings.supabase_url or "").strip()
+    anon = (settings.supabase_anon_key or "").strip()
+    return {
+        "supabase_url": url or None,
+        "supabase_anon_key": anon or None,
+        "auth_configured": bool(url and anon),
+    }
+
+
 @router.get("/status")
 def auth_status(
     settings: Settings = Depends(get_settings),
@@ -26,7 +38,7 @@ def auth_status(
             f"Signed in as {user.email or user.id}."
             if user
             else (
-                "Auth ready — sign in on the phone Me tab."
+                "Auth ready — sign in on Me (web or Expo)."
                 if secret
                 else "Auth off (SUPABASE_JWT_SECRET not set). Tips work without login."
             )
