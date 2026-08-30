@@ -1,0 +1,17 @@
+---
+description: After code changes, show per-file commit messages before finishing
+alwaysApply: true
+---
+
+# Commit messages for changed files
+
+When you **finish a task that modified files** (or the user asks for commit text):
+
+1. Run `git status` and `git diff --stat` (do **not** commit unless the user explicitly asks).
+2. **Always end the response** with a **Commit messages** section that includes:
+   - One **recommended commit** (1–2 sentences, why-focused), **or** 2–3 logical commits if the diff spans unrelated areas.
+   - A **per-file table**: path → one-line reason for the change.
+3. List **untracked** and **deleted** files explicitly.
+4. Warn if `.env` or secrets appear in the diff — never suggest committing them.
+
+Skip the section only when **zero** project files were changed (e.g. pure Q&A with no edits).
