@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -18,6 +17,7 @@ import {
   type TipOut,
 } from '../../src/api/tips';
 import { SignInRequiredBanner } from '../../src/components/SignInRequiredBanner';
+import { useAppModal } from '../../src/components/modal';
 import { useNeedsSignIn, useTipsFeed } from '../../src/hooks/useTipsFeed';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { bookLabel, marketLabel } from '../../src/lib/tipKey';
@@ -96,6 +96,7 @@ function matchWhen(t: TipOut, compact = false): string {
 
 export default function TipsScreen() {
   const insets = useSafeAreaInsets();
+  const modal = useAppModal();
   const needsSignIn = useNeedsSignIn();
   const { tips, stats, isLoading, isRefreshing, isOfflineCache, refresh } = useTipsFeed(50);
   const [status, setStatus] = useState('Loading tips…');
@@ -150,7 +151,10 @@ export default function TipsScreen() {
       );
       await refresh();
     } catch (e) {
-      Alert.alert('Settle failed', e instanceof Error ? e.message : String(e));
+      await modal.alert({
+        title: 'Settle failed',
+        message: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setSettlingId(null);
     }
@@ -168,7 +172,7 @@ export default function TipsScreen() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setStatus(msg);
-      Alert.alert('Could not settle tips', msg);
+      await modal.alert({ title: 'Could not settle tips', message: msg });
     }
   }
 
@@ -343,19 +347,15 @@ export default function TipsScreen() {
                         key={opt.value}
                         style={[styles.settleBtn, styles.settleBtnSm, settlingId === headId && styles.disabled]}
                         disabled={settlingId === headId || busy}
-                        onPress={() =>
-                          Alert.alert(
-                            'Settle whole multi',
-                            `Mark all ${legs.length} legs as ${opt.label}?`,
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Yes',
-                                onPress: () => onSettle(headId, opt.value, true),
-                              },
-                            ]
-                          )
-                        }
+                        onPress={async () => {
+                          const ok = await modal.confirm({
+                            title: 'Settle whole multi',
+                            message: `Mark all ${legs.length} legs as ${opt.label}?`,
+                            confirmLabel: 'Yes',
+                            destructive: opt.value === 'lost',
+                          });
+                          if (ok) void onSettle(headId, opt.value, true);
+                        }}
                       >
                         <Text style={styles.settleBtnTextSm}>All {opt.label}</Text>
                       </Pressable>
