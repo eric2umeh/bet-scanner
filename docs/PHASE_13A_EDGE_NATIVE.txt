@@ -1,0 +1,57 @@
+================================================================================
+PHASE 13A — EXPO EDGE TAB (VALUE + SUREBETS)
+================================================================================
+
+Goal:
+  Bring dashboard Advanced tools onto the phone: cross-book +EV value tips and
+  1X2 surebets (SportyBet + Bet9ja), with optional tip logging.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  New tab: Edge
+    - Value: GET /value/scan using Me bankroll + unit %
+    - Surebets: GET /arbitrage/scan with sample stake = bankroll
+    - Log value tips → POST /tips/log-value-scan
+    - Log surebets → POST /tips/log-arbitrage-scan
+    - Copy / share pick or stake plan
+    - Pull down to refresh
+
+  Honest limits:
+    - Needs fresh NG odds (morning run / odds sync).
+    - Surebets are rare on two books; tiny % may not be bettable.
+
+
+--------------------------------------------------------------------------------
+HOW TO TRY
+--------------------------------------------------------------------------------
+
+  1) Me → set bankroll / unit % (or onboarding)
+  2) Sync odds (Me morning routine or dashboard Sync)
+  3) Edge → Value → scan; optional Log value tips
+  4) Edge → Surebets → scan; Copy stake plan / Log surebets
+  5) Tips tab → settle logged tips after FT
+
+
+--------------------------------------------------------------------------------
+NEXT
+--------------------------------------------------------------------------------
+
+  Phase 13B candidates:
+    - EAS Update (OTA) for preview APK
+    - AUTH_REQUIRED_FOR_TIPS + tipster ownership
+    - TanStack Query / offline tip cache
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  mobile/app/(tabs)/edge.tsx
+  mobile/app/(tabs)/_layout.tsx
+  mobile/src/api/edge.ts
+  docs/PHASE_13A_EDGE_NATIVE.txt
+
+================================================================================
