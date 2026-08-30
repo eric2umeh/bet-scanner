@@ -36,6 +36,7 @@ from app.config import get_settings
 from app.db import init_db
 from app.deps.auth import auth_verification_enabled
 from app.middleware.api_key import AppApiKeyMiddleware
+from app.middleware.expo_spa import ExpoSpaMiddleware
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 EXPO_WEB_DIR = Path(__file__).resolve().parent.parent / "mobile" / "dist"
@@ -114,6 +115,8 @@ def legacy_dashboard() -> FileResponse:
 
 
 if expo_web_built():
+    # Browser tab URLs (/me, /tips, …) need index.html before StaticFiles 404s.
+    app.add_middleware(ExpoSpaMiddleware, expo_web_dir=EXPO_WEB_DIR)
     app.mount(
         "/",
         StaticFiles(directory=str(EXPO_WEB_DIR), html=True),
