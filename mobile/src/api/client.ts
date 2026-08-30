@@ -40,6 +40,20 @@ async function resolveAccessKey(): Promise<string> {
   return k;
 }
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+export function isAuthError(e: unknown): boolean {
+  return e instanceof ApiError && (e.status === 401 || e.status === 403);
+}
+
 async function parseError(res: Response): Promise<string> {
   const text = await res.text();
   try {
@@ -73,7 +87,7 @@ async function fetchOnce<T>(path: string, init?: RequestInit, timeoutMs = DEFAUL
         ...(init?.headers || {}),
       },
     });
-    if (!res.ok) throw new Error(await parseError(res));
+    if (!res.ok) throw new ApiError(await parseError(res), res.status);
     return res.json() as Promise<T>;
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
