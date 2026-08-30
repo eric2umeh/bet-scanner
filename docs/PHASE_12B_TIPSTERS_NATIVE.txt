@@ -1,5 +1,5 @@
 ================================================================================
-PHASE 12B — EXPO TIPSTERS TAB
+PHASE 12B — EXPO TIPSTERS (ME → ADVANCED)
 ================================================================================
 
 Goal:
@@ -11,7 +11,7 @@ Goal:
 WHAT SHIPPED
 --------------------------------------------------------------------------------
 
-  New tab: Tipsters
+  Me → Advanced tools → Tipsters / booking codes (matches web dashboard)
     - Add tipster (name, handle, platform)
     - Log booking code + optional stake / odds / notes
     - Recent codes with Won / Lost / Void / Pending
@@ -26,7 +26,7 @@ WHAT SHIPPED
 HOW TO TRY
 --------------------------------------------------------------------------------
 
-  1) Tipsters → Add tipster
+  1) Me → Advanced tools → Add tipster
   2) Paste a booking code → Log code
   3) After the bet finishes → Won / Lost / Void
 
@@ -42,8 +42,9 @@ NEXT
 FILES
 --------------------------------------------------------------------------------
 
-  mobile/app/(tabs)/tipsters.tsx
-  mobile/app/(tabs)/_layout.tsx
+  mobile/src/components/TipstersPanel.tsx
+  mobile/src/components/AdvancedTools.tsx
+  mobile/app/(tabs)/me.tsx
   mobile/src/api/tipsters.ts
   docs/PHASE_12B_TIPSTERS_NATIVE.txt
 
