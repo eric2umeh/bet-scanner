@@ -12,7 +12,12 @@ import { FAQ_ITEMS, faqCategories, searchFaq } from '../content/faq';
 import { BrandLogo } from './BrandLogo';
 import { colors } from '../theme/colors';
 
-export function HelpDesk() {
+type Props = {
+  /** Inside ModalShell — skip outer padding */
+  embedded?: boolean;
+};
+
+export function HelpDesk({ embedded = false }: Props) {
   const [query, setQuery] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -50,8 +55,8 @@ export function HelpDesk() {
   }
 
   return (
-    <View style={styles.wrap}>
-      <BrandLogo size="sm" showWordmark style={{ marginBottom: 12 }} />
+    <View style={[styles.wrap, embedded && styles.wrapEmbedded]}>
+      {!embedded ? <BrandLogo size="sm" showWordmark style={{ marginBottom: 12 }} /> : null}
       <Text style={styles.lead}>
         Ask in plain English — we match your words to common questions and show answers
         instantly. No AI, just built-in help.
@@ -99,6 +104,7 @@ export function HelpDesk() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, padding: 16 },
+  wrapEmbedded: { padding: 0 },
   lead: { color: colors.muted, fontSize: 14, lineHeight: 20, marginBottom: 12 },
   input: {
     backgroundColor: colors.card,
