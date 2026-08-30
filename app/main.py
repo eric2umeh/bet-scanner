@@ -102,6 +102,11 @@ def health() -> dict[str, str | bool]:
     }
 
 
+@app.get("/favicon.png", include_in_schema=False)
+def favicon() -> FileResponse:
+    return FileResponse(STATIC_DIR / "favicon.png", media_type="image/png")
+
+
 @app.get("/legacy", include_in_schema=False)
 def legacy_dashboard() -> FileResponse:
     """Phase 10 HTML dashboard."""

@@ -12,6 +12,7 @@ import {
 import { API_URL, setCachedAccessKey } from '../src/api/client';
 import { saveAccessKey } from '../src/store/accessKey';
 import { markOnboardingDone } from '../src/store/onboarding';
+import { BrandLogo } from '../src/components/BrandLogo';
 import { saveSettings, unitStakeNgn, type AppSettings } from '../src/store/settings';
 import { colors } from '../src/theme/colors';
 
@@ -57,7 +58,7 @@ export default function OnboardingScreen() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.kicker}>Bet Scanner</Text>
+      <BrandLogo size="xl" showWordmark stacked style={{ marginBottom: 16 }} />
       <Text style={styles.title}>Quick setup</Text>
       <Text style={styles.muted}>
         Set your bankroll and how you like Safe tips. You can change everything later under Me.

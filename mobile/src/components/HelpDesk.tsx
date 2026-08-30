@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { FAQ_ITEMS, faqCategories, searchFaq } from '../content/faq';
+import { BrandLogo } from './BrandLogo';
 import { colors } from '../theme/colors';
 
 export function HelpDesk() {
@@ -50,6 +51,7 @@ export function HelpDesk() {
 
   return (
     <View style={styles.wrap}>
+      <BrandLogo size="sm" showWordmark style={{ marginBottom: 12 }} />
       <Text style={styles.lead}>
         Ask in plain English — we match your words to common questions and show answers
         instantly. No AI, just built-in help.

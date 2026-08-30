@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Bet Scanner</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet" />
@@ -197,6 +198,19 @@
       align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
+    }
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      min-width: 0;
+    }
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      flex-shrink: 0;
     }
     .brand {
       font-family: Sora, Manrope, sans-serif;
@@ -742,7 +756,10 @@
   <div class="app">
     <header class="topbar">
       <div class="brand-row">
-        <h1 class="brand">Bet <span>Scanner</span></h1>
+        <div class="brand-lockup">
+          <img src="/favicon.png" alt="" class="brand-logo" width="36" height="36" />
+          <h1 class="brand">Bet <span>Scanner</span></h1>
+        </div>
         <button class="secondary" type="button" id="refreshTodayBtn" onclick="refreshToday()" style="padding:0.4rem 0.7rem;font-size:0.8rem">Refresh</button>
       </div>
       <p class="status-line" id="status">Ready — open Today for matches &amp; Safe tips.</p>

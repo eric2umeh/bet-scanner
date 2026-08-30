@@ -20,6 +20,7 @@ import { scanGoalMarkets } from '../../src/api/predictions';
 import { scanSafeBuilder } from '../../src/api/safe';
 import { logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
+import { BrandLogo } from '../../src/components/BrandLogo';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import { setMatchCache } from '../../src/store/matchCache';
 import {
@@ -211,7 +212,7 @@ export default function TodayScreen() {
           <RefreshControl refreshing={busy} onRefresh={refresh} tintColor={colors.accent} />
         }
       >
-        <Text style={styles.kicker}>Bet Scanner</Text>
+        <BrandLogo size="md" showWordmark style={{ marginBottom: 4 }} />
         <Text style={styles.muted}>
           {apiOk
             ? `Server OK · v${apiVersion || '?'}`
