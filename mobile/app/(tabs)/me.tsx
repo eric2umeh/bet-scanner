@@ -35,6 +35,7 @@ import {
   unitStakeNgn,
   type AppSettings,
 } from '../../src/store/settings';
+import { AdvancedTools } from '../../src/components/AdvancedTools';
 import { colors } from '../../src/theme/colors';
 
 function fmtPrice(v: number | string | null | undefined) {
@@ -567,6 +568,8 @@ export default function MeScreen() {
           </View>
         ) : null}
       </View>
+
+      <AdvancedTools onFlash={flash} />
     </ScrollView>
   );
 }
