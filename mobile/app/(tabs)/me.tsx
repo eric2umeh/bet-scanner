@@ -11,15 +11,8 @@ import {
 } from 'react-native';
 
 import { API_URL, pingHealth, setCachedAccessKey } from '../../src/api/client';
-import {
-  convertSlip,
-  type ConvertedLeg,
-  type SlipConvertResponse,
-} from '../../src/api/convert';
 import { runDailyOps, type DailyOpsResponse } from '../../src/api/ops';
 import { MIN_PASSWORD_LENGTH } from '../../src/lib/password';
-import { shareOrCopyText } from '../../src/lib/shareText';
-import { bookLabel } from '../../src/lib/tipKey';
 import { loadAccessKey, saveAccessKey } from '../../src/store/accessKey';
 import {
   getSessionEmail,
@@ -35,27 +28,7 @@ import {
   unitStakeNgn,
   type AppSettings,
 } from '../../src/store/settings';
-import { AdvancedTools } from '../../src/components/AdvancedTools';
 import { colors } from '../../src/theme/colors';
-
-function fmtPrice(v: number | string | null | undefined) {
-  if (v == null || v === '') return '—';
-  const n = Number(v);
-  return Number.isFinite(n) ? n.toFixed(3) : String(v);
-}
-
-function legTitle(leg: ConvertedLeg) {
-  if (leg.home_team && leg.away_team) {
-    return `${leg.home_team} vs ${leg.away_team}`;
-  }
-  return leg.raw || '—';
-}
-
-function legPick(leg: ConvertedLeg) {
-  if (!leg.market) return '—';
-  const sel = leg.selection ? String(leg.selection).toUpperCase() : '';
-  return sel ? `${leg.market}/${sel}` : leg.market;
-}
 
 /** API step keys → plain labels for the Me screen. */
 function stepLabel(step: string): string {
@@ -78,12 +51,6 @@ export default function MeScreen() {
   const [password, setPassword] = useState('');
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
-
-  const [slipText, setSlipText] = useState('');
-  const [codeText, setCodeText] = useState('');
-  const [sourceBook, setSourceBook] = useState<'sportybet' | 'bet9ja'>('sportybet');
-  const [converting, setConverting] = useState(false);
-  const [convertResult, setConvertResult] = useState<SlipConvertResponse | null>(null);
 
   const [opsBusy, setOpsBusy] = useState(false);
   const [opsResult, setOpsResult] = useState<DailyOpsResponse | null>(null);
@@ -206,42 +173,6 @@ export default function MeScreen() {
     }
   }
 
-  async function onPriceCheck() {
-    if (slipText.trim().length < 3) {
-      flash('Paste a readable slip first (teams + markets).', true);
-      return;
-    }
-    setConverting(true);
-    flash('Comparing SportyBet and Bet9ja prices…');
-    try {
-      const data = await convertSlip({
-        slip_text: slipText,
-        code_text: codeText.trim() || null,
-        source_book: sourceBook,
-      });
-      setConvertResult(data);
-      flash(data.message || `Found prices for ${data.matched_count} selection(s).`);
-    } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
-    } finally {
-      setConverting(false);
-    }
-  }
-
-  async function onShareSummary() {
-    const summary = convertResult?.place_summary?.trim();
-    if (!summary) {
-      flash('Compare prices first, then copy or share the summary.', true);
-      return;
-    }
-    try {
-      const mode = await shareOrCopyText(summary);
-      flash(mode === 'copied' ? 'Summary copied to clipboard.' : 'Share sheet opened.');
-    } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
-    }
-  }
-
   async function onMorning(withOdds: boolean) {
     const s = parsedSettings();
     await saveSettings(s);
@@ -285,14 +216,13 @@ export default function MeScreen() {
         />
       }
     >
-      <Text style={styles.title}>Me</Text>
       <Text style={styles.muted}>
         API · {API_URL}
         {healthLine ? ` · ${healthLine}` : ''}
       </Text>
       {status ? (
         <View style={[styles.statusBox, statusBad && styles.statusBad]}>
-          {(converting || opsBusy || authBusy) && (
+          {(opsBusy || authBusy) && (
             <ActivityIndicator color={statusBad ? colors.bad : colors.accent} style={{ marginRight: 8 }} />
           )}
           <Text style={[styles.statusText, statusBad && styles.statusTextBad]}>{status}</Text>
@@ -470,106 +400,6 @@ export default function MeScreen() {
           </View>
         ) : null}
       </View>
-
-      <View style={styles.card}>
-        <Text style={styles.section}>Compare a betting slip</Text>
-        <Text style={styles.hint}>
-          Paste the match names and picks in plain text. We cannot open a SportyBet or Bet9ja
-          booking code by itself — we look up prices already saved for SportyBet and Bet9ja.
-        </Text>
-        <Text style={styles.label}>Your slip (plain text)</Text>
-        <TextInput
-          style={[styles.input, styles.textarea]}
-          multiline
-          textAlignVertical="top"
-          value={slipText}
-          onChangeText={setSlipText}
-          placeholder={'Flamengo vs Vitoria\nDouble chance 1X\nOver 2.5\nBTTS No'}
-          placeholderTextColor={colors.muted}
-        />
-        <Text style={styles.label}>Booking code (optional note only)</Text>
-        <TextInput
-          style={styles.input}
-          value={codeText}
-          onChangeText={setCodeText}
-          autoCapitalize="characters"
-          placeholder="ABC123"
-          placeholderTextColor={colors.muted}
-        />
-        <Text style={styles.label}>Source book</Text>
-        <View style={styles.row}>
-          {(['sportybet', 'bet9ja'] as const).map((b) => (
-            <Pressable
-              key={b}
-              style={[styles.chip, sourceBook === b && styles.chipOn]}
-              onPress={() => setSourceBook(b)}
-            >
-              <Text style={[styles.chipText, sourceBook === b && styles.chipTextOn]}>
-                {bookLabel(b)}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <View style={styles.row}>
-          <Pressable
-            style={[styles.btn, styles.btnFlex, converting && styles.btnDisabled]}
-            disabled={converting}
-            onPress={onPriceCheck}
-          >
-            {converting ? (
-              <ActivityIndicator color="#06241c" />
-            ) : (
-              <Text style={styles.btnText}>Compare prices</Text>
-            )}
-          </Pressable>
-          <Pressable style={[styles.btnSecondary, styles.btnFlex]} onPress={onShareSummary}>
-            <Text style={styles.btnSecondaryText}>Copy / share summary</Text>
-          </Pressable>
-        </View>
-
-        {convertResult ? (
-          <View style={styles.convertBox}>
-            <Text style={styles.opsSummary}>{convertResult.message}</Text>
-            <Text style={styles.combo}>
-              {[
-                convertResult.combined_sportybet != null
-                  ? `SportyBet ~${fmtPrice(convertResult.combined_sportybet)}`
-                  : null,
-                convertResult.combined_bet9ja != null
-                  ? `Bet9ja ~${fmtPrice(convertResult.combined_bet9ja)}`
-                  : null,
-                convertResult.combined_best_mixed != null
-                  ? `Best mix ~${fmtPrice(convertResult.combined_best_mixed)}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(' · ') || 'No combined prices'}
-            </Text>
-            {convertResult.legs.map((leg, i) => (
-              <View key={`${leg.raw}-${i}`} style={styles.legCard}>
-                <Text style={styles.legTitle}>
-                  {i + 1}. {legTitle(leg)}
-                </Text>
-                <Text style={styles.muted}>
-                  {legPick(leg)} · {leg.status}
-                </Text>
-                <Text style={styles.legPrices}>
-                  SportyBet {fmtPrice(leg.prices?.sportybet)} · Bet9ja{' '}
-                  {fmtPrice(leg.prices?.bet9ja)}
-                  {leg.best_book
-                    ? ` · Best ${bookLabel(leg.best_book)} @ ${fmtPrice(leg.best_price)}`
-                    : ''}
-                </Text>
-              </View>
-            ))}
-            {convertResult.place_summary ? (
-              <Text style={styles.brief}>{convertResult.place_summary}</Text>
-            ) : null}
-          </View>
-        ) : null}
-      </View>
-
-      <AdvancedTools onFlash={flash} />
     </ScrollView>
   );
 }
@@ -577,7 +407,6 @@ export default function MeScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, paddingBottom: 40 },
-  title: { color: colors.ink, fontSize: 28, fontWeight: '700' },
   muted: { color: colors.muted, marginTop: 6, fontSize: 13, lineHeight: 18 },
   hint: { color: colors.muted, fontSize: 13, lineHeight: 18, marginBottom: 4 },
   statusBox: {
@@ -668,16 +497,4 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     padding: 10,
   },
-  convertBox: { marginTop: 8, gap: 8 },
-  combo: { color: colors.accent, fontWeight: '700', fontSize: 13 },
-  legCard: {
-    backgroundColor: colors.bg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 10,
-    gap: 2,
-  },
-  legTitle: { color: colors.ink, fontWeight: '600', fontSize: 14 },
-  legPrices: { color: colors.ink, fontSize: 12, marginTop: 2 },
 });
