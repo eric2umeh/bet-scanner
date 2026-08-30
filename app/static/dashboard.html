@@ -607,6 +607,38 @@
       width: 100%;
       max-width: 20rem;
     }
+    .password-field {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      width: 100%;
+      max-width: 20rem;
+    }
+    .password-field input {
+      width: 100%;
+      padding-right: 2.5rem;
+    }
+    .password-toggle {
+      position: absolute;
+      right: 0.35rem;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: var(--surface);
+      color: var(--muted);
+      border-radius: 8px;
+      width: 2rem;
+      height: 2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0;
+    }
+    .password-toggle:hover { color: var(--accent); }
+    .password-toggle[aria-pressed="true"] { color: var(--accent); }
     .card-block h2 {
       font-family: Sora, Manrope, sans-serif;
       font-size: 0.95rem;
@@ -859,7 +891,10 @@
               <input id="authEmail" type="email" autocomplete="email" placeholder="you@email.com" />
             </label>
             <label>Password (min 8 characters)
-              <input id="authPassword" type="password" autocomplete="current-password" placeholder="at least 8 characters" />
+              <span class="password-field">
+                <input id="authPassword" type="password" autocomplete="current-password" placeholder="at least 8 characters" />
+                <button type="button" class="password-toggle" data-password-for="authPassword" aria-label="Show password" aria-pressed="false" title="Show password">👁</button>
+              </span>
             </label>
           </div>
           <div class="row" style="margin-top:0.75rem">
@@ -873,7 +908,12 @@
         <h2>Your settings</h2>
         <div class="row">
           <label>Bankroll ₦ <input id="bankroll" type="number" value="50000" min="1000" step="1000" style="width:7.5rem" /></label>
-          <label>App access key <input id="appApiKey" type="password" placeholder="if APP_API_KEY set" autocomplete="off" style="width:12rem" /></label>
+          <label>App access key
+            <span class="password-field" style="width:12rem;max-width:12rem">
+              <input id="appApiKey" type="password" placeholder="if APP_API_KEY set" autocomplete="off" style="width:12rem" />
+              <button type="button" class="password-toggle" data-password-for="appApiKey" aria-label="Show access key" aria-pressed="false" title="Show access key">👁</button>
+            </span>
+          </label>
           <label>Unit % <input id="unitPct" type="number" value="1" min="0.1" max="10" step="0.1" style="width:4rem" /></label>
           <label>Pick style
             <select id="pickMarket">
@@ -3061,9 +3101,26 @@
       }
     }
 
+    function wirePasswordToggles() {
+      document.querySelectorAll('.password-toggle[data-password-for]').forEach((btn) => {
+        const id = btn.getAttribute('data-password-for');
+        const input = id ? document.getElementById(id) : null;
+        if (!input) return;
+        btn.addEventListener('click', () => {
+          const show = input.type === 'password';
+          input.type = show ? 'text' : 'password';
+          btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+          btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+          btn.title = show ? 'Hide password' : 'Show password';
+          btn.textContent = show ? '🙈' : '👁';
+        });
+      });
+    }
+
     // Boot
     loadMeSettings();
     maybeShowOnboarding();
+    wirePasswordToggles();
     initAuth().finally(() => {
       refreshToday().catch(() => {});
       loadStats().catch(() => {});
