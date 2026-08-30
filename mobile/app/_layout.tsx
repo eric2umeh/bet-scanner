@@ -108,6 +108,8 @@ export default function RootLayout() {
               name="match/[id]"
               options={{ headerShown: false, animation: 'slide_from_right' }}
             />
+            <Stack.Screen name="help" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="tools" options={{ headerShown: false }} />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Info' }} />
           </Stack>
         </View>
