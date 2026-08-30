@@ -1,22 +1,23 @@
-import { Stack } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { HelpDesk } from '../src/components/HelpDesk';
+import { ModalShell } from '../src/components/modal';
 import { colors } from '../src/theme/colors';
 
 export default function HelpScreen() {
+  const router = useRouter();
+
   return (
     <View style={styles.screen}>
-      <Stack.Screen
-        options={{
-          title: 'Help',
-          presentation: 'modal',
-          headerStyle: { backgroundColor: colors.bg },
-          headerTintColor: colors.ink,
-          headerShadowVisible: false,
-        }}
-      />
-      <HelpDesk />
+      <ModalShell
+        title="Help"
+        variant="sheet"
+        fill
+        onClose={() => router.back()}
+      >
+        <HelpDesk embedded />
+      </ModalShell>
     </View>
   );
 }
