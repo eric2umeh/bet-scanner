@@ -27,16 +27,6 @@ type Props = {
   fill?: boolean;
 };
 
-const BTN_STYLES: Record<
-  ModalButtonVariant,
-  { box: object; text: object }
-> = {
-  primary: { box: styles.btnPrimary, text: styles.btnPrimaryText },
-  secondary: { box: styles.btnSecondary, text: styles.btnSecondaryText },
-  danger: { box: styles.btnDanger, text: styles.btnDangerText },
-  ghost: { box: styles.btnGhost, text: styles.btnGhostText },
-};
-
 /**
  * Shared modal chrome — header, scroll body, footer buttons.
  * Used inside RN Modal (AppModal) and full-screen modal routes (e.g. Help).
@@ -229,6 +219,16 @@ const styles = StyleSheet.create({
   btnGhostText: { color: colors.muted },
   btnDisabled: { opacity: 0.5 },
 });
+
+const BTN_STYLES: Record<
+  ModalButtonVariant,
+  { box: object; text: object }
+> = {
+  primary: { box: styles.btnPrimary, text: styles.btnPrimaryText },
+  secondary: { box: styles.btnSecondary, text: styles.btnSecondaryText },
+  danger: { box: styles.btnDanger, text: styles.btnDangerText },
+  ghost: { box: styles.btnGhost, text: styles.btnGhostText },
+};
 
 /** Plain message body for alert / confirm modals */
 export function ModalMessage({ text }: { text: string }) {
