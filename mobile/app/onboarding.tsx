@@ -13,6 +13,7 @@ import { API_URL, setCachedAccessKey } from '../src/api/client';
 import { saveAccessKey } from '../src/store/accessKey';
 import { markOnboardingDone } from '../src/store/onboarding';
 import { BrandLogo } from '../src/components/BrandLogo';
+import { PasswordInput } from '../src/components/PasswordInput';
 import { saveSettings, unitStakeNgn, type AppSettings } from '../src/store/settings';
 import { colors } from '../src/theme/colors';
 
@@ -104,13 +105,9 @@ export default function OnboardingScreen() {
         Only needed if your server has APP_API_KEY set. Leave blank for open local / learning
         servers.
       </Text>
-      <TextInput
-        style={styles.input}
+      <PasswordInput
         value={accessKey}
         onChangeText={setAccessKey}
-        autoCapitalize="none"
-        autoCorrect={false}
-        secureTextEntry
         placeholder="Same value as APP_API_KEY on the server"
         placeholderTextColor={colors.muted}
       />
