@@ -1,0 +1,176 @@
+export type FaqItem = {
+  id: string;
+  category: string;
+  question: string;
+  answer: string;
+  keywords: string[];
+};
+
+export const FAQ_ITEMS: FaqItem[] = [
+  {
+    id: 'start-what',
+    category: 'Getting started',
+    question: 'What is Bet Scanner?',
+    answer:
+      'Bet Scanner helps you scan today’s football matches, find Safe picks, compare SportyBet and Bet9ja prices, log tips, track hit rate, and use advanced tools like value bets and arbitrage when you want them.',
+    keywords: ['what', 'about', 'intro', 'purpose'],
+  },
+  {
+    id: 'start-morning',
+    category: 'Getting started',
+    question: 'What should I do each morning?',
+    answer:
+      'Open Today → Load real bets (or run Morning routine in Me). Tick the tips you plan to place → Log selected. After matches finish, open Tips → Settle finished tips.',
+    keywords: ['morning', 'routine', 'daily', 'workflow'],
+  },
+  {
+    id: 'today-load',
+    category: 'Today',
+    question: 'What does “Load real bets” do?',
+    answer:
+      'It syncs fresh SportyBet and Bet9ja odds from the server (uses your free odds-api.io quota). After it finishes, Safe picks and goal-market tips appear on each match card.',
+    keywords: ['load', 'real', 'bets', 'sync', 'odds'],
+  },
+  {
+    id: 'today-log',
+    category: 'Today',
+    question: 'How do I log tips from Today?',
+    answer:
+      'Tick one or more picks on match cards (same bookmaker for a multi). Turn on “Log as multi” if you want one accumulator slip. Tap Log selected — tips appear on the Tips tab.',
+    keywords: ['log', 'selected', 'multi', 'accumulator', 'tick'],
+  },
+  {
+    id: 'today-filter',
+    category: 'Today',
+    question: 'What do the market chips mean?',
+    answer:
+      'All shows every pick. Double chance / 1X2 are Safe Builder styles. O/U is over/under 2.5 goals. BTTS is both teams to score. Filter only hides picks on the list — it does not change the API.',
+    keywords: ['filter', 'chips', 'market', 'double chance', 'btts', 'over under'],
+  },
+  {
+    id: 'tips-settle',
+    category: 'Tips',
+    question: 'How does auto-settle work?',
+    answer:
+      'Settle finished tips checks final scores for your pending tips and marks them Won or Lost when the match status is FINISHED. Multis settle leg by leg as each game ends.',
+    keywords: ['settle', 'auto', 'won', 'lost', 'finished'],
+  },
+  {
+    id: 'tips-multi',
+    category: 'Tips',
+    question: 'How do I settle one leg in a multi?',
+    answer:
+      'On Tips, tap a multi card to expand it. Use the Won / Lost / Void buttons under each leg. “All Won” marks every leg in that multi at once.',
+    keywords: ['multi', 'leg', 'accumulator', 'partial'],
+  },
+  {
+    id: 'arb-what',
+    category: 'Arbitrage',
+    question: 'What is arbitrage (surebet)?',
+    answer:
+      'A surebet is when the combined implied probability across Home, Draw, and Away is below 100% across different bookmakers. If you stake the right amounts on each outcome, you lock in a small profit no matter who wins.',
+    keywords: ['arbitrage', 'surebet', 'arb', 'what', 'explain'],
+  },
+  {
+    id: 'arb-how',
+    category: 'Arbitrage',
+    question: 'How do I use the Arb tab?',
+    answer:
+      '1) Set bankroll in Me → Settings. 2) Refresh odds (Me → Morning routine → Also refresh odds, or Today → Load real bets). 3) Open Arb → Scan for surebets. 4) Copy the stake plan and place each leg quickly. 5) Optionally Log surebets to track them on Tips.',
+    keywords: ['arb', 'how', 'steps', 'stake', 'plan'],
+  },
+  {
+    id: 'arb-empty',
+    category: 'Arbitrage',
+    question: 'Why are there no surebets?',
+    answer:
+      'True arbs are rare on just SportyBet and Bet9ja. Odds must be fresh, and tiny edges may disappear before you place all legs. Try refreshing odds and scanning again closer to kickoff.',
+    keywords: ['no', 'empty', 'rare', 'none', 'surebet'],
+  },
+  {
+    id: 'value-what',
+    category: 'Value',
+    question: 'What is a value (+EV) pick?',
+    answer:
+      'A value pick is a bet where one book’s price is higher than the “fair” odds estimated from all books combined. Positive expected value (EV %) means the price looks better than the market consensus.',
+    keywords: ['value', 'ev', 'plus ev', 'edge', 'fair odds'],
+  },
+  {
+    id: 'value-how',
+    category: 'Value',
+    question: 'How do I use Value picks?',
+    answer:
+      'Open Tools → Value picks. The scan uses your bankroll and unit % from Me. Tap Scan, review EV % and suggested stake, then Log value tips if you want them on the Tips tab.',
+    keywords: ['value', 'scan', 'log', 'stake'],
+  },
+  {
+    id: 'slip-compare',
+    category: 'Tools',
+    question: 'How does Compare slip work?',
+    answer:
+      'Paste your slip in plain text (team names + markets). The app looks up saved SportyBet and Bet9ja prices — it cannot open opaque booking codes by itself. You get per-leg prices and a best-mix combined odds estimate.',
+    keywords: ['slip', 'compare', 'converter', 'booking', 'code', 'paste'],
+  },
+  {
+    id: 'tipsters',
+    category: 'Tipsters',
+    question: 'How do tipsters and booking codes work?',
+    answer:
+      'Add a tipster (name + platform), log their booking codes, then mark Won / Lost / Void when results are known. The leaderboard ranks hit rate over time. Codes are stored for your records — we do not auto-open bookmaker slips.',
+    keywords: ['tipster', 'booking', 'code', 'instagram', 'leaderboard'],
+  },
+  {
+    id: 'auth',
+    category: 'Account',
+    question: 'Do I need to sign in?',
+    answer:
+      'Only if your server has AUTH_REQUIRED_FOR_TIPS=true. Otherwise sign-in is optional but keeps your tips tied to your email when you use multiple devices.',
+    keywords: ['sign in', 'login', 'account', 'auth', 'required'],
+  },
+  {
+    id: 'auth-key',
+    category: 'Account',
+    question: 'What is the app access key?',
+    answer:
+      'A separate server-wide password (APP_API_KEY on Render). Most personal setups leave it blank. It is not your email password — that is Me → Account.',
+    keywords: ['access', 'key', 'api key', 'password'],
+  },
+  {
+    id: 'odds-quota',
+    category: 'Odds & API',
+    question: 'Why should I avoid syncing odds too often?',
+    answer:
+      'Free odds-api.io has a small hourly quota (~100 requests). Use Morning routine without odds for daily updates, and “Also refresh odds” or Load real bets only when you need fresh prices.',
+    keywords: ['quota', 'limit', '429', 'sync', 'odds', 'rate'],
+  },
+  {
+    id: 'offline',
+    category: 'Tips',
+    question: 'Can I see tips offline?',
+    answer:
+      'Yes — the Tips tab caches your last loaded tips on the phone. Pull to refresh when you are back online.',
+    keywords: ['offline', 'cache', 'no internet'],
+  },
+  {
+    id: 'server-wake',
+    category: 'Odds & API',
+    question: 'Why is the server slow sometimes?',
+    answer:
+      'On Render’s free tier the server sleeps after idle time. The first request can take 30–60 seconds to wake up. The connection banner at the top will show when the API is unreachable.',
+    keywords: ['slow', 'render', 'cold', 'start', 'wake'],
+  },
+];
+
+export function searchFaq(query: string): FaqItem[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return FAQ_ITEMS;
+  const words = q.split(/\s+/).filter(Boolean);
+  return FAQ_ITEMS.filter((item) => {
+    const hay = `${item.question} ${item.answer} ${item.category} ${item.keywords.join(' ')}`.toLowerCase();
+    return words.every((w) => hay.includes(w));
+  });
+}
+
+export function faqCategories(): string[] {
+  return [...new Set(FAQ_ITEMS.map((i) => i.category))];
+}
