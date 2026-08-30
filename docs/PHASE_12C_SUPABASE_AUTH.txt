@@ -71,7 +71,7 @@ HOW TO TURN ON
 NEXT
 --------------------------------------------------------------------------------
 
-  Phase 13A — Expo Edge tab (value + surebets); see PHASE_13A_EDGE_NATIVE.txt
+  Phase 13A — value + surebets under Me → Advanced; see PHASE_13A_EDGE_NATIVE.txt
 
 
 --------------------------------------------------------------------------------
