@@ -6,9 +6,8 @@ Run from the project root:
   uvicorn app.main:app --reload
 
 Then open:
-  http://127.0.0.1:8000/      ← HTML dashboard (Today · Tips · Me)
-  http://127.0.0.1:8000/legacy ← same dashboard (alias)
-  http://127.0.0.1:8000/app   ← optional Expo web export (after ./scripts/build_web.sh)
+  http://127.0.0.1:8000/      ← Expo web (same as phone; run ./scripts/build_web.sh)
+  http://127.0.0.1:8000/legacy ← HTML dashboard
   http://127.0.0.1:8000/docs  ← API test panel (Swagger)
 """
 
@@ -35,6 +34,7 @@ from app.api.tipsters import router as tipsters_router
 from app.api.value import router as value_router
 from app.config import get_settings
 from app.db import init_db
+from app.deps.auth import auth_verification_enabled
 from app.middleware.api_key import AppApiKeyMiddleware
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -58,8 +58,8 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — HTML dashboard at / and /legacy. "
-        "Optional Expo web at /app. API panel: /docs."
+        "Football betting decision API — Expo web at / when built, "
+        "legacy HTML at /legacy. API panel: /docs."
     ),
     version="0.12.0",
     lifespan=lifespan,
@@ -98,20 +98,25 @@ def health() -> dict[str, str | bool]:
         "status": "ok",
         "env": settings.app_env,
         "version": app.version,
-        "auth_configured": bool((settings.supabase_jwt_secret or "").strip()),
+        "auth_configured": auth_verification_enabled(settings),
     }
 
 
-@app.get("/", include_in_schema=False)
 @app.get("/legacy", include_in_schema=False)
 def legacy_dashboard() -> FileResponse:
-    """Primary web UI — Phase 10 HTML dashboard (matches /legacy)."""
+    """Phase 10 HTML dashboard."""
     return FileResponse(LEGACY_DASHBOARD)
 
 
 if expo_web_built():
     app.mount(
-        "/app",
+        "/",
         StaticFiles(directory=str(EXPO_WEB_DIR), html=True),
         name="expo-web",
     )
+else:
+
+    @app.get("/", include_in_schema=False)
+    def dashboard_fallback() -> FileResponse:
+        """Expo web not built — run: ./scripts/build_web.sh (legacy HTML until then)."""
+        return FileResponse(LEGACY_DASHBOARD)

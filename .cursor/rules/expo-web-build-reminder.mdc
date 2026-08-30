@@ -1,0 +1,20 @@
+---
+description: Remind user to rebuild Expo web after mobile UI changes
+alwaysApply: true
+---
+
+# Expo web export reminder
+
+When **any change** touches `mobile/` UI (screens, tabs, components, styles, Expo config):
+
+1. At the end of the task, **remind the user** to run from repo root:
+   ```bash
+   ./scripts/build_web.sh
+   ```
+   then hard-refresh http://127.0.0.1:8000/ (Cmd+Shift+R).
+
+2. **Why (one line):** `/` serves the static export in `mobile/dist`; Expo Go updates live, the browser does not until you rebuild.
+
+3. **Do not** remind for backend-only or `/legacy` HTML-only changes unless the user asks about web at `/`.
+
+4. If you just finished mobile UI work in this session, include the reminder even if the user did not ask.

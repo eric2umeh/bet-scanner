@@ -5,7 +5,7 @@ Phase 12C — auth status helpers (login itself is done by Supabase client).
 from fastapi import APIRouter, Depends
 
 from app.config import Settings, get_settings
-from app.deps.auth import AuthUser, get_current_user
+from app.deps.auth import AuthUser, auth_verification_enabled, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -27,7 +27,7 @@ def auth_status(
     settings: Settings = Depends(get_settings),
     user: AuthUser | None = Depends(get_current_user),
 ) -> dict:
-    secret = bool((settings.supabase_jwt_secret or "").strip())
+    secret = auth_verification_enabled(settings)
     return {
         "auth_configured": secret,
         "auth_required_for_tips": bool(settings.auth_required_for_tips and secret),

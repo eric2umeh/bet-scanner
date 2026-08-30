@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build Expo web into mobile/dist for FastAPI to serve at /app (optional; primary UI is dashboard.html at /).
+# Build Expo web into mobile/dist for FastAPI to serve at / (same UI as the phone app).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -24,4 +24,8 @@ export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${SUPABAS
 
 npx expo export --platform web
 
-echo "build_web: exported to mobile/dist"
+echo ""
+echo "=============================================="
+echo "  Next: hard-refresh http://127.0.0.1:8000/"
+echo "  Re-run ./scripts/build_web.sh after any mobile UI change."
+echo "=============================================="

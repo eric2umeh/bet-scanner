@@ -17,5 +17,6 @@ httpx==0.28.1
 # Dates / timezone helpers
 python-dateutil==2.9.0.post0
 
-# Phase 12C — verify Supabase Auth JWTs
+# Phase 12C — verify Supabase Auth JWTs (ES256 JWKS needs cryptography)
 PyJWT==2.10.1
+cryptography>=42.0.0
