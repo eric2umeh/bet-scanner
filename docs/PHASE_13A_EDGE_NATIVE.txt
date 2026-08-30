@@ -39,10 +39,7 @@ HOW TO TRY
 NEXT
 --------------------------------------------------------------------------------
 
-  Phase 13B candidates:
-    - EAS Update (OTA) for preview APK
-    - AUTH_REQUIRED_FOR_TIPS + tipster ownership
-    - TanStack Query / offline tip cache
+  Phase 13B — EAS OTA, auth ownership, offline tips; see PHASE_13B_NATIVE.txt
 
 
 --------------------------------------------------------------------------------

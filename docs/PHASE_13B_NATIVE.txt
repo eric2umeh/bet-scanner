@@ -1,0 +1,78 @@
+================================================================================
+PHASE 13B — EAS OTA + AUTH OWNERSHIP + OFFLINE TIPS CACHE
+================================================================================
+
+Goal:
+  Ship installable preview builds with over-the-air JS updates, enforce optional
+  per-user tip/tipster ownership, and cache tips offline with TanStack Query.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  13B-1  EAS Update + preview APK path
+    - expo-updates plugin + runtimeVersion (appVersion policy)
+    - eas.json channels: development / preview / production
+    - npm scripts: build:preview, update:preview, update:production
+
+  13B-2  AUTH_REQUIRED_FOR_TIPS + tipster ownership
+    - tipsters.owner_id column; create/list/codes scoped to signed-in user
+    - tip stats + settle + auto-settle respect owner_id
+    - settle owned tips requires same account
+    - Tips tab shows sign-in banner when server requires auth
+
+  13B-3  TanStack Query + offline tip cache
+    - PersistQueryClientProvider (tips + stats → AsyncStorage)
+    - useTipsFeed hook; offline shows last saved tips
+    - invalidateTipsCache after log on Today
+
+
+--------------------------------------------------------------------------------
+HOW TO TURN ON AUTH REQUIRED
+--------------------------------------------------------------------------------
+
+  Server .env / Render:
+    SUPABASE_JWT_SECRET=<jwt secret>
+    AUTH_REQUIRED_FOR_TIPS=true
+
+  Expo mobile/.env (unchanged):
+    EXPO_PUBLIC_SUPABASE_URL + EXPO_PUBLIC_SUPABASE_ANON_KEY
+
+  Me → Account → sign in before logging tips or tipster codes.
+
+
+--------------------------------------------------------------------------------
+HOW TO BUILD APK + PUSH OTA
+--------------------------------------------------------------------------------
+
+  One-time (needs Expo account):
+    cd mobile
+    npm i -g eas-cli
+    eas login
+
+  Preview APK (installable, no Expo Go):
+    npm run build:preview
+
+  Push JS update to preview channel (no store resubmit):
+    npm run update:preview -- --message "Phase 13B"
+
+  Production channel (later):
+    npm run build:preview   # or production profile
+    npm run update:production -- --message "..."
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  mobile/app.json, mobile/eas.json, mobile/package.json
+  mobile/src/query/*, mobile/src/hooks/useTipsFeed.ts
+  mobile/src/components/SignInRequiredBanner.tsx
+  mobile/app/_layout.tsx, mobile/app/(tabs)/tips.tsx, index.tsx
+  app/models/tipster.py, app/db.py, app/deps/auth.py
+  app/api/tipsters.py, app/api/tips.py
+  app/services/tipsters.py, app/services/tips.py
+  docs/PHASE_13B_NATIVE.txt
+
+================================================================================

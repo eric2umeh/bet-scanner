@@ -20,6 +20,27 @@ class AuthUser:
     email: str | None = None
 
 
+def assert_resource_owner(
+    resource_owner_id: str | None,
+    user: AuthUser | None,
+    *,
+    action: str = "change this",
+) -> None:
+    """Legacy rows (no owner) stay shared; owned rows need the same account."""
+    if not resource_owner_id:
+        return
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Sign in to {action}.",
+        )
+    if resource_owner_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="This belongs to another account.",
+        )
+
+
 def _decode_supabase_user(token: str, settings: Settings) -> AuthUser | None:
     secret = (settings.supabase_jwt_secret or "").strip()
     if not secret or not token:

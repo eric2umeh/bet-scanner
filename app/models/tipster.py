@@ -25,6 +25,7 @@ class Tipster(Base):
         String(64), nullable=True
     )  # instagram | telegram | twitter | other
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    owner_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -37,7 +37,7 @@ STACK CHOICES (LOCKED)
   Auth            Phase 12A = optional APP_API_Key (done)
                   Phase 12B = Tipsters on Expo (done; Me → Advanced)
                   Phase 12C = Supabase Auth (done; optional until env set)
-  Advanced        Phase 13A = value + surebets (done; Me → Advanced)
+                  Phase 13B = EAS OTA, auth ownership, offline tips (done)
 
 
 --------------------------------------------------------------------------------

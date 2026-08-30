@@ -477,12 +477,17 @@ def settle_tip(
     result: str,
     *,
     apply_to_slip: bool = False,
+    owner_id: str | None = None,
 ) -> Tip:
     if result not in ("won", "lost", "void", "pending"):
         raise ValueError("result must be won|lost|void|pending")
     tip = db.get(Tip, tip_id)
     if tip is None:
         raise LookupError(f"tip {tip_id} not found")
+    if tip.owner_id and owner_id and tip.owner_id != owner_id:
+        raise PermissionError("This tip belongs to another account.")
+    if tip.owner_id and owner_id is None:
+        raise PermissionError("Sign in to settle this tip.")
     tip.result = result
     tip.settled_at = (
         None if result == "pending" else datetime.now(timezone.utc)
@@ -533,7 +538,12 @@ def settle_tip(
     ).one()
 
 
-def auto_settle_finished(db: Session, settings: Settings | None = None) -> dict:
+def auto_settle_finished(
+    db: Session,
+    settings: Settings | None = None,
+    *,
+    owner_id: str | None = None,
+) -> dict:
     """
     Settle each pending tip whose match is FINISHED with scores.
 
@@ -543,11 +553,10 @@ def auto_settle_finished(db: Session, settings: Settings | None = None) -> dict:
     Before judging, refresh scores onto odds-linked match rows (API-Football
     all-leagues fetch by kickoff date) so MLS/USL/Liga MX tips can settle.
     """
-    tips = db.scalars(
-        select(Tip)
-        .options(joinedload(Tip.match))
-        .where(Tip.result == "pending")
-    ).unique().all()
+    q = select(Tip).options(joinedload(Tip.match)).where(Tip.result == "pending")
+    if owner_id:
+        q = q.where(Tip.owner_id == owner_id)
+    tips = db.scalars(q).unique().all()
 
     cfg = settings or get_settings()
     score_refresh = refresh_scores_for_matches(
@@ -592,13 +601,15 @@ def auto_settle_finished(db: Session, settings: Settings | None = None) -> dict:
     }
 
 
-def tip_stats(db: Session) -> dict:
+def tip_stats(db: Session, *, owner_id: str | None = None) -> dict:
     # Ignore auto-voided duplicates in the headline numbers
-    rows = db.execute(
+    stmt = (
         select(Tip.result, Tip.risk_profile, func.count())
         .where(Tip.result != "void")
-        .group_by(Tip.result, Tip.risk_profile)
-    ).all()
+    )
+    if owner_id:
+        stmt = stmt.where(Tip.owner_id == owner_id)
+    rows = db.execute(stmt.group_by(Tip.result, Tip.risk_profile)).all()
 
     by_result: dict[str, int] = {}
     by_profile: dict[str, dict[str, int]] = {}

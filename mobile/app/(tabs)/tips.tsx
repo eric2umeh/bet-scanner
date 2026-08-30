@@ -14,22 +14,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   autoSettleTips,
-  fetchTipStats,
-  fetchTips,
   settleTip,
   type TipOut,
 } from '../../src/api/tips';
+import { SignInRequiredBanner } from '../../src/components/SignInRequiredBanner';
+import { useNeedsSignIn, useTipsFeed } from '../../src/hooks/useTipsFeed';
+import { invalidateTipsCache } from '../../src/query/invalidate';
 import { bookLabel, marketLabel } from '../../src/lib/tipKey';
 import { colors } from '../../src/theme/colors';
-
-type Stats = {
-  hit_rate_pct: number | null;
-  won: number;
-  lost: number;
-  pending: number;
-  total: number;
-  message: string;
-};
 
 const SETTLE_OPTS: { value: string; label: string }[] = [
   { value: 'won', label: 'Won' },
@@ -104,36 +96,32 @@ function matchWhen(t: TipOut, compact = false): string {
 
 export default function TipsScreen() {
   const insets = useSafeAreaInsets();
-  const [tips, setTips] = useState<TipOut[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
+  const needsSignIn = useNeedsSignIn();
+  const { tips, stats, isLoading, isRefreshing, isOfflineCache, refresh } = useTipsFeed(50);
   const [status, setStatus] = useState('Loading tips…');
-  const [busy, setBusy] = useState(false);
   const [settlingId, setSettlingId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const refresh = useCallback(async () => {
-    setBusy(true);
-    try {
-      const [list, s] = await Promise.all([fetchTips(50), fetchTipStats()]);
-      setTips(list);
-      setStats(s);
-      setStatus(list.length ? `Loaded ${list.length} tip(s)` : 'No tips logged yet');
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
+  useEffect(() => {
+    if (needsSignIn) {
+      setStatus('Sign in required to view tips.');
+      return;
     }
-  }, []);
+    if (isOfflineCache) {
+      setStatus('Offline — showing last saved tips.');
+      return;
+    }
+    if (tips.length) setStatus(`Loaded ${tips.length} tip(s)`);
+    else if (!isLoading) setStatus('No tips logged yet');
+  }, [needsSignIn, isOfflineCache, tips.length, isLoading]);
 
   useFocusEffect(
     useCallback(() => {
-      refresh();
-    }, [refresh])
+      if (!needsSignIn) void refresh();
+    }, [needsSignIn, refresh])
   );
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const busy = isRefreshing;
 
   const { singles, multis } = useMemo(() => {
     const singles: TipOut[] = [];
@@ -169,20 +157,18 @@ export default function TipsScreen() {
   }
 
   async function onAutoSettle() {
-    setBusy(true);
     setStatus('Settling finished tips from final scores…');
     try {
       const data = await autoSettleTips();
       setStatus(
         `${data.message} Open games stay pending. Each multi selection settles when that match ends.`
       );
+      invalidateTipsCache();
       await refresh();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setStatus(msg);
       Alert.alert('Could not settle tips', msg);
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -247,7 +233,9 @@ export default function TipsScreen() {
         </Text>
         <Text style={styles.status}>{status}</Text>
 
-        {stats ? (
+        {needsSignIn ? <SignInRequiredBanner /> : null}
+
+        {!needsSignIn && stats ? (
           <View style={styles.stats}>
             <View style={styles.stat}>
               <Text style={styles.statVal}>{stats.hit_rate_pct ?? '—'}%</Text>
@@ -268,6 +256,8 @@ export default function TipsScreen() {
           </View>
         ) : null}
 
+        {!needsSignIn ? (
+        <>
         <View style={styles.row}>
           <Pressable style={[styles.btn, busy && styles.disabled]} onPress={onAutoSettle} disabled={busy}>
             <Text style={styles.btnText}>Settle finished tips</Text>
@@ -398,6 +388,8 @@ export default function TipsScreen() {
             <SettleButtons tipId={t.id} current={t.result} />
           </View>
         ))}
+        </>
+        ) : null}
       </ScrollView>
     </View>
   );

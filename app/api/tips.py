@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.deps.auth import AuthUser, get_current_user
+from app.deps.auth import AuthUser, assert_resource_owner, get_current_user
 from app.schemas.tips import (
     AutoSettleResponse,
     LearningResponse,
@@ -369,8 +369,11 @@ def list_tips_endpoint(
 
 
 @router.get("/stats", response_model=TipStatsResponse)
-def tips_stats_endpoint(db: Session = Depends(get_db)) -> TipStatsResponse:
-    return TipStatsResponse(**tip_stats(db))
+def tips_stats_endpoint(
+    db: Session = Depends(get_db),
+    user: AuthUser | None = Depends(get_current_user),
+) -> TipStatsResponse:
+    return TipStatsResponse(**tip_stats(db, owner_id=user.id if user else None))
 
 
 @router.get(
@@ -390,9 +393,10 @@ def tips_learning_endpoint(db: Session = Depends(get_db)) -> LearningResponse:
 def auto_settle_endpoint(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
+    user: AuthUser | None = Depends(get_current_user),
 ) -> AutoSettleResponse:
     """Use finished match scores to mark pending tips won/lost."""
-    result = auto_settle_finished(db, settings)
+    result = auto_settle_finished(db, settings, owner_id=user.id if user else None)
     return AutoSettleResponse(
         settled_count=result["settled_count"],
         unresolved_count=result["unresolved_count"],
@@ -407,6 +411,7 @@ def settle_tip_endpoint(
     tip_id: int,
     body: TipSettleRequest,
     db: Session = Depends(get_db),
+    user: AuthUser | None = Depends(get_current_user),
 ) -> TipOut:
     try:
         tip = settle_tip(
@@ -414,7 +419,10 @@ def settle_tip_endpoint(
             tip_id,
             body.result.lower().strip(),
             apply_to_slip=bool(body.apply_to_slip),
+            owner_id=user.id if user else None,
         )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

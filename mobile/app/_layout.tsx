@@ -9,6 +9,7 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { setCachedAccessKey } from '../src/api/client';
 import { ConnectionBanner } from '../src/components/ConnectionBanner';
+import { AppQueryProvider } from '../src/query/QueryProvider';
 import { loadAccessKey } from '../src/store/accessKey';
 import { isOnboardingDone } from '../src/store/onboarding';
 import { initSession } from '../src/store/session';
@@ -94,21 +95,23 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={DarkTheme}>
-      <StatusBar style="light" />
-      <View style={{ flex: 1, backgroundColor: '#0b1014' }}>
-        <ConnectionBanner />
-        <OnboardingGate ready={gateReady} />
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
-          <Stack.Screen
-            name="match/[id]"
-            options={{ headerShown: false, animation: 'slide_from_right' }}
-          />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Info' }} />
-        </Stack>
-      </View>
-    </ThemeProvider>
+    <AppQueryProvider>
+      <ThemeProvider value={DarkTheme}>
+        <StatusBar style="light" />
+        <View style={{ flex: 1, backgroundColor: '#0b1014' }}>
+          <ConnectionBanner />
+          <OnboardingGate ready={gateReady} />
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
+            <Stack.Screen
+              name="match/[id]"
+              options={{ headerShown: false, animation: 'slide_from_right' }}
+            />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Info' }} />
+          </Stack>
+        </View>
+      </ThemeProvider>
+    </AppQueryProvider>
   );
 }

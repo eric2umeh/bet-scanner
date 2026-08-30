@@ -56,12 +56,14 @@ def create_tipster(
     handle: str | None = None,
     platform: str | None = None,
     notes: str | None = None,
+    owner_id: str | None = None,
 ) -> Tipster:
     tipster = Tipster(
         name=name.strip(),
         handle=(handle or "").strip() or None,
         platform=(platform or "").strip().lower() or None,
         notes=notes,
+        owner_id=owner_id,
     )
     db.add(tipster)
     db.commit()
@@ -74,15 +76,21 @@ def create_tipster(
     return tipster
 
 
-def list_tipsters(db: Session, limit: int = 50) -> list[Tipster]:
-    return list(
-        db.scalars(
-            select(Tipster)
-            .options(joinedload(Tipster.codes))
-            .order_by(Tipster.id.desc())
-            .limit(limit)
-        ).unique().all()
+def list_tipsters(
+    db: Session,
+    limit: int = 50,
+    *,
+    owner_id: str | None = None,
+) -> list[Tipster]:
+    stmt = (
+        select(Tipster)
+        .options(joinedload(Tipster.codes))
+        .order_by(Tipster.id.desc())
+        .limit(limit)
     )
+    if owner_id:
+        stmt = stmt.where(Tipster.owner_id == owner_id)
+    return list(db.scalars(stmt).unique().all())
 
 
 def get_tipster(db: Session, tipster_id: int) -> Tipster | None:
@@ -161,6 +169,7 @@ def list_codes(
     tipster_id: int | None = None,
     result: str | None = None,
     limit: int = 50,
+    owner_id: str | None = None,
 ) -> list[BookingCode]:
     stmt = (
         select(BookingCode)
@@ -168,6 +177,8 @@ def list_codes(
         .order_by(BookingCode.id.desc())
         .limit(limit)
     )
+    if owner_id:
+        stmt = stmt.join(Tipster).where(Tipster.owner_id == owner_id)
     if tipster_id is not None:
         stmt = stmt.where(BookingCode.tipster_id == tipster_id)
     if result:
@@ -201,12 +212,17 @@ def settle_code(
     return row, "updated"
 
 
-def tipster_leaderboard(db: Session, *, min_settled: int = 1) -> dict:
+def tipster_leaderboard(
+    db: Session,
+    *,
+    min_settled: int = 1,
+    owner_id: str | None = None,
+) -> dict:
     """
     Rank tipsters by verified settled codes (won/lost).
     ROI uses stake × odds when both present; else hit-rate only.
     """
-    tipsters = list_tipsters(db, limit=200)
+    tipsters = list_tipsters(db, limit=200, owner_id=owner_id)
     rows: list[dict] = []
 
     for t in tipsters:

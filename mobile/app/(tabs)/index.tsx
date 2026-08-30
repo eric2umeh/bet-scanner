@@ -19,6 +19,7 @@ import { syncOdds } from '../../src/api/odds';
 import { scanGoalMarkets } from '../../src/api/predictions';
 import { scanSafeBuilder } from '../../src/api/safe';
 import { logTipBatch } from '../../src/api/tips';
+import { invalidateTipsCache } from '../../src/query/invalidate';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import { setMatchCache } from '../../src/store/matchCache';
 import {
@@ -183,6 +184,7 @@ export default function TodayScreen() {
         stakeFallback: unitStakeNgn(s),
       });
       clearSelection();
+      invalidateTipsCache();
       setStatus(data.message);
       Alert.alert('Logged', `${data.message}\nOpen the Tips tab to see them.`);
     } catch (e) {
