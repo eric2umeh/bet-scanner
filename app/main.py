@@ -6,8 +6,9 @@ Run from the project root:
   uvicorn app.main:app --reload
 
 Then open:
-  http://127.0.0.1:8000/      ← Expo web UI (same as phone; build first)
-  http://127.0.0.1:8000/legacy ← old HTML dashboard
+  http://127.0.0.1:8000/      ← HTML dashboard (Today · Tips · Me)
+  http://127.0.0.1:8000/legacy ← same dashboard (alias)
+  http://127.0.0.1:8000/app   ← optional Expo web export (after ./scripts/build_web.sh)
   http://127.0.0.1:8000/docs  ← API test panel (Swagger)
 """
 
@@ -57,8 +58,8 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Expo web at / when mobile/dist is built, "
-        "legacy HTML at /legacy. API panel: /docs."
+        "Football betting decision API — HTML dashboard at / and /legacy. "
+        "Optional Expo web at /app. API panel: /docs."
     ),
     version="0.12.0",
     lifespan=lifespan,
@@ -101,21 +102,16 @@ def health() -> dict[str, str | bool]:
     }
 
 
+@app.get("/", include_in_schema=False)
 @app.get("/legacy", include_in_schema=False)
 def legacy_dashboard() -> FileResponse:
-    """Phase 10 HTML dashboard (debug / learners). Primary UI = Expo web at /."""
+    """Primary web UI — Phase 10 HTML dashboard (matches /legacy)."""
     return FileResponse(LEGACY_DASHBOARD)
 
 
 if expo_web_built():
     app.mount(
-        "/",
+        "/app",
         StaticFiles(directory=str(EXPO_WEB_DIR), html=True),
         name="expo-web",
     )
-else:
-
-    @app.get("/", include_in_schema=False)
-    def dashboard_fallback() -> FileResponse:
-        """Expo web not built yet — run: ./scripts/build_web.sh"""
-        return FileResponse(LEGACY_DASHBOARD)

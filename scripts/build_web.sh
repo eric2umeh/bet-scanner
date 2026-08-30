@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build Expo web into mobile/dist for FastAPI to serve at / (same UI as the phone app).
+# Build Expo web into mobile/dist for FastAPI to serve at /app (optional; primary UI is dashboard.html at /).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

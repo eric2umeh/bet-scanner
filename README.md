@@ -5,8 +5,8 @@ You are building a football betting **decision** app, learning AI/backend engine
 **Non-code docs** (guides, glossary, product notes) live in [`docs/`](./docs/).  
 Start with the [Betting glossary](./docs/GLOSSARY.txt) if you’re new to betting terms.
 
-**Live app:** [https://bet-scanner-znvg.onrender.com](https://bet-scanner-znvg.onrender.com) (Expo web UI — same as the phone app)  
-**Local:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/) after `./scripts/build_web.sh` · legacy HTML: [`/legacy`](http://127.0.0.1:8000/legacy) · API: [`/docs`](http://127.0.0.1:8000/docs)
+**Live app:** [https://bet-scanner-znvg.onrender.com](https://bet-scanner-znvg.onrender.com) (HTML dashboard)
+**Local:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/) · API: [`/docs`](http://127.0.0.1:8000/docs) · optional Expo web: [`/app`](http://127.0.0.1:8000/app) after `./scripts/build_web.sh`
 
 **Morning path:** Today → Start morning → Safe picks → log tips → settle.  
 UI guide: [`docs/PHASE_10A_SCOUTER_UI.txt`](./docs/PHASE_10A_SCOUTER_UI.txt) · Journey: [`docs/PHASE_9_PRODUCT_JOURNEY.txt`](./docs/PHASE_9_PRODUCT_JOURNEY.txt)
@@ -110,22 +110,18 @@ pip install -r requirements.txt
 
 ### 5) Run the API
 
-Build the Expo web UI once (serves at `/` — same screens as the phone app):
-
-```bash
-./scripts/build_web.sh
-```
-
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Open:
 
-- http://127.0.0.1:8000/ — Expo web (Today · Tips · Me)  
-- http://127.0.0.1:8000/legacy — old HTML dashboard  
+- http://127.0.0.1:8000/ — HTML dashboard (Today · Tips · Me)  
+- http://127.0.0.1:8000/legacy — same dashboard  
 - http://127.0.0.1:8000/docs — API panel  
 - http://127.0.0.1:8000/health
+
+Optional: `./scripts/build_web.sh` then http://127.0.0.1:8000/app for the Expo web export (phone-like UI in the browser).
 
 ### 6) Pull today’s matches, then list them
 
