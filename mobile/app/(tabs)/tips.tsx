@@ -16,6 +16,7 @@ import {
   settleTip,
   type TipOut,
 } from '../../src/api/tips';
+import { isAuthError } from '../../src/api/client';
 import { SignInRequiredBanner } from '../../src/components/SignInRequiredBanner';
 import { useAppModal } from '../../src/components/modal';
 import { useNeedsSignIn, useTipsFeed } from '../../src/hooks/useTipsFeed';
@@ -97,8 +98,13 @@ function matchWhen(t: TipOut, compact = false): string {
 export default function TipsScreen() {
   const insets = useSafeAreaInsets();
   const modal = useAppModal();
-  const needsSignIn = useNeedsSignIn();
-  const { tips, stats, isLoading, isRefreshing, isOfflineCache, refresh } = useTipsFeed(50);
+  const needsSignInBase = useNeedsSignIn();
+  const { tips, stats, isLoading, isRefreshing, isOfflineCache, error, refresh } =
+    useTipsFeed(50);
+  const needsSignIn = needsSignInBase || isAuthError(error);
+  const signInMessage = isAuthError(error)
+    ? 'Your session expired or you are not signed in. Sign in again to view tips.'
+    : undefined;
   const [status, setStatus] = useState('Loading tips…');
   const [settlingId, setSettlingId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -236,7 +242,12 @@ export default function TipsScreen() {
         </Text>
         <Text style={styles.status}>{status}</Text>
 
-        {needsSignIn ? <SignInRequiredBanner /> : null}
+        {needsSignIn ? (
+          <SignInRequiredBanner
+            title={isAuthError(error) ? 'Access denied' : undefined}
+            message={signInMessage}
+          />
+        ) : null}
 
         {!needsSignIn && stats ? (
           <View style={styles.stats}>
