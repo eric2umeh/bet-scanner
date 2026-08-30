@@ -6,7 +6,8 @@ Run from the project root:
   uvicorn app.main:app --reload
 
 Then open:
-  http://127.0.0.1:8000/      ← simple dashboard (easiest)
+  http://127.0.0.1:8000/      ← Expo web UI (same as phone; build first)
+  http://127.0.0.1:8000/legacy ← old HTML dashboard
   http://127.0.0.1:8000/docs  ← API test panel (Swagger)
 """
 
@@ -16,6 +17,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.ai import router as ai_router
 from app.api.arbitrage import router as arbitrage_router
@@ -35,6 +37,12 @@ from app.db import init_db
 from app.middleware.api_key import AppApiKeyMiddleware
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+EXPO_WEB_DIR = Path(__file__).resolve().parent.parent / "mobile" / "dist"
+LEGACY_DASHBOARD = STATIC_DIR / "dashboard.html"
+
+
+def expo_web_built() -> bool:
+    return (EXPO_WEB_DIR / "index.html").is_file()
 
 
 @asynccontextmanager
@@ -49,9 +57,8 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description=(
-        "Football betting decision API — Phase 12C optional Supabase Auth, "
-        "APP_API_KEY on writes, Expo clients, Safe Builder, tipsters. "
-        "Open / or /docs."
+        "Football betting decision API — Expo web at / when mobile/dist is built, "
+        "legacy HTML at /legacy. API panel: /docs."
     ),
     version="0.12.0",
     lifespan=lifespan,
@@ -94,7 +101,21 @@ def health() -> dict[str, str | bool]:
     }
 
 
-@app.get("/", include_in_schema=False)
-def dashboard() -> FileResponse:
-    """Simple HTML UI for learners — no need to understand Swagger first."""
-    return FileResponse(STATIC_DIR / "dashboard.html")
+@app.get("/legacy", include_in_schema=False)
+def legacy_dashboard() -> FileResponse:
+    """Phase 10 HTML dashboard (debug / learners). Primary UI = Expo web at /."""
+    return FileResponse(LEGACY_DASHBOARD)
+
+
+if expo_web_built():
+    app.mount(
+        "/",
+        StaticFiles(directory=str(EXPO_WEB_DIR), html=True),
+        name="expo-web",
+    )
+else:
+
+    @app.get("/", include_in_schema=False)
+    def dashboard_fallback() -> FileResponse:
+        """Expo web not built yet — run: ./scripts/build_web.sh"""
+        return FileResponse(LEGACY_DASHBOARD)

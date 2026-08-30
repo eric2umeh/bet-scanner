@@ -15,7 +15,7 @@ services:
     runtime: python
     plan: free
     region: oregon
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && chmod +x scripts/build_web.sh && ./scripts/build_web.sh
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
@@ -58,6 +58,14 @@ services:
       - key: AI_BASE_URL
         sync: false
       - key: AI_MODEL
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: APP_API_KEY
         sync: false
 
   # Cron is usually NOT on the free tier (~$1+/mo). Create this when ready.

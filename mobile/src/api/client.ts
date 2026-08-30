@@ -11,9 +11,17 @@
 import { loadAccessKey } from '../store/accessKey';
 import { getAccessToken } from '../store/session';
 
-export const API_URL =
-  process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ||
-  'https://bet-scanner-znvg.onrender.com';
+function resolveApiUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+  // Expo web served from FastAPI (/) — API is same origin.
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return 'https://bet-scanner-znvg.onrender.com';
+}
+
+export const API_URL = resolveApiUrl();
 
 /** Render free tier can take 30–60s to wake from sleep. */
 const DEFAULT_TIMEOUT_MS = 55000;

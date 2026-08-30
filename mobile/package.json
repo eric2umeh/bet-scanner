@@ -2,12 +2,13 @@
   "name": "mobile",
   "main": "expo-router/entry",
   "version": "1.0.0",
-  "scripts": {
+    "scripts": {
     "start": "expo start",
     "start:tunnel": "expo start --tunnel --clear",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "export:web": "expo export --platform web"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
