@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -21,6 +20,7 @@ import { scanSafeBuilder } from '../../src/api/safe';
 import { logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
+import { useAppModal } from '../../src/components/modal';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import { setMatchCache } from '../../src/store/matchCache';
 import {
@@ -62,6 +62,7 @@ function dedupePicks(picks: TipPick[]): TipPick[] {
 
 export default function TodayScreen() {
   const router = useRouter();
+  const modal = useAppModal();
   const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -160,11 +161,14 @@ export default function TodayScreen() {
       const { n, picks: all } = await loadScans(s);
       setMatchCache(today, all);
       setStatus(`${sync.message || 'Odds synced'} · ${n} tip(s)`);
-      Alert.alert('Real bets', `${sync.message || 'Synced'}\n${n} tip(s) found.`);
+      await modal.alert({
+        title: 'Real bets',
+        message: `${sync.message || 'Synced'}\n${n} tip(s) found.`,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setStatus(msg);
-      Alert.alert('Load real bets failed', msg);
+      await modal.alert({ title: 'Load real bets failed', message: msg });
     } finally {
       setBusy(false);
     }
@@ -173,7 +177,10 @@ export default function TodayScreen() {
   async function onLogSelected() {
     const tips = getSelectedTips();
     if (!tips.length) {
-      Alert.alert('Nothing selected', 'Tick tips you placed, then Log selected.');
+      await modal.alert({
+        title: 'Nothing selected',
+        message: 'Tick tips you placed, then Log selected.',
+      });
       return;
     }
     setBusy(true);
@@ -187,9 +194,15 @@ export default function TodayScreen() {
       clearSelection();
       invalidateTipsCache();
       setStatus(data.message);
-      Alert.alert('Logged', `${data.message}\nOpen the Tips tab to see them.`);
+      await modal.alert({
+        title: 'Logged',
+        message: `${data.message}\nOpen the Tips tab to see them.`,
+      });
     } catch (e) {
-      Alert.alert('Log failed', e instanceof Error ? e.message : String(e));
+      await modal.alert({
+        title: 'Log failed',
+        message: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setBusy(false);
     }
