@@ -34,6 +34,11 @@ WHAT SHIPPED
     - Password minimum 8 characters (app-enforced)
     - Session stored securely; API calls send the login token
 
+  Web dashboard Me → Account (same Supabase login)
+    - GET /auth/config serves public URL + anon key from server .env
+    - Sign in / sign up / sign out; Bearer token on API calls
+    - Requires SUPABASE_URL + SUPABASE_ANON_KEY on Render / local .env
+
   Also set in Supabase (Auth → Providers → Email / password settings)
     minimum password length ≥ 8 so the server matches the app.
 
