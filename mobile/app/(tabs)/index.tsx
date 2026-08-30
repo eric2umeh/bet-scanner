@@ -212,7 +212,6 @@ export default function TodayScreen() {
         }
       >
         <Text style={styles.kicker}>Bet Scanner</Text>
-        <Text style={styles.title}>Today</Text>
         <Text style={styles.muted}>
           {apiOk
             ? `Server OK · v${apiVersion || '?'}`
