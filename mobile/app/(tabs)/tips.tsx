@@ -225,7 +225,6 @@ export default function TipsScreen() {
           <RefreshControl refreshing={busy} onRefresh={refresh} tintColor={colors.accent} />
         }
       >
-        <Text style={styles.title}>Tips</Text>
         <Text style={styles.muted}>
           Settle finished tips marks Won or Lost from final match scores. Games that have not
           ended stay pending. For a multi, each selection settles when that match finishes —
