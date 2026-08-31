@@ -6,6 +6,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/mobile"
 
 if ! command -v npm >/dev/null 2>&1; then
+  if [[ "${RENDER:-}" == "true" || "${APP_ENV:-}" == "production" ]]; then
+    echo "build_web: npm is required to build Expo web for / but was not found."
+    exit 1
+  fi
   echo "build_web: npm not found — skipping Expo web export (legacy dashboard at /legacy only)."
   exit 0
 fi
