@@ -36,6 +36,7 @@ import {
 } from '../../src/store/selection';
 import { loadSettings, unitStakeNgn, type AppSettings } from '../../src/store/settings';
 import { colors } from '../../src/theme/colors';
+import { webScrollBottom } from '../../src/theme/webScroll';
 import type { Match, TipPick } from '../../src/types/api';
 
 type MarketFilter = 'all' | 'double_chance' | '1x2' | 'ou_2_5' | 'btts';
@@ -279,7 +280,7 @@ export default function TodayScreen() {
     <View style={styles.root}>
       <ScrollView
         style={styles.screen}
-        contentContainerStyle={[styles.content, isWeb && styles.contentWeb]}
+        contentContainerStyle={[styles.content, isWeb && { paddingBottom: webScrollBottom(20) }]}
         refreshControl={
           <RefreshControl refreshing={busy} onRefresh={refresh} tintColor={colors.accent} />
         }
@@ -461,7 +462,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   screen: { flex: 1 },
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28 },
-  contentWeb: { paddingBottom: 88 },
   topbar: { marginBottom: 4 },
   topbarWeb: {
     paddingBottom: 10,

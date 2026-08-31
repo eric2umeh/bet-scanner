@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -23,6 +24,7 @@ import { useNeedsSignIn, useTipsFeed } from '../../src/hooks/useTipsFeed';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { bookLabel, marketLabel } from '../../src/lib/tipKey';
 import { colors } from '../../src/theme/colors';
+import { webScrollBottom } from '../../src/theme/webScroll';
 
 const SETTLE_OPTS: { value: string; label: string }[] = [
   { value: 'won', label: 'Won' },
@@ -229,7 +231,12 @@ export default function TipsScreen() {
         style={styles.screen}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: 28 + Math.max(insets.bottom, 8) + 56 },
+          {
+            paddingBottom:
+              Platform.OS === 'web'
+                ? webScrollBottom(20)
+                : 28 + Math.max(insets.bottom, 8) + 56,
+          },
         ]}
         refreshControl={
           <RefreshControl refreshing={busy} onRefresh={refresh} tintColor={colors.accent} />

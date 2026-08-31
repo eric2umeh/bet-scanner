@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   View,
+  Platform,
 } from 'react-native';
 
 import { API_URL, pingHealth, setCachedAccessKey } from '../../src/api/client';
@@ -30,6 +31,7 @@ import {
 } from '../../src/store/settings';
 import { PasswordInput } from '../../src/components/PasswordInput';
 import { colors } from '../../src/theme/colors';
+import { webScrollBottom } from '../../src/theme/webScroll';
 
 /** API step keys → plain labels for the Me screen. */
 function stepLabel(step: string): string {
@@ -207,7 +209,10 @@ export default function MeScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        Platform.OS === 'web' ? { paddingBottom: webScrollBottom(20) } : null,
+      ]}
       keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl

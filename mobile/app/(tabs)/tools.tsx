@@ -1,14 +1,21 @@
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, Platform } from 'react-native';
 
 import { ToolHubCard } from '../../src/components/ToolHubCard';
 import { colors } from '../../src/theme/colors';
+import { webScrollBottom } from '../../src/theme/webScroll';
 
 export default function ToolsHubScreen() {
   const router = useRouter();
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[
+        styles.content,
+        Platform.OS === 'web' ? { paddingBottom: webScrollBottom(20) } : null,
+      ]}
+    >
       <Text style={styles.lead}>
         Extra scanners and utilities. Arbitrage has its own tab — these tools help with value
         bets, tipster codes, and price checks.
