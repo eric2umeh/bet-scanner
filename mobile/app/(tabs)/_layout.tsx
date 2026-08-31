@@ -1,9 +1,10 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
 import type { ComponentProps } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform } from 'react-native';
 
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
+import { WebTabBar } from '../../src/components/WebTabBar';
 import { colors } from '../../src/theme/colors';
 
 const isWeb = Platform.OS === 'web';
@@ -12,75 +13,29 @@ function TabBarIcon(props: {
   name: ComponentProps<typeof FontAwesome>['name'];
   color: string;
 }) {
-  return (
-    <FontAwesome
-      size={isWeb ? 20 : 22}
-      style={isWeb ? undefined : { marginBottom: -2 }}
-      {...props}
-    />
-  );
+  return <FontAwesome size={22} style={{ marginBottom: -2 }} {...props} />;
 }
-
-/** Floating bottom nav on web — matches legacy `.tabbar`. */
-function WebTabBarBackground() {
-  if (!isWeb) return null;
-  return <View style={webTabStyles.glow} pointerEvents="none" />;
-}
-
-const webTabStyles = StyleSheet.create({
-  glow: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 72,
-    backgroundColor: 'rgba(11, 16, 20, 0.55)',
-  },
-});
 
 export default function TabLayout() {
   return (
     <Tabs
+      tabBar={isWeb ? (props) => <WebTabBar {...props} /> : undefined}
       screenOptions={{
         headerShown: !isWeb,
         headerStyle: { backgroundColor: colors.bg },
         headerTintColor: colors.ink,
         headerShadowVisible: false,
         headerRight: () => <HelpHeaderButton />,
-        tabBarBackground: () => <WebTabBarBackground />,
-        tabBarStyle: {
-          backgroundColor: isWeb ? 'rgba(16, 24, 32, 0.94)' : colors.surface,
-          borderTopColor: colors.line,
-          height: isWeb ? 72 : 58,
-          paddingBottom: isWeb ? 10 : 6,
-          paddingTop: isWeb ? 8 : 0,
-          borderTopWidth: 1,
-          ...(isWeb
-            ? {
-                position: 'absolute',
-                left: 12,
-                right: 12,
-                bottom: 10,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: colors.line,
-                maxWidth: 696,
-                alignSelf: 'center',
-                marginHorizontal: 'auto',
-                overflow: 'visible',
-              }
-            : null),
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          lineHeight: 14,
-          marginTop: isWeb ? 2 : 0,
-        },
-        tabBarItemStyle: isWeb
-          ? { paddingHorizontal: 4, paddingVertical: 2, minHeight: 52 }
-          : undefined,
-        tabBarShowLabel: true,
+        sceneStyle: isWeb ? { backgroundColor: colors.bg } : undefined,
+        tabBarStyle: isWeb
+          ? { display: 'none' }
+          : {
+              backgroundColor: colors.surface,
+              borderTopColor: colors.line,
+              height: 58,
+              paddingBottom: 6,
+            },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.muted,
       }}
