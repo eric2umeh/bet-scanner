@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { API_URL, pingHealth } from '../../src/api/client';
+import { pingHealth } from '../../src/api/client';
 import { fetchTodayMatches } from '../../src/api/matches';
 import { syncOdds } from '../../src/api/odds';
 import { scanGoalMarkets } from '../../src/api/predictions';
@@ -20,7 +21,9 @@ import { scanSafeBuilder } from '../../src/api/safe';
 import { logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
+import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
 import { useAppModal } from '../../src/components/modal';
+import { runDailyOps } from '../../src/api/ops';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import { setMatchCache } from '../../src/store/matchCache';
 import {
@@ -37,11 +40,15 @@ import type { Match, TipPick } from '../../src/types/api';
 
 type MarketFilter = 'all' | 'double_chance' | '1x2' | 'ou_2_5' | 'btts';
 
+const isWeb = Platform.OS === 'web';
+
 function kickoffLabel(iso?: string | null) {
   if (!iso) return '—';
   const d = new Date(iso);
   return d.toLocaleString(undefined, {
     weekday: 'short',
+    month: 'short',
+    day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -70,8 +77,6 @@ export default function TodayScreen() {
   const [filter, setFilter] = useState<MarketFilter>('all');
   const [status, setStatus] = useState('Pull to refresh · Load real bets syncs odds');
   const [busy, setBusy] = useState(false);
-  const [apiOk, setApiOk] = useState<boolean | null>(null);
-  const [apiVersion, setApiVersion] = useState<string | null>(null);
   const [selectedN, setSelectedN] = useState(0);
   const [asMulti, setAsMulti] = useState(true);
 
@@ -127,18 +132,15 @@ export default function TodayScreen() {
         pingHealth().catch(() => null),
         fetchTodayMatches(),
       ]);
-      setApiOk(!!health);
-      setApiVersion(health?.version ?? null);
       setMatches(today);
       const { n, picks: all } = await loadScans(s);
       setMatchCache(today, all);
       setStatus(
         today.length
-          ? `${today.length} match(es) · ${n} tip(s) · tap card for Odds`
+          ? `${today.length} match(es) · ${n} Safe tip(s)${health?.version ? ` · v${health.version}` : ''}`
           : 'No matches today — try Load real bets after fixtures sync'
       );
     } catch (e) {
-      setApiOk(false);
       setStatus(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
@@ -148,6 +150,61 @@ export default function TodayScreen() {
   useEffect(() => {
     refresh();
   }, []);
+
+  async function onScanSafe() {
+    setBusy(true);
+    setStatus('Scanning Safe picks…');
+    try {
+      const s = settings || (await loadSettings());
+      if (!settings) setSettings(s);
+      const { n } = await loadScans(s);
+      setStatus(`${n} Safe tip(s) · tick picks you placed → Log selected`);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onStartMorning() {
+    setBusy(true);
+    setStatus('Morning routine: fixtures, settle, brief…');
+    try {
+      const s = settings || (await loadSettings());
+      if (!settings) setSettings(s);
+      const data = await runDailyOps({
+        bankroll_ngn: s.bankroll,
+        unit_pct: s.unitPct,
+        pick_market: s.pickMarket,
+        sync_odds: false,
+      });
+      const today = await fetchTodayMatches();
+      setMatches(today);
+      const { n, picks: all } = await loadScans(s);
+      setMatchCache(today, all);
+      setStatus(data.message || data.summary || `${today.length} match(es) · ${n} tip(s)`);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSyncNgOdds() {
+    setBusy(true);
+    setStatus('Syncing SportyBet / Bet9ja odds…');
+    try {
+      const sync = await syncOdds();
+      const s = settings || (await loadSettings());
+      if (!settings) setSettings(s);
+      const { n } = await loadScans(s);
+      setStatus(`${sync.message || 'Odds synced'} · ${n} tip(s)`);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function onLoadRealBets() {
     setBusy(true);
@@ -210,41 +267,38 @@ export default function TodayScreen() {
 
   const chips: { id: MarketFilter; label: string }[] = [
     { id: 'all', label: 'All' },
-    { id: 'double_chance', label: 'DC' },
-    { id: '1x2', label: '1X2' },
-    { id: 'ou_2_5', label: 'O/U' },
+    { id: 'double_chance', label: 'Double chance' },
+    { id: '1x2', label: 'Winner' },
+    { id: 'ou_2_5', label: 'O/U 2.5' },
     { id: 'btts', label: 'BTTS' },
   ];
+
+  const showNoTipsBanner = !busy && matches.length > 0 && picks.length === 0;
 
   return (
     <View style={styles.root}>
       <ScrollView
         style={styles.screen}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, isWeb && styles.contentWeb]}
         refreshControl={
           <RefreshControl refreshing={busy} onRefresh={refresh} tintColor={colors.accent} />
         }
       >
-        <BrandLogo size="md" showWordmark style={{ marginBottom: 4 }} />
-        <Text style={styles.muted}>
-          {apiOk
-            ? `Server OK · v${apiVersion || '?'}`
-            : 'Cannot reach server'}{' '}
-          · {API_URL.replace(/^https?:\/\//, '')}
-        </Text>
-        <Text style={styles.status}>{status}</Text>
-
-        <View style={styles.row}>
-          <Pressable
-            style={[styles.btn, busy && styles.btnDisabled]}
-            onPress={onLoadRealBets}
-            disabled={busy}
-          >
-            <Text style={styles.btnText}>Load real bets</Text>
-          </Pressable>
-          <Pressable style={[styles.btnSecondary, busy && styles.btnDisabled]} onPress={refresh} disabled={busy}>
-            <Text style={styles.btnSecondaryText}>Refresh</Text>
-          </Pressable>
+        <View style={[styles.topbar, isWeb && styles.topbarWeb]}>
+          <View style={styles.hero}>
+            <BrandLogo size="md" showWordmark />
+            <View style={styles.heroActions}>
+              {isWeb ? <HelpHeaderButton /> : null}
+              <Pressable
+                style={[styles.btnSecondary, styles.heroRefresh, busy && styles.btnDisabled]}
+                onPress={refresh}
+                disabled={busy}
+              >
+                <Text style={styles.btnSecondaryText}>Refresh</Text>
+              </Pressable>
+            </View>
+          </View>
+          <Text style={styles.statusLine}>{status}</Text>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
@@ -259,64 +313,117 @@ export default function TodayScreen() {
           ))}
         </ScrollView>
 
+        <View style={styles.actionGrid}>
+          <Pressable
+            style={[styles.btn, styles.gridBtn, busy && styles.btnDisabled]}
+            onPress={onLoadRealBets}
+            disabled={busy}
+          >
+            <Text style={styles.btnText}>Load real bets</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.btnSecondary, styles.gridBtn, busy && styles.btnDisabled]}
+            onPress={onScanSafe}
+            disabled={busy}
+          >
+            <Text style={styles.btnSecondaryText}>Scan Safe</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.btnSecondary, styles.gridBtn, busy && styles.btnDisabled]}
+            onPress={onStartMorning}
+            disabled={busy}
+          >
+            <Text style={styles.btnSecondaryText}>Start morning</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.btnSecondary, styles.gridBtn, busy && styles.btnDisabled]}
+            onPress={onSyncNgOdds}
+            disabled={busy}
+          >
+            <Text style={styles.btnSecondaryText}>Sync NG odds</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.hint}>
+          Only kickoffs after now · tick same-book legs → Log as multi (like SportyBet).
+        </Text>
+
         {busy && !matches.length ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
         ) : null}
 
-        {!busy && !visibleMatches.length ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No matches</Text>
-            <Text style={styles.muted}>Tap Load real bets (needs live API with odds).</Text>
+        {showNoTipsBanner ? (
+          <View style={styles.staleBanner}>
+            <Text style={styles.emptyTitle}>No Safe tips yet</Text>
+            <Text style={styles.staleText}>
+              Odds go stale after ~3 hours. Tap Load real bets to sync SportyBet/Bet9ja and
+              rescan.
+            </Text>
           </View>
         ) : null}
 
-        {visibleMatches.map((m) => {
-          const tips = picksByMatch[m.id] || [];
-          return (
-            <Pressable
-              key={m.id}
-              style={styles.card}
-              onPress={() => router.push(`/match/${m.id}`)}
-            >
-              <Text style={styles.league}>
-                {m.competition_code} · {m.status}
-              </Text>
-              <Text style={styles.match}>
-                {m.home_team} vs {m.away_team}
-              </Text>
-              <Text style={styles.muted}>{kickoffLabel(m.kickoff_at)} · tap for Odds</Text>
-              {!tips.length ? (
-                <Text style={[styles.muted, { marginTop: 8 }]}>No tip for this filter</Text>
-              ) : (
-                tips.map((p) => {
-                  const on = isTipSelected(p);
-                  return (
-                    <Pressable
-                      key={tipKey(p)}
-                      style={[styles.tipRow, on && styles.tipRowOn]}
-                      onPress={() => toggleTip(p)}
-                    >
-                      <View style={[styles.check, on && styles.checkOn]}>
-                        {on ? <Text style={styles.checkMark}>✓</Text> : null}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.tipTitle}>
-                          {marketLabel(p.market)} · {String(p.selection).toUpperCase()}
-                          {p.odds != null ? ` @ ${p.odds}` : ''}
-                        </Text>
-                        <Text style={styles.tipMeta}>
-                          {bookLabel(p.bookmaker)}
-                          {p.confidence_pct != null ? ` · ${p.confidence_pct}%` : ''}
-                          {p.suggested_stake_ngn != null ? ` · ₦${p.suggested_stake_ngn}` : ''}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })
-              )}
-            </Pressable>
-          );
-        })}
+        {!busy && !visibleMatches.length ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>No matches yet</Text>
+            <Text style={styles.staleText}>
+              Tap Load real bets (syncs SportyBet/Bet9ja odds + Safe scan).
+            </Text>
+          </View>
+        ) : null}
+
+        <View style={[styles.matchGrid, isWeb && styles.matchGridWeb]}>
+          {visibleMatches.map((m) => {
+            const tips = picksByMatch[m.id] || [];
+            const hasTip = tips.length > 0;
+            return (
+              <Pressable
+                key={m.id}
+                style={[styles.card, isWeb && styles.cardWeb, hasTip && styles.cardHasTip]}
+                onPress={() => router.push(`/match/${m.id}`)}
+              >
+                <View style={styles.cardTop}>
+                  <Text style={styles.league} numberOfLines={1}>
+                    {m.competition_code || '—'}
+                  </Text>
+                  <Text style={styles.kickoff} numberOfLines={2}>
+                    {kickoffLabel(m.kickoff_at)}
+                  </Text>
+                </View>
+                <Text style={styles.match} numberOfLines={3}>
+                  {m.home_team} vs {m.away_team}
+                </Text>
+                {!tips.length ? (
+                  <Text style={styles.noTip}>No tip — open for odds</Text>
+                ) : (
+                  tips.map((p) => {
+                    const on = isTipSelected(p);
+                    return (
+                      <Pressable
+                        key={tipKey(p)}
+                        style={[styles.tipRow, on && styles.tipRowOn]}
+                        onPress={() => toggleTip(p)}
+                      >
+                        <View style={[styles.check, on && styles.checkOn]}>
+                          {on ? <Text style={styles.checkMark}>✓</Text> : null}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.tipTitle} numberOfLines={2}>
+                            {marketLabel(p.market)} · {String(p.selection).toUpperCase()}
+                            {p.odds != null ? ` @ ${p.odds}` : ''}
+                          </Text>
+                          <Text style={styles.tipMeta} numberOfLines={1}>
+                            {bookLabel(p.bookmaker)}
+                            {p.confidence_pct != null ? ` · ${p.confidence_pct}%` : ''}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
       </ScrollView>
 
       {selectedN > 0 ? (
@@ -353,31 +460,71 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   screen: { flex: 1 },
-  content: { padding: 16, paddingBottom: 28 },
-  kicker: { color: colors.accent, fontWeight: '700', fontSize: 13 },
-  title: { color: colors.ink, fontSize: 28, fontWeight: '700', marginTop: 4 },
-  muted: { color: colors.muted, marginTop: 4, fontSize: 13, lineHeight: 18 },
-  status: { color: colors.ink, marginTop: 10, fontSize: 13 },
-  row: { flexDirection: 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' },
+  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28 },
+  contentWeb: { paddingBottom: 88 },
+  topbar: { marginBottom: 4 },
+  topbarWeb: {
+    paddingBottom: 10,
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(42, 53, 64, 0.7)',
+    backgroundColor: 'rgba(11, 16, 20, 0.88)',
+  },
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  heroActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  heroRefresh: { marginTop: 0, paddingVertical: 8, paddingHorizontal: 12 },
+  statusLine: {
+    color: colors.muted,
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  hint: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  gridBtn: {
+    width: '48%',
+    flexGrow: 1,
+    flexBasis: '46%',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
   btn: {
     backgroundColor: colors.accent,
     borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     alignItems: 'center',
   },
   btnDisabled: { opacity: 0.55 },
-  btnText: { color: '#06241c', fontWeight: '700' },
+  btnText: { color: '#06241c', fontWeight: '700', fontSize: 13, textAlign: 'center' },
   btnSecondary: {
     backgroundColor: colors.surface,
     borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: colors.line,
+    alignItems: 'center',
   },
-  btnSecondaryText: { color: colors.ink, fontWeight: '600' },
-  chips: { marginTop: 14, marginBottom: 6, maxHeight: 44 },
+  btnSecondaryText: { color: colors.ink, fontWeight: '600', fontSize: 13, textAlign: 'center' },
+  chips: { marginTop: 4, marginBottom: 2, maxHeight: 44 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -387,30 +534,73 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     marginRight: 8,
   },
-  chipOn: { backgroundColor: colors.accentDim, borderColor: colors.accent },
+  chipOn: { backgroundColor: colors.accentDim, borderColor: 'rgba(45, 212, 168, 0.45)' },
   chipText: { color: colors.muted, fontWeight: '600', fontSize: 13 },
   chipTextOn: { color: colors.accent },
+  matchGrid: { marginTop: 8 },
+  matchGridWeb: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
   card: {
-    marginTop: 12,
-    backgroundColor: colors.card,
+    marginTop: 10,
+    backgroundColor: '#1c2630',
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  league: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  match: { color: colors.ink, fontSize: 16, fontWeight: '700', marginTop: 4 },
+  cardWeb: {
+    width: '48%',
+    flexGrow: 1,
+    flexBasis: '48%',
+    marginTop: 0,
+    minWidth: 0,
+  },
+  cardHasTip: {
+    borderColor: 'rgba(45, 212, 168, 0.4)',
+  },
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginBottom: 8,
+  },
+  league: { color: colors.muted, fontSize: 11, fontWeight: '600', flex: 1 },
+  kickoff: { color: colors.muted, fontSize: 10, textAlign: 'right', maxWidth: '52%' },
+  match: { color: colors.ink, fontSize: 14, fontWeight: '700', lineHeight: 19 },
+  noTip: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(42, 53, 64, 0.85)',
+  },
+  staleBanner: {
+    marginTop: 10,
+    marginBottom: 4,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderStyle: 'dashed',
+    backgroundColor: 'rgba(20, 27, 34, 0.6)',
+  },
+  staleText: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: 4 },
   tipRow: {
     flexDirection: 'row',
     gap: 10,
     marginTop: 10,
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(42, 53, 64, 0.85)',
   },
-  tipRowOn: { borderColor: colors.accent, backgroundColor: colors.accentDim },
+  tipRowOn: { backgroundColor: colors.accentDim, borderRadius: 10, paddingHorizontal: 8, paddingBottom: 8 },
   check: {
     width: 22,
     height: 22,
