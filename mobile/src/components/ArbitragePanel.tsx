@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +20,7 @@ import { bookLabel } from '../lib/tipKey';
 import { shareOrCopyText } from '../lib/shareText';
 import { loadSettings, type AppSettings } from '../store/settings';
 import { colors } from '../theme/colors';
+import { webScrollBottom } from '../theme/webScroll';
 
 function selLabel(sel: string) {
   const s = (sel || '').toLowerCase();
@@ -98,7 +100,13 @@ export function ArbitragePanel({ onFlash }: Props) {
     : 0;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[
+        styles.content,
+        Platform.OS === 'web' ? { paddingBottom: webScrollBottom(20) } : null,
+      ]}
+    >
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>Surebet scanner</Text>
         <Text style={styles.heroText}>
