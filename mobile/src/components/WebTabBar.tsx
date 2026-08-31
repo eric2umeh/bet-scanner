@@ -46,7 +46,7 @@ export function WebTabBar({ state, descriptors, navigation }: BottomTabBarProps)
             accessibilityState={focused ? { selected: true } : {}}
             accessibilityLabel={options.tabBarAccessibilityLabel ?? String(label)}
           >
-            <FontAwesome name={icon} size={20} color={tint} />
+            <FontAwesome name={icon} size={18} color={tint} />
             <Text style={[styles.label, { color: tint }]} numberOfLines={1}>
               {label}
             </Text>
@@ -64,25 +64,26 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16, 24, 32, 0.98)',
     borderTopWidth: 1,
     borderTopColor: colors.line,
-    paddingHorizontal: 6,
-    paddingBottom: 4,
+    paddingHorizontal: 4,
+    paddingTop: 2,
+    paddingBottom: 2,
   },
   item: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 6,
-    borderRadius: 12,
+    gap: 2,
+    paddingVertical: 2,
+    borderRadius: 10,
     minWidth: 0,
   },
   itemOn: {
     backgroundColor: colors.accentDim,
   },
   label: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
-    lineHeight: 14,
+    lineHeight: 12,
     textAlign: 'center',
     includeFontPadding: false,
   },

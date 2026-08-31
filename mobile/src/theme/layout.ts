@@ -5,4 +5,4 @@ export const MOBILE_WEB_MAX_WIDTH = 480;
 export const WEB_APP_MAX_WIDTH = 720;
 
 /** Bottom tab bar height on Expo web (custom WebTabBar). */
-export const WEB_TAB_BAR_HEIGHT = 68;
+export const WEB_TAB_BAR_HEIGHT = 54;

@@ -1,0 +1,61 @@
+================================================================================
+Expo tunnel: "remote gone away" (NOT the ngrok status page)
+================================================================================
+
+Symptom:
+  npx expo start --tunnel
+  CommandError: failed to start tunnel
+  remote gone away
+
+Cause:
+  Expo's @expo/ngrok ships ngrok v2.3.41. Ngrok's API often rejects that agent
+  now, so the shared Expo tunnel fails even when https://status.ngrok.com is OK.
+
+Your API is already on Render (EXPO_PUBLIC_API_URL in mobile/.env), so tunnel
+is ONLY needed to load the Metro JS bundle on a phone that cannot reach your
+Mac over LAN.
+
+
+--------------------------------------------------------------------------------
+Option A — LAN (recommended when phone + Mac share Wi‑Fi)
+--------------------------------------------------------------------------------
+
+  cd mobile
+  npm run start:lan
+
+  Scan the QR in Expo Go. Phone and Mac must be on the same Wi‑Fi (not guest).
+
+  API calls still go to Render — no tunnel required for /tips, auth, etc.
+
+
+--------------------------------------------------------------------------------
+Option B — Your own ngrok v3 (phone on cellular / different network)
+--------------------------------------------------------------------------------
+
+  1. Install modern ngrok CLI (not Expo's bundled v2):
+       brew install ngrok/ngrok/ngrok
+     Sign up at https://dashboard.ngrok.com and run:
+       ngrok config add-authtoken YOUR_TOKEN
+
+  2. Terminal 1 — start Metro on LAN:
+       cd mobile && npx expo start --lan --clear
+
+  3. Terminal 2 — expose port 8081:
+       ngrok http 8081 --host-header=rewrite
+
+  4. Copy the https://xxxx.ngrok-free.app URL from ngrok, then in Terminal 1
+     stop Metro (Ctrl+C) and restart with:
+       EXPO_PACKAGER_PROXY_URL=https://YOUR-NGROK-URL npx expo start --lan
+
+  5. In Expo Go, open the project using the tunnel URL shown in the terminal.
+
+
+--------------------------------------------------------------------------------
+Option C — Skip tunnel entirely
+--------------------------------------------------------------------------------
+
+  - iOS Simulator: npx expo start --ios  (API can be http://127.0.0.1:8000)
+  - Android Emulator: EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+  - Web on Mac: ./scripts/build_web.sh then http://127.0.0.1:8000/
+
+================================================================================
