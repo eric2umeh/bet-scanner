@@ -21,16 +21,6 @@ export default function Root({ children }: PropsWithChildren) {
                 background: radial-gradient(ellipse at 50% 20%, #0f151c 0%, #040608 55%);
                 overscroll-behavior: none;
               }
-              /* React Navigation bottom tabs — labels were clipped on web */
-              [role="tablist"] [role="tab"] {
-                overflow: visible !important;
-                min-height: 52px;
-              }
-              [role="tablist"] [role="tab"] span {
-                overflow: visible !important;
-                line-height: 14px !important;
-                font-size: 11px !important;
-              }
             `,
           }}
         />
