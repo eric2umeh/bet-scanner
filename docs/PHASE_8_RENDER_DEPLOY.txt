@@ -42,10 +42,23 @@ OPTION A — Dashboard (simplest)
       - https://dashboard.render.com → New → Web Service
       - Connect GitHub repo `bet-scanner`
       - Runtime: Python
-      - Build:  pip install -r requirements.txt
+      - Build (Expo UI at / — NOT legacy-only):
+          pip install -r requirements.txt && chmod +x scripts/render_build.sh && ./scripts/render_build.sh
+        Root package.json is present so Render also installs Node.js for the Expo export.
+        After deploy, verify: GET /health → "expo_web_built": true
+        If false, your Build Command in the dashboard was not updated (see below).
       - Start:  uvicorn app.main:app --host 0.0.0.0 --port $PORT
       - Instance: Free (Hobby) is OK for testing
       - Health check path: /health
+
+  A1b) Existing service — update Build Command manually
+      render.yaml does NOT change an already-created service unless you sync Blueprint.
+      Dashboard → your web service → Settings → Build & Deploy → Build Command:
+          pip install -r requirements.txt && chmod +x scripts/render_build.sh && ./scripts/render_build.sh
+      Save → Manual Deploy. Build log must include:
+          render_build: START
+          render_build: OK — Expo web at mobile/dist
+      Then https://YOUR-SERVICE.onrender.com/health should show expo_web_built: true.
 
   A2) Environment variables (copy from local .env — never commit .env)
       Required:
