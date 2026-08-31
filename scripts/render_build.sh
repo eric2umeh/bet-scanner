@@ -5,10 +5,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+echo "=============================================="
+echo "  render_build: START (bet-scanner)"
+echo "  ROOT=$ROOT"
+echo "=============================================="
+
 pip install -r requirements.txt
 
 ensure_node() {
   if command -v npm >/dev/null 2>&1; then
+    echo "render_build: npm $(npm --version) at $(command -v npm)"
     return
   fi
   NODE_VERSION="${NODE_VERSION:-20.18.0}"
@@ -19,15 +25,22 @@ ensure_node() {
       | tar -xJ -C /tmp
   fi
   export PATH="$NODE_DIR/bin:$PATH"
+  echo "render_build: npm $(npm --version) (from tarball)"
 }
 
 ensure_node
 chmod +x scripts/build_web.sh
-RENDER=true APP_ENV=production ./scripts/build_web.sh
+export RENDER=true
+export APP_ENV=production
+./scripts/build_web.sh
 
 if [[ ! -f "$ROOT/mobile/dist/index.html" ]]; then
-  echo "render_build: mobile/dist/index.html missing — Expo web export failed"
+  echo "render_build: FATAL — mobile/dist/index.html missing after Expo export"
   exit 1
 fi
 
-echo "render_build: Expo web bundle ready ($(wc -c < "$ROOT/mobile/dist/index.html") bytes index.html)"
+echo "=============================================="
+echo "  render_build: OK — Expo web at mobile/dist"
+echo "  index.html size: $(wc -c < "$ROOT/mobile/dist/index.html") bytes"
+echo "  /health should report expo_web_built: true"
+echo "=============================================="
