@@ -1,0 +1,11 @@
+{
+  "name": "bet-scanner",
+  "private": true,
+  "description": "Root package.json so Render installs Node.js alongside Python (Expo web export).",
+  "scripts": {
+    "build:web": "bash scripts/build_web.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
