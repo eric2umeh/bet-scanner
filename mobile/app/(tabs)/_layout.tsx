@@ -12,7 +12,13 @@ function TabBarIcon(props: {
   name: ComponentProps<typeof FontAwesome>['name'];
   color: string;
 }) {
-  return <FontAwesome size={22} style={{ marginBottom: -2 }} {...props} />;
+  return (
+    <FontAwesome
+      size={isWeb ? 20 : 22}
+      style={isWeb ? undefined : { marginBottom: -2 }}
+      {...props}
+    />
+  );
 }
 
 /** Floating bottom nav on web — matches legacy `.tabbar`. */
@@ -45,9 +51,9 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: isWeb ? 'rgba(16, 24, 32, 0.94)' : colors.surface,
           borderTopColor: colors.line,
-          height: isWeb ? 58 : 58,
-          paddingBottom: isWeb ? 8 : 6,
-          paddingTop: isWeb ? 6 : 0,
+          height: isWeb ? 72 : 58,
+          paddingBottom: isWeb ? 10 : 6,
+          paddingTop: isWeb ? 8 : 0,
           borderTopWidth: 1,
           ...(isWeb
             ? {
@@ -61,14 +67,20 @@ export default function TabLayout() {
                 maxWidth: 696,
                 alignSelf: 'center',
                 marginHorizontal: 'auto',
+                overflow: 'visible',
               }
             : null),
         },
         tabBarLabelStyle: {
-          fontSize: isWeb ? 10 : 11,
+          fontSize: 11,
           fontWeight: '600',
+          lineHeight: 14,
+          marginTop: isWeb ? 2 : 0,
         },
-        tabBarItemStyle: isWeb ? { paddingHorizontal: 0 } : undefined,
+        tabBarItemStyle: isWeb
+          ? { paddingHorizontal: 4, paddingVertical: 2, minHeight: 52 }
+          : undefined,
+        tabBarShowLabel: true,
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.muted,
       }}
