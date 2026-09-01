@@ -416,10 +416,19 @@ def auto_settle_endpoint(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
     user: AuthUser | None = Depends(get_current_user),
+    refresh_scores: bool = Query(
+        default=True,
+        description="Fetch scores from odds-api.io / API-Football. false = DB only (no API quota).",
+    ),
 ) -> AutoSettleResponse:
-    """Use finished match scores to mark pending tips won/lost."""
+    """Use finished match scores to mark pending tips won/lost; void postponed/cancelled."""
     try:
-        result = auto_settle_finished(db, settings, owner_id=user.id if user else None)
+        result = auto_settle_finished(
+            db,
+            settings,
+            owner_id=user.id if user else None,
+            refresh_scores=refresh_scores,
+        )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(
             status_code=503,
@@ -430,8 +439,10 @@ def auto_settle_endpoint(
         ) from exc
     return AutoSettleResponse(
         settled_count=result["settled_count"],
+        voided_count=result.get("voided_count", 0),
         unresolved_count=result["unresolved_count"],
         settled=[TipOut(**t) for t in result["settled"]],
+        voided=[TipOut(**t) for t in result.get("voided", [])],
         unresolved=result["unresolved"],
         message=result["message"],
     )
