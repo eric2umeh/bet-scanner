@@ -145,7 +145,7 @@ function PickLines({ t }: { t: TipOut }) {
 export default function TipsScreen() {
   const insets = useSafeAreaInsets();
   const modal = useAppModal();
-  const needsSignInBase = useNeedsSignIn();
+  const needsSignIn = useNeedsSignIn();
   const [tab, setTab] = useState<TipsTab>('active');
   const [tips, setTips] = useState<TipOut[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -157,18 +157,16 @@ export default function TipsScreen() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const [searchQ, setSearchQ] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('all');
 
   const debouncedQ = useDebouncedValue(searchQ, 450);
-  const debouncedFrom = useDebouncedValue(
-    DATE_RE.test(dateFrom.trim()) ? dateFrom.trim() : '',
+  const debouncedDate = useDebouncedValue(
+    DATE_RE.test(dateFilter.trim()) ? dateFilter.trim() : '',
     300
   );
-  const debouncedTo = useDebouncedValue(DATE_RE.test(dateTo.trim()) ? dateTo.trim() : '', 300);
 
-  const listKey = `${tab}|${marketFilter}|${debouncedQ}|${debouncedFrom}|${debouncedTo}|${pageSize}`;
+  const listKey = `${tab}|${marketFilter}|${debouncedQ}|${debouncedDate}|${pageSize}`;
   const prevListKey = useRef(listKey);
 
   const fetchParams = useCallback(
@@ -178,11 +176,19 @@ export default function TipsScreen() {
       result: tab === 'active' ? 'pending' : undefined,
       market: marketFilter === 'all' ? undefined : marketFilter,
       q: debouncedQ || undefined,
-      date_from: debouncedFrom || undefined,
-      date_to: debouncedTo || undefined,
+      date_from: debouncedDate || undefined,
+      date_to: debouncedDate || undefined,
     }),
-    [pageSize, tab, marketFilter, debouncedQ, debouncedFrom, debouncedTo]
+    [pageSize, tab, marketFilter, debouncedQ, debouncedDate]
   );
+
+  const statsQuery = useQuery({
+    queryKey: queryKeys.tipStats,
+    queryFn: () => fetchTipStats(),
+    staleTime: 120_000,
+    enabled: !needsSignIn,
+  });
+  const stats = statsQuery.data ?? null;
 
   const loadPage = useCallback(
     async (page: number) => {
@@ -220,15 +226,6 @@ export default function TipsScreen() {
     }
     void loadPage(page);
   }, [listKey, pageIndex, needsSignIn, loadPage]);
-
-  const statsQuery = useQuery({
-    queryKey: queryKeys.tipStats,
-    queryFn: () => fetchTipStats(),
-    staleTime: 120_000,
-    enabled: !needsSignInBase,
-  });
-  const stats = statsQuery.data ?? null;
-  const needsSignIn = needsSignInBase;
 
   const totalPages = totalCount > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 0;
   const currentPage = pageIndex + 1;
@@ -417,48 +414,42 @@ export default function TipsScreen() {
 
         {!needsSignIn ? (
           <>
-            <View style={styles.filters}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filters}
+              contentContainerStyle={styles.filterRow}
+              keyboardShouldPersistTaps="handled"
+            >
               <TextInput
-                style={styles.input}
+                style={styles.searchInput}
                 value={searchQ}
                 onChangeText={setSearchQ}
-                placeholder="Search club, market, book…"
+                placeholder="Search…"
                 placeholderTextColor={colors.muted}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <View style={styles.filterRow}>
-                <TextInput
-                  style={[styles.input, styles.dateInput]}
-                  value={dateFrom}
-                  onChangeText={setDateFrom}
-                  placeholder="From YYYY-MM-DD"
-                  placeholderTextColor={colors.muted}
-                  autoCapitalize="none"
-                />
-                <TextInput
-                  style={[styles.input, styles.dateInput]}
-                  value={dateTo}
-                  onChangeText={setDateTo}
-                  placeholder="To YYYY-MM-DD"
-                  placeholderTextColor={colors.muted}
-                  autoCapitalize="none"
-                />
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
-                {MARKET_CHIPS.map((c) => (
-                  <Pressable
-                    key={c.id}
-                    style={[styles.chip, marketFilter === c.id && styles.chipOn]}
-                    onPress={() => setMarketFilter(c.id)}
-                  >
-                    <Text style={[styles.chipText, marketFilter === c.id && styles.chipTextOn]}>
-                      {c.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
+              <TextInput
+                style={styles.dateInput}
+                value={dateFilter}
+                onChangeText={setDateFilter}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.muted}
+                autoCapitalize="none"
+              />
+              {MARKET_CHIPS.map((c) => (
+                <Pressable
+                  key={c.id}
+                  style={[styles.chip, marketFilter === c.id && styles.chipOn]}
+                  onPress={() => setMarketFilter(c.id)}
+                >
+                  <Text style={[styles.chipText, marketFilter === c.id && styles.chipTextOn]}>
+                    {c.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
 
             <View style={styles.row}>
               <Pressable
@@ -632,20 +623,35 @@ const styles = StyleSheet.create({
   tabTextOn: { color: colors.accent },
   muted: { color: colors.muted, marginTop: 6, fontSize: 13, lineHeight: 18 },
   status: { color: colors.ink, marginTop: 8, fontSize: 13 },
-  filters: { marginTop: 12, gap: 8 },
-  input: {
+  filters: { marginTop: 12 },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingRight: 8,
+  },
+  searchInput: {
+    width: 140,
     backgroundColor: colors.surface,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
     color: colors.ink,
-    fontSize: 14,
+    fontSize: 13,
   },
-  filterRow: { flexDirection: 'row', gap: 8 },
-  dateInput: { flex: 1 },
-  chips: { marginTop: 4 },
+  dateInput: {
+    width: 118,
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    color: colors.ink,
+    fontSize: 13,
+  },
   chip: {
     marginRight: 8,
     paddingVertical: 8,
