@@ -31,6 +31,7 @@ import { useAppModal } from '../../src/components/modal';
 import { useDebouncedValue } from '../../src/hooks/useDebouncedValue';
 import { useNeedsSignIn } from '../../src/hooks/useTipsFeed';
 import { invalidateTipsCache } from '../../src/query/invalidate';
+import { markScoreRefreshRan, shouldRunScoreRefresh } from '../../src/store/autoSettle';
 import { queryKeys } from '../../src/query/client';
 import { bookLabel, marketLabel } from '../../src/lib/tipKey';
 import { colors } from '../../src/theme/colors';
@@ -90,8 +91,18 @@ function stakeOf(legs: TipOut[]) {
   return legs.map((l) => l.stake_ngn).find((s) => s != null && Number(s) > 0);
 }
 
+function matchStatusNote(status: string): string | null {
+  const s = (status || '').toUpperCase();
+  if (s === 'POSTPONED') return 'Postponed';
+  if (s === 'CANCELLED' || s === 'ABANDONED') return 'Cancelled';
+  if (s === 'SUSPENDED') return 'Suspended';
+  if (s === 'IN_PLAY') return 'Live';
+  return null;
+}
+
 function matchWhen(t: TipOut, compact = false): string {
   const status = (t.match_status || '').toUpperCase();
+  const statusNote = matchStatusNote(status);
   const finished = status === 'FINISHED';
   const hasScore = t.home_score != null && t.away_score != null;
   let when = '—';
@@ -106,6 +117,9 @@ function matchWhen(t: TipOut, compact = false): string {
           hour: '2-digit',
           minute: '2-digit',
         });
+  }
+  if (statusNote && !finished) {
+    return compact ? `${statusNote} · ${when}` : `${statusNote} — kickoff ${when}`;
   }
   if (finished && hasScore) {
     const ft = `FT ${t.home_score}-${t.away_score}`;
@@ -235,7 +249,33 @@ export default function TipsScreen() {
       if (!needsSignIn) {
         void statsQuery.refetch();
       }
-    }, [needsSignIn, statsQuery])
+      if (needsSignIn || tab !== 'active') return;
+
+      let cancelled = false;
+      (async () => {
+        try {
+          let data = await autoSettleTips({ refreshScores: false });
+          if (cancelled) return;
+          if (await shouldRunScoreRefresh()) {
+            data = await autoSettleTips({ refreshScores: true });
+            await markScoreRefreshRan();
+          }
+          const changed = (data.settled_count ?? 0) + (data.voided_count ?? 0);
+          if (changed > 0) {
+            await invalidateTipsCache();
+            await statsQuery.refetch();
+            await loadPage(pageIndex);
+            if (data.message) setStatus(data.message);
+          }
+        } catch {
+          /* background settle — manual button still available */
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [needsSignIn, tab, statsQuery, loadPage, pageIndex])
   );
 
   const busy = listBusy;
@@ -299,7 +339,8 @@ export default function TipsScreen() {
   async function onAutoSettle() {
     setStatus('Settling finished tips…');
     try {
-      const data = await autoSettleTips();
+      const data = await autoSettleTips({ refreshScores: true });
+      await markScoreRefreshRan();
       setStatus(data.message);
       await reloadAll();
     } catch (e) {
