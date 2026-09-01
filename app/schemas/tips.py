@@ -1,6 +1,6 @@
 """JSON shapes for tip logging + hit-rate (Phase 4)."""
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -19,6 +19,7 @@ class TipCreate(BaseModel):
     pick_market: str | None = None
     dog_odds: Decimal | None = None
     fav_odds: Decimal | None = None
+    confidence_pct: float | None = None
 
 
 class TipOut(BaseModel):
@@ -44,6 +45,7 @@ class TipOut(BaseModel):
     slip_id: str | None = None
     owner_id: str | None = None
     rationale: str | None = None
+    confidence_pct: float | None = None
     result: str
     created_at: datetime | None = None
     settled_at: datetime | None = None
@@ -184,6 +186,13 @@ class LogValueScanResponse(BaseModel):
     skipped: list[dict]
     message: str
     telegram: dict | None = None
+
+
+class TipListResponse(BaseModel):
+    items: list[TipOut]
+    has_more: bool
+    limit: int
+    offset: int
 
 
 class TipStatsResponse(BaseModel):

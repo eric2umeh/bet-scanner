@@ -11,6 +11,8 @@ Tip logging + hit-rate endpoints (Phase 4).
   POST /tips/auto-settle         — settle from finished match scores
 """
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -31,6 +33,7 @@ from app.schemas.tips import (
     TipBatchLogRequest,
     TipBatchLogResponse,
     TipCreate,
+    TipListResponse,
     TipOut,
     TipSettleRequest,
     TipStatsResponse,
@@ -50,6 +53,7 @@ from app.services.value_ops import format_value_digest, log_value_picks
 from app.services.tips import (
     auto_settle_finished,
     create_tip,
+    delete_tip,
     list_tips,
     log_safe_picks,
     log_selected_tips,
@@ -78,6 +82,7 @@ def create_tip_endpoint(
         stake_ngn=body.stake_ngn,
         source=body.source,
         rationale=body.rationale,
+        confidence_pct=body.confidence_pct,
         owner_id=user.id if user else None,
         skip_duplicate=True,
     )
@@ -345,27 +350,43 @@ def log_value_scan(
     )
 
 
-@router.get("", response_model=list[TipOut])
+@router.get("", response_model=TipListResponse)
 def list_tips_endpoint(
     result: str | None = Query(default=None, description="pending|won|lost|void"),
     source: str | None = Query(
         default=None,
         description="safe_builder|manual|arbitrage|value",
     ),
-    limit: int = Query(default=50, ge=1, le=200),
+    market: str | None = Query(
+        default=None,
+        description="all|double_chance|1x2|ou_2_5|btts",
+    ),
+    q: str | None = Query(default=None, description="Search teams, market, book"),
+    date_from: date | None = Query(default=None, description="Created on/after (UTC date)"),
+    date_to: date | None = Query(default=None, description="Created on/before (UTC date)"),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=10, ge=1, le=50),
     db: Session = Depends(get_db),
     user: AuthUser | None = Depends(get_current_user),
-) -> list[TipOut]:
-    return [
-        TipOut(**t)
-        for t in list_tips(
-            db,
-            result=result,
-            source=source,
-            limit=limit,
-            owner_id=user.id if user else None,
-        )
-    ]
+) -> TipListResponse:
+    page = list_tips(
+        db,
+        result=result,
+        source=source,
+        market=market,
+        q=q,
+        date_from=date_from,
+        date_to=date_to,
+        offset=offset,
+        limit=limit,
+        owner_id=user.id if user else None,
+    )
+    return TipListResponse(
+        items=[TipOut(**t) for t in page["items"]],
+        has_more=page["has_more"],
+        limit=page["limit"],
+        offset=page["offset"],
+    )
 
 
 @router.get("/stats", response_model=TipStatsResponse)
@@ -404,6 +425,21 @@ def auto_settle_endpoint(
         unresolved=result["unresolved"],
         message=result["message"],
     )
+
+
+@router.delete("/{tip_id}", summary="Remove a logged tip")
+def delete_tip_endpoint(
+    tip_id: int,
+    db: Session = Depends(get_db),
+    user: AuthUser | None = Depends(get_current_user),
+) -> dict:
+    try:
+        delete_tip(db, tip_id, owner_id=user.id if user else None)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"ok": True, "message": f"Tip #{tip_id} removed."}
 
 
 @router.post("/{tip_id}/settle", response_model=TipOut)
