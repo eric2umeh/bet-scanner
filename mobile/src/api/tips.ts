@@ -1,4 +1,4 @@
-import { getJson, postJson } from './client';
+import { deleteJson, getJson, postJson } from './client';
 import type { TipPick } from '../types/api';
 
 export type TipOut = {
@@ -20,7 +20,40 @@ export type TipOut = {
   slip_id?: string | null;
   risk_profile: string;
   source?: string;
+  confidence_pct?: number | null;
+  created_at?: string | null;
 };
+
+export type TipListPage = {
+  items: TipOut[];
+  has_more: boolean;
+  limit: number;
+  offset: number;
+};
+
+export type FetchTipsParams = {
+  limit?: number;
+  offset?: number;
+  result?: string;
+  market?: string;
+  q?: string;
+  date_from?: string;
+  date_to?: string;
+};
+
+export const TIPS_PAGE_SIZE = 10;
+
+function tipsQuery(params: FetchTipsParams): string {
+  const q = new URLSearchParams();
+  q.set('limit', String(params.limit ?? TIPS_PAGE_SIZE));
+  if (params.offset != null) q.set('offset', String(params.offset));
+  if (params.result) q.set('result', params.result);
+  if (params.market && params.market !== 'all') q.set('market', params.market);
+  if (params.q?.trim()) q.set('q', params.q.trim());
+  if (params.date_from) q.set('date_from', params.date_from);
+  if (params.date_to) q.set('date_to', params.date_to);
+  return `?${q.toString()}`;
+}
 
 export function tipSource(p: TipPick): string {
   const m = String(p.market || '').toLowerCase();
@@ -50,26 +83,46 @@ export function logTipBatch(opts: {
         Number.isFinite(stakeRaw) && stakeRaw > 0
           ? stakeRaw
           : opts.stakeFallback ?? null;
+      const oddsN = p.odds != null ? Number(p.odds) : null;
+      const dogN = p.dog_odds != null ? Number(p.dog_odds) : null;
       return {
         match_id: p.match_id,
         risk_profile: p.profile || 'manual',
         market: p.market,
         selection: p.selection,
-        odds_price: p.odds != null ? Number(p.odds) : null,
+        odds_price: oddsN,
         bookmaker: p.bookmaker,
         stake_ngn: stake,
         pick_market: p.pick_market || null,
-        dog_odds: p.dog_odds != null ? Number(p.dog_odds) : null,
-        fav_odds: p.fav_odds != null ? Number(p.fav_odds) : null,
+        dog_odds: dogN,
+        fav_odds: p.fav_odds != null ? Number(p.fav_odds) : oddsN,
         source: tipSource(p),
         rationale: p.rationale || null,
+        confidence_pct: p.confidence_pct != null ? Number(p.confidence_pct) : null,
       };
     }),
   });
 }
 
-export function fetchTips(limit = 50) {
-  return getJson<TipOut[]>(`/tips?limit=${limit}`);
+export function fetchTipsPage(params: FetchTipsParams = {}) {
+  const limit = params.limit ?? TIPS_PAGE_SIZE;
+  return getJson<TipListPage | TipOut[]>(`/tips${tipsQuery(params)}`).then((raw) => {
+    // Back-compat: older API / Render deploy still returns a bare array.
+    if (Array.isArray(raw)) {
+      return {
+        items: raw,
+        has_more: raw.length >= limit,
+        limit,
+        offset: params.offset ?? 0,
+      };
+    }
+    return {
+      items: raw.items ?? [],
+      has_more: Boolean(raw.has_more),
+      limit: raw.limit ?? limit,
+      offset: raw.offset ?? params.offset ?? 0,
+    };
+  });
 }
 
 export function fetchTipStats() {
@@ -92,6 +145,10 @@ export function settleTip(
     result,
     apply_to_slip: !!opts?.apply_to_slip,
   });
+}
+
+export function deleteTip(tipId: number) {
+  return deleteJson<{ ok: boolean; message: string }>(`/tips/${tipId}`);
 }
 
 export function autoSettleTips() {
