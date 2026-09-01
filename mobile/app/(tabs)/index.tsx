@@ -23,7 +23,6 @@ import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
 import { useAppModal } from '../../src/components/modal';
-import { runDailyOps } from '../../src/api/ops';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import { formatConfidencePct } from '../../src/lib/marketLean';
 import { setMatchCache } from '../../src/store/matchCache';
@@ -77,7 +76,7 @@ export default function TodayScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [picks, setPicks] = useState<TipPick[]>([]);
   const [filter, setFilter] = useState<MarketFilter>('all');
-  const [status, setStatus] = useState('Pull to refresh · Load real bets syncs odds');
+  const [status, setStatus] = useState('Pull down to refresh odds & Safe picks');
   const [busy, setBusy] = useState(false);
   const [selectedN, setSelectedN] = useState(0);
   const [asMulti, setAsMulti] = useState(true);
@@ -125,113 +124,44 @@ export default function TodayScreen() {
     return { n: all.length, picks: all };
   }, []);
 
-  const refresh = useCallback(async () => {
-    setBusy(true);
-    try {
-      const s = settings || (await loadSettings());
-      if (!settings) setSettings(s);
-      const [health, today] = await Promise.all([
-        pingHealth().catch(() => null),
-        fetchTodayMatches(),
-      ]);
-      setMatches(today);
-      const { n, picks: all } = await loadScans(s);
-      setMatchCache(today, all);
-      setStatus(
-        today.length
-          ? `${today.length} match(es) · ${n} Safe tip(s)${health?.version ? ` · v${health.version}` : ''}`
-          : 'No matches today — try Load real bets after fixtures sync'
-      );
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }, [loadScans, settings]);
+  const refresh = useCallback(
+    async (opts?: { withOdds?: boolean }) => {
+      const withOdds = opts?.withOdds ?? false;
+      setBusy(true);
+      try {
+        const s = settings || (await loadSettings());
+        if (!settings) setSettings(s);
+        if (withOdds) {
+          setStatus('Syncing SportyBet / Bet9ja odds…');
+          await syncOdds();
+        }
+        const [health, today] = await Promise.all([
+          pingHealth().catch(() => null),
+          fetchTodayMatches(),
+        ]);
+        setMatches(today);
+        const { n, picks: all } = await loadScans(s);
+        setMatchCache(today, all);
+        setStatus(
+          today.length
+            ? `${today.length} match(es) · ${n} Safe tip(s)${withOdds ? ' · odds updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
+            : withOdds
+              ? 'Odds synced — no matches today yet'
+              : 'No matches today — pull down to sync odds'
+        );
+      } catch (e) {
+        setStatus(e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [loadScans, settings]
+  );
 
   useEffect(() => {
-    refresh();
+    void refresh({ withOdds: false });
   }, []);
 
-  async function onScanSafe() {
-    setBusy(true);
-    setStatus('Scanning Safe picks…');
-    try {
-      const s = settings || (await loadSettings());
-      if (!settings) setSettings(s);
-      const { n } = await loadScans(s);
-      setStatus(`${n} Safe tip(s) · tick picks you placed → Log selected`);
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onStartMorning() {
-    setBusy(true);
-    setStatus('Morning routine: fixtures, settle, brief…');
-    try {
-      const s = settings || (await loadSettings());
-      if (!settings) setSettings(s);
-      const data = await runDailyOps({
-        bankroll_ngn: s.bankroll,
-        unit_pct: s.unitPct,
-        pick_market: s.pickMarket,
-        sync_odds: false,
-      });
-      const today = await fetchTodayMatches();
-      setMatches(today);
-      const { n, picks: all } = await loadScans(s);
-      setMatchCache(today, all);
-      setStatus(data.message || data.summary || `${today.length} match(es) · ${n} tip(s)`);
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onSyncNgOdds() {
-    setBusy(true);
-    setStatus('Syncing SportyBet / Bet9ja odds…');
-    try {
-      const sync = await syncOdds();
-      const s = settings || (await loadSettings());
-      if (!settings) setSettings(s);
-      const { n } = await loadScans(s);
-      setStatus(`${sync.message || 'Odds synced'} · ${n} tip(s)`);
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onLoadRealBets() {
-    setBusy(true);
-    setStatus('Syncing NG odds (uses free quota)…');
-    try {
-      const s = settings || (await loadSettings());
-      if (!settings) setSettings(s);
-      const sync = await syncOdds();
-      const today = await fetchTodayMatches();
-      setMatches(today);
-      const { n, picks: all } = await loadScans(s);
-      setMatchCache(today, all);
-      setStatus(`${sync.message || 'Odds synced'} · ${n} tip(s)`);
-      await modal.alert({
-        title: 'Real bets',
-        message: `${sync.message || 'Synced'}\n${n} tip(s) found.`,
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setStatus(msg);
-      await modal.alert({ title: 'Load real bets failed', message: msg });
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function onLogSelected() {
     const tips = getSelectedTips();
@@ -283,22 +213,17 @@ export default function TodayScreen() {
         style={styles.screen}
         contentContainerStyle={[styles.content, isWeb && { paddingBottom: webScrollBottom(20) }]}
         refreshControl={
-          <RefreshControl refreshing={busy} onRefresh={refresh} tintColor={colors.accent} />
+          <RefreshControl
+            refreshing={busy}
+            onRefresh={() => refresh({ withOdds: true })}
+            tintColor={colors.accent}
+          />
         }
       >
         <View style={[styles.topbar, isWeb && styles.topbarWeb]}>
           <View style={styles.hero}>
             <BrandLogo size="md" showWordmark />
-            <View style={styles.heroActions}>
-              {isWeb ? <HelpHeaderButton /> : null}
-              <Pressable
-                style={[styles.btnSecondary, styles.heroRefresh, busy && styles.btnDisabled]}
-                onPress={refresh}
-                disabled={busy}
-              >
-                <Text style={styles.btnSecondaryText}>Refresh</Text>
-              </Pressable>
-            </View>
+            {isWeb ? <HelpHeaderButton /> : null}
           </View>
           <Text style={styles.statusLine}>{status}</Text>
         </View>
@@ -315,39 +240,8 @@ export default function TodayScreen() {
           ))}
         </ScrollView>
 
-        <View style={styles.actionGrid}>
-          <Pressable
-            style={[styles.btn, styles.gridBtn, busy && styles.btnDisabled]}
-            onPress={onLoadRealBets}
-            disabled={busy}
-          >
-            <Text style={styles.btnText}>Load real bets</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.btnSecondary, styles.gridBtn, busy && styles.btnDisabled]}
-            onPress={onScanSafe}
-            disabled={busy}
-          >
-            <Text style={styles.btnSecondaryText}>Scan Safe</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.btnSecondary, styles.gridBtn, busy && styles.btnDisabled]}
-            onPress={onStartMorning}
-            disabled={busy}
-          >
-            <Text style={styles.btnSecondaryText}>Start morning</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.btnSecondary, styles.gridBtn, busy && styles.btnDisabled]}
-            onPress={onSyncNgOdds}
-            disabled={busy}
-          >
-            <Text style={styles.btnSecondaryText}>Sync NG odds</Text>
-          </Pressable>
-        </View>
-
         <Text style={styles.hint}>
-          Only kickoffs after now · tick same-book legs → Log as multi (like SportyBet).
+          Pull down to sync odds & rescan · tick same-book legs → Log selected.
         </Text>
 
         {busy && !matches.length ? (
@@ -358,8 +252,7 @@ export default function TodayScreen() {
           <View style={styles.staleBanner}>
             <Text style={styles.emptyTitle}>No Safe tips yet</Text>
             <Text style={styles.staleText}>
-              Odds go stale after ~3 hours. Tap Load real bets to sync SportyBet/Bet9ja and
-              rescan.
+              Pull down to sync SportyBet/Bet9ja odds and rescan Safe picks.
             </Text>
           </View>
         ) : null}
@@ -368,7 +261,7 @@ export default function TodayScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No matches yet</Text>
             <Text style={styles.staleText}>
-              Tap Load real bets (syncs SportyBet/Bet9ja odds + Safe scan).
+              Pull down to sync odds and load today&apos;s matches.
             </Text>
           </View>
         ) : null}
@@ -486,8 +379,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  heroActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  heroRefresh: { marginTop: 0, paddingVertical: 8, paddingHorizontal: 12 },
   statusLine: {
     color: colors.muted,
     marginTop: 8,
@@ -500,19 +391,6 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 6,
     marginBottom: 4,
-  },
-  actionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  gridBtn: {
-    width: '48%',
-    flexGrow: 1,
-    flexBasis: '46%',
-    minHeight: 44,
-    justifyContent: 'center',
   },
   btn: {
     backgroundColor: colors.accent,
