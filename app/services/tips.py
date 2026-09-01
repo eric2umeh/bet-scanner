@@ -457,34 +457,18 @@ def _market_filter_clause(market: str | None):
     return Tip.market == key
 
 
-def list_tips(
-    db: Session,
+def _apply_tip_list_filters(
+    stmt,
     *,
-    result: str | None = None,
-    source: str | None = None,
-    market: str | None = None,
-    limit: int = 10,
-    offset: int = 0,
-    q: str | None = None,
-    date_from: date | None = None,
-    date_to: date | None = None,
-    hide_void: bool = False,
-    owner_id: str | None = None,
-) -> dict:
-    """
-    Paginated tip list — one SQL page, no duplicate cleanup (saves DB + egress).
-    Returns { items, has_more, limit, offset }.
-    """
-    page_size = max(1, min(int(limit), 50))
-    off = max(0, int(offset))
-    needle = (q or "").strip()
-
-    stmt = (
-        select(Tip)
-        .join(Match, Tip.match_id == Match.id)
-        .options(joinedload(Tip.match))
-        .order_by(Tip.created_at.desc(), Tip.id.desc())
-    )
+    result: str | None,
+    source: str | None,
+    market: str | None,
+    owner_id: str | None,
+    date_from: date | None,
+    date_to: date | None,
+    needle: str,
+    hide_void: bool,
+):
     if result:
         stmt = stmt.where(Tip.result == result)
     elif hide_void:
@@ -513,14 +497,58 @@ def list_tips(
                 Tip.bookmaker.ilike(like),
             )
         )
+    return stmt
 
-    stmt = stmt.offset(off).limit(page_size + 1)
-    rows = list(db.scalars(stmt).unique().all())
-    has_more = len(rows) > page_size
-    items = [tip_to_dict(t) for t in rows[:page_size]]
+
+def list_tips(
+    db: Session,
+    *,
+    result: str | None = None,
+    source: str | None = None,
+    market: str | None = None,
+    limit: int = 10,
+    offset: int = 0,
+    q: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    hide_void: bool = False,
+    owner_id: str | None = None,
+) -> dict:
+    """
+    Paginated tip list — one SQL page + count (efficient pagination UI).
+    Returns { items, has_more, total, limit, offset }.
+    """
+    page_size = max(1, min(int(limit), 50))
+    off = max(0, int(offset))
+    needle = (q or "").strip()
+
+    base = select(Tip).join(Match, Tip.match_id == Match.id)
+    base = _apply_tip_list_filters(
+        base,
+        result=result,
+        source=source,
+        market=market,
+        owner_id=owner_id,
+        date_from=date_from,
+        date_to=date_to,
+        needle=needle,
+        hide_void=hide_void,
+    )
+
+    count_stmt = select(func.count()).select_from(base.subquery())
+    total = int(db.scalar(count_stmt) or 0)
+
+    stmt = (
+        base.options(joinedload(Tip.match))
+        .order_by(Tip.created_at.desc(), Tip.id.desc())
+        .offset(off)
+        .limit(page_size)
+    )
+    items = [tip_to_dict(t) for t in db.scalars(stmt).unique().all()]
     return {
         "items": items,
-        "has_more": has_more,
+        "has_more": off + len(items) < total,
+        "total": total,
         "limit": page_size,
         "offset": off,
     }
