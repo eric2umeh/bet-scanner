@@ -92,6 +92,12 @@ app.include_router(ops_router)
 app.include_router(telegram_router)
 
 
+@app.get("/privacy", include_in_schema=False)
+def privacy_policy() -> FileResponse:
+    """Public privacy policy URL for Google Play / App Store listings."""
+    return FileResponse(STATIC_DIR / "privacy.html", media_type="text/html")
+
+
 @app.get("/health")
 def health() -> dict[str, str | bool]:
     """Lightweight liveness check for Render / load balancers."""
