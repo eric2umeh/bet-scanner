@@ -11,7 +11,10 @@
     "web": "expo start --web",
     "export:web": "expo export --platform web",
     "build:preview": "eas build --platform android --profile preview",
-    "build:ios": "eas build --platform ios --profile preview",
+    "build:production": "eas build --platform android --profile production",
+    "build:production:ios": "eas build --platform ios --profile production",
+    "submit:android": "eas submit --platform android --profile production --latest",
+    "submit:ios": "eas submit --platform ios --profile production --latest",
     "update:preview": "eas update --channel preview",
     "update:production": "eas update --channel production"
   },
