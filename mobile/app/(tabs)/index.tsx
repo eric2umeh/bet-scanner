@@ -25,6 +25,7 @@ import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
 import { useAppModal } from '../../src/components/modal';
 import { runDailyOps } from '../../src/api/ops';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
+import { formatConfidencePct } from '../../src/lib/marketLean';
 import { setMatchCache } from '../../src/store/matchCache';
 import {
   clearSelection,
@@ -414,7 +415,10 @@ export default function TodayScreen() {
                           </Text>
                           <Text style={styles.tipMeta} numberOfLines={2}>
                             {bookLabel(p.bookmaker)}
-                            {p.confidence_pct != null ? ` · ${p.confidence_pct}%` : ''}
+                            {(() => {
+                              const lean = formatConfidencePct(p.market, p.confidence_pct);
+                              return lean ? ` · ${lean}` : '';
+                            })()}
                           </Text>
                           {p.singles_only_hint ? (
                             <Text style={styles.tipWarn} numberOfLines={2}>
