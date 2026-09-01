@@ -131,6 +131,44 @@ export default function MeScreen() {
     );
   }
 
+  function supabaseSetupHint(): string {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const host = window.location?.host || '';
+      if (host.includes('onrender.com')) {
+        return (
+          'Login is off in this web build. Render → Environment: add SUPABASE_URL and ' +
+          'SUPABASE_ANON_KEY (same values as mobile/.env), then Manual Deploy. ' +
+          'Or use Expo Go on your phone (mobile/.env + restart Metro).'
+        );
+      }
+      return (
+        'Login is off in this web build. From repo root run ./scripts/build_web.sh ' +
+        '(uses mobile/.env), then hard-refresh. Or use Expo Go on your phone.'
+      );
+    }
+    return (
+      'Stop Expo (Ctrl+C), then from mobile/ run: npx expo start --tunnel. ' +
+      'Confirm the terminal shows env: export EXPO_PUBLIC_SUPABASE_URL … ' +
+      'Keys go in mobile/.env only — not the root .env.'
+    );
+  }
+
+  function trySignIn() {
+    if (!isSupabaseConfigured()) {
+      flash(supabaseSetupHint(), true);
+      return;
+    }
+    void onSignIn();
+  }
+
+  function trySignUp() {
+    if (!isSupabaseConfigured()) {
+      flash(supabaseSetupHint(), true);
+      return;
+    }
+    void onSignUp();
+  }
+
   async function onSignIn() {
     flash('Signing in…');
     setAuthBusy(true);
@@ -258,8 +296,7 @@ export default function MeScreen() {
             </Text>
             {!isSupabaseConfigured() ? (
               <Text style={[styles.hint, { color: colors.bad }]}>
-                Restart Expo after adding keys to mobile/.env (EXPO_PUBLIC_SUPABASE_URL and
-                EXPO_PUBLIC_SUPABASE_ANON_KEY). Root .env alone is not enough for the phone app.
+                Sign in is unavailable in this build — tap Sign in for setup steps.
               </Text>
             ) : null}
             <Text style={styles.label}>Email</Text>
@@ -282,16 +319,24 @@ export default function MeScreen() {
             />
             <View style={styles.row}>
               <Pressable
-                style={[styles.btn, styles.btnFlex, authBusy && styles.btnDisabled]}
-                disabled={authBusy || !isSupabaseConfigured()}
-                onPress={onSignIn}
+                style={[
+                  styles.btn,
+                  styles.btnFlex,
+                  (authBusy || !isSupabaseConfigured()) && styles.btnDisabled,
+                ]}
+                disabled={authBusy}
+                onPress={trySignIn}
               >
                 <Text style={styles.btnText}>Sign in</Text>
               </Pressable>
               <Pressable
-                style={[styles.btnSecondary, styles.btnFlex, authBusy && styles.btnDisabled]}
-                disabled={authBusy || !isSupabaseConfigured()}
-                onPress={onSignUp}
+                style={[
+                  styles.btnSecondary,
+                  styles.btnFlex,
+                  (authBusy || !isSupabaseConfigured()) && styles.btnDisabled,
+                ]}
+                disabled={authBusy}
+                onPress={trySignUp}
               >
                 <Text style={styles.btnSecondaryText}>Sign up</Text>
               </Pressable>
@@ -335,10 +380,11 @@ export default function MeScreen() {
         {settings ? (
           <Text style={styles.muted}>Suggested unit ≈ ₦{unitStakeNgn(settings)}</Text>
         ) : null}
-        <Text style={styles.label}>App access key (optional)</Text>
+        <Text style={styles.label}>App access key</Text>
         <Text style={styles.hint}>
-          You invent this password yourself on the server (Render env APP_API_KEY). Leave blank
-          unless you turned that on — most setups do not need it yet.
+          Required for Load real bets / Sync odds when the API is on Render with APP_API_KEY set.
+          Paste the same value as APP_API_KEY in Render → Environment, then tap Save settings below.
+          API: {API_URL.replace(/^https?:\/\//, '')}
         </Text>
         <PasswordInput
           value={accessKey}
