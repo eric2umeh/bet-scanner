@@ -218,7 +218,7 @@ export default function MatchDetailScreen() {
           <Text style={styles.backText}>← Back</Text>
         </Pressable>
         <Text style={styles.title}>Match not in cache</Text>
-        <Text style={styles.muted}>Go to Today, Refresh / Load real bets, then open again.</Text>
+        <Text style={styles.muted}>Go to Today, pull down to refresh odds, then open again.</Text>
       </View>
     );
   }
@@ -276,7 +276,7 @@ export default function MatchDetailScreen() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>No tip for this match</Text>
               <Text style={styles.muted}>
-                Safe rules need underdog &gt; 7. Load real bets if odds are stale.
+                Safe rules need underdog &gt; 7. Pull down on Today if odds are stale.
               </Text>
             </View>
           ) : (
@@ -326,7 +326,7 @@ export default function MatchDetailScreen() {
             {!loadingOdds && !oddsBlocks.blocks.length && !oddsError ? (
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>No stored odds</Text>
-                <Text style={styles.muted}>Load real bets on Today (needs ODDS_SYNC_ENABLED=true).</Text>
+                <Text style={styles.muted}>Pull down on Today to sync odds (needs ODDS_SYNC_ENABLED=true).</Text>
               </View>
             ) : null}
             {oddsBlocks.blocks.length ? (
