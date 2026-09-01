@@ -23,6 +23,7 @@ from app.models import Match
 from app.providers.api_football import ApiFootballError, ApiFootballProvider
 from app.providers.base import FixtureMatch
 from app.providers.odds_api_io import OddsApiIoError, OddsApiIoProvider
+from app.services.match_status import VOIDABLE_MATCH_STATUSES, normalize_match_status
 
 _JUNK_TOKENS = {
     "fc",
@@ -109,8 +110,10 @@ def _pair_score(home_a: str, away_a: str, home_b: str, away_b: str) -> tuple[flo
 
 
 def _needs_scores(match: Match) -> bool:
-    status = (match.status or "").upper()
+    status = normalize_match_status(match.status)
     if status == "FINISHED" and match.home_score is not None and match.away_score is not None:
+        return False
+    if status in VOIDABLE_MATCH_STATUSES:
         return False
     return True
 
@@ -147,13 +150,14 @@ def _date_window(dates: set[str]) -> tuple[datetime, datetime]:
 
 
 def _finished_candidates(fixtures: list[FixtureMatch]) -> list[FixtureMatch]:
-    return [
-        fx
-        for fx in fixtures
-        if (fx.status or "").upper() == "FINISHED"
-        and fx.home_score is not None
-        and fx.away_score is not None
-    ]
+    out: list[FixtureMatch] = []
+    for fx in fixtures:
+        status = normalize_match_status(fx.status)
+        if status == "FINISHED" and fx.home_score is not None and fx.away_score is not None:
+            out.append(fx)
+        elif status in VOIDABLE_MATCH_STATUSES:
+            out.append(fx)
+    return out
 
 
 def _odds_api_io_configured(settings: Settings) -> bool:
@@ -228,13 +232,15 @@ def _match_fixture(
 
 
 def _apply_fixture_to_match(match: Match, fx: FixtureMatch, swapped: bool) -> None:
-    if swapped:
-        match.home_score = fx.away_score
-        match.away_score = fx.home_score
-    else:
-        match.home_score = fx.home_score
-        match.away_score = fx.away_score
-    match.status = "FINISHED"
+    status = normalize_match_status(fx.status)
+    match.status = status
+    if status == "FINISHED" and fx.home_score is not None and fx.away_score is not None:
+        if swapped:
+            match.home_score = fx.away_score
+            match.away_score = fx.home_score
+        else:
+            match.home_score = fx.home_score
+            match.away_score = fx.away_score
 
 
 def _search_fallback(
@@ -275,14 +281,27 @@ def refresh_scores_for_matches(
     db: Session,
     settings: Settings,
     matches: list[Match],
+    *,
+    fetch_external: bool = True,
 ) -> dict:
     """
-    Pull finished fixtures for pending match kickoff dates and patch scores
-    onto the given match rows (any provider).
+    Pull finished / voidable fixtures for pending match kickoff dates and patch
+    scores or status onto the given match rows (any provider).
+
+    fetch_external=False skips API calls (uses DB status/scores only).
     """
     need = [m for m in matches if m is not None and _needs_scores(m)]
     if not need:
         return {"refreshed": 0, "fetched": 0, "message": "No matches need scores."}
+
+    if not fetch_external:
+        return {
+            "refreshed": 0,
+            "fetched": 0,
+            "message": "Score refresh skipped (local DB only).",
+            "provider": "local",
+            "notes": [],
+        }
 
     dates = _kickoff_dates(need)
     if not dates:
