@@ -34,6 +34,7 @@ import { invalidateTipsCache } from '../../src/query/invalidate';
 import { markScoreRefreshRan, shouldRunScoreRefresh } from '../../src/store/autoSettle';
 import { queryKeys } from '../../src/query/client';
 import { bookLabel, marketLabel } from '../../src/lib/tipKey';
+import { formatConfidencePct, youthMatchHint } from '../../src/lib/marketLean';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
@@ -139,9 +140,46 @@ function loggedWhen(t: TipOut): string {
   });
 }
 
+function slipLegSummary(legs: TipOut[]): string {
+  let won = 0;
+  let lost = 0;
+  let pending = 0;
+  let voided = 0;
+  for (const leg of legs) {
+    const r = (leg.result || 'pending').toLowerCase();
+    if (r === 'won') won += 1;
+    else if (r === 'lost') lost += 1;
+    else if (r === 'void') voided += 1;
+    else pending += 1;
+  }
+  const parts: string[] = [];
+  if (won) parts.push(`${won}W`);
+  if (lost) parts.push(`${lost}L`);
+  if (pending) parts.push(`${pending}P`);
+  if (voided) parts.push(`${voided}V`);
+  return parts.join(' · ');
+}
+
+function LegResultBadge({ result, compact }: { result: string; compact?: boolean }) {
+  const r = (result || 'pending').toLowerCase();
+  return (
+    <Text
+      style={[
+        styles.legResult,
+        compact && styles.legResultCompact,
+        { color: resultColor(r) },
+      ]}
+    >
+      {r.toUpperCase()}
+    </Text>
+  );
+}
+
 /** Same two-line layout as Today match cards. */
 function PickLines({ t }: { t: TipOut }) {
   const odds = t.odds_price != null ? String(t.odds_price) : null;
+  const conf = formatConfidencePct(t.market, t.confidence_pct);
+  const youthHint = youthMatchHint(t.home_team, t.away_team);
   return (
     <>
       <Text style={styles.pickTitle} numberOfLines={2}>
@@ -150,8 +188,13 @@ function PickLines({ t }: { t: TipOut }) {
       </Text>
       <Text style={styles.pickMeta} numberOfLines={1}>
         {bookLabel(t.bookmaker || '')}
-        {t.confidence_pct != null ? ` · ${t.confidence_pct}%` : ''}
+        {conf ? ` · ${conf}` : ''}
       </Text>
+      {youthHint ? (
+        <Text style={styles.youthHint} numberOfLines={2}>
+          {youthHint}
+        </Text>
+      ) : null}
     </>
   );
 }
@@ -452,6 +495,12 @@ export default function TipsScreen() {
             </View>
           </View>
         ) : null}
+        {!needsSignIn && stats && (stats.won ?? 0) + (stats.lost ?? 0) >= 5 ? (
+          <Text style={styles.leanNote}>
+            BTTS/O/U “lean %” is not win probability — it reflects which side is shorter
+            in the odds. Safer track: Safe DC picks on Today; avoid U21/U23 accas.
+          </Text>
+        ) : null}
 
         {!needsSignIn ? (
           <>
@@ -541,6 +590,7 @@ export default function TipsScreen() {
               const stake = stakeOf(legs);
               const headId = legs[0].id;
               const open = !!expanded[slipId];
+              const legSummary = slipLegSummary(legs);
 
               return (
                 <SwipeableRow
@@ -564,13 +614,17 @@ export default function TipsScreen() {
                         <Text style={{ color: resultColor(overall), fontWeight: '700' }}>
                           {overall.toUpperCase()}
                         </Text>
+                        {slipLegSummary(legs) ? ` · ${legSummary}` : ''}
                         {' · '}stake ₦{stake ?? '—'}
                       </Text>
                       {legs.map((leg) => (
                         <View key={leg.id} style={styles.legBlock}>
-                          <Text style={styles.legTeams} numberOfLines={1}>
-                            {leg.home_team} vs {leg.away_team}
-                          </Text>
+                          <View style={styles.legHeader}>
+                            <Text style={[styles.legTeams, styles.legTeamsFlex]} numberOfLines={1}>
+                              {leg.home_team} vs {leg.away_team}
+                            </Text>
+                            <LegResultBadge result={leg.result} compact />
+                          </View>
                           <PickLines t={leg} />
                           <Text style={styles.when}>{matchWhen(leg, true)}</Text>
                         </View>
@@ -585,6 +639,7 @@ export default function TipsScreen() {
                             onDelete={() => onDelete(leg.id, `${leg.home_team} vs ${leg.away_team}`)}
                           >
                             <View style={styles.legBlock}>
+                              <LegResultBadge result={leg.result} />
                               <PickLines t={leg} />
                               <SettleButtons tipId={leg.id} current={leg.result} compact />
                             </View>
@@ -766,6 +821,18 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   legTeams: { color: colors.ink, fontWeight: '600', fontSize: 12, marginBottom: 4 },
+  legHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  legTeamsFlex: { flex: 1, marginBottom: 0 },
+  legResult: { fontWeight: '800', fontSize: 11, letterSpacing: 0.3 },
+  legResultCompact: { fontSize: 10 },
+  youthHint: { color: colors.warn, fontSize: 11, marginTop: 4, lineHeight: 15 },
+  leanNote: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 10,
+    paddingHorizontal: 2,
+  },
   expandBox: { marginTop: 8 },
   settleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   settleBtn: {
