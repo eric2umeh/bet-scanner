@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
-import { logValueScan, scanValue, type ValuePick } from '../api/edge';
+import { scanValue, type ValuePick } from '../api/edge';
+import { syncOdds } from '../api/odds';
 import { bookLabel } from '../lib/tipKey';
 import { shareOrCopyText } from '../lib/shareText';
 import { loadSettings, type AppSettings } from '../store/settings';
 import { colors } from '../theme/colors';
+import { webScrollBottom } from '../theme/webScroll';
 
 function selLabel(sel: string) {
   const s = (sel || '').toLowerCase();
@@ -39,11 +43,37 @@ export function ValuePanel({ onFlash }: Props) {
     onFlash?.(msg, bad);
   }
 
-  const refresh = useCallback(async () => {
+  const scanOnly = useCallback(async () => {
     setBusy(true);
     try {
       const s = await loadSettings();
       setSettings(s);
+      const data = await scanValue({
+        bankroll_ngn: s.bankroll,
+        unit_pct: s.unitPct,
+      });
+      setPicks(data.picks || []);
+      flash(
+        data.picks?.length
+          ? data.message || `Found ${data.picks.length} value pick(s).`
+          : data.message || 'No +EV edges on saved odds — pull down or tap Scan value.'
+      );
+    } catch (e) {
+      flash(e instanceof Error ? e.message : String(e), true);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const scanWithOdds = useCallback(async (withOddsSync: boolean) => {
+    setBusy(true);
+    try {
+      const s = await loadSettings();
+      setSettings(s);
+      if (withOddsSync) {
+        flash('Syncing odds, then scanning…');
+        await syncOdds();
+      }
       const data = await scanValue({
         bankroll_ngn: s.bankroll,
         unit_pct: s.unitPct,
@@ -62,25 +92,8 @@ export function ValuePanel({ onFlash }: Props) {
   }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  async function onLog() {
-    if (!settings) return;
-    setBusy(true);
-    try {
-      const data = await logValueScan({
-        bankroll_ngn: settings.bankroll,
-        unit_pct: settings.unitPct,
-      });
-      flash(data.message || 'Value tips logged.');
-      await refresh();
-    } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
-    } finally {
-      setBusy(false);
-    }
-  }
+    void scanOnly();
+  }, [scanOnly]);
 
   async function onCopyValue(p: ValuePick) {
     const text = [
@@ -103,13 +116,25 @@ export function ValuePanel({ onFlash }: Props) {
   const unit = settings?.unitPct ?? 1;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[
+        styles.content,
+        Platform.OS === 'web' ? { paddingBottom: webScrollBottom(20) } : null,
+      ]}
+      refreshControl={
+        <RefreshControl
+          refreshing={busy}
+          onRefresh={() => scanWithOdds(true)}
+          tintColor={colors.accent}
+        />
+      }
+    >
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>Value (+EV) scanner</Text>
         <Text style={styles.heroText}>
-          Compares SportyBet and Bet9ja to find prices above fair odds. Positive EV % means the
-          line looks better than the cross-book consensus. Uses bankroll ₦{bank.toLocaleString()}{' '}
-          and {unit}% unit from Me → Settings.
+          Compares SportyBet and Bet9ja to find prices above fair odds. Uses bankroll ₦
+          {bank.toLocaleString()} and {unit}% unit from Me → Settings.
         </Text>
       </View>
 
@@ -120,28 +145,24 @@ export function ValuePanel({ onFlash }: Props) {
         </View>
       ) : null}
 
-      <View style={styles.actions}>
-        <Pressable
-          style={[styles.btnPrimary, busy && styles.disabled]}
-          disabled={busy}
-          onPress={() => void refresh()}
-        >
-          <Text style={styles.btnPrimaryText}>Scan value picks</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.btnSecondary, busy && styles.disabled]}
-          disabled={busy || !picks.length}
-          onPress={() => void onLog()}
-        >
-          <Text style={styles.btnSecondaryText}>Log to Tips</Text>
-        </Pressable>
-      </View>
+      <Pressable
+        style={[styles.btnPrimary, busy && styles.disabled]}
+        disabled={busy}
+        onPress={() => void scanWithOdds(true)}
+      >
+        <Text style={styles.btnPrimaryText}>{busy ? 'Working…' : 'Scan value'}</Text>
+      </Pressable>
+      <Text style={styles.hint}>
+        Syncs odds + scans in one step. Pull down to repeat. Log individual picks from Today after
+        you place them.
+      </Text>
 
       {!picks.length && !busy ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No value picks</Text>
           <Text style={styles.emptyText}>
-            Refresh odds first (Me → Morning routine → Also refresh odds), then scan again.
+            Tap Scan value or pull down when you need fresh prices, then review EV % before
+            staking.
           </Text>
         </View>
       ) : null}
@@ -198,75 +219,61 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
-  statusBad: {
-    backgroundColor: 'rgba(239, 107, 107, 0.12)',
-    borderColor: colors.bad,
-  },
-  statusText: { flex: 1, color: colors.accent, fontSize: 13, fontWeight: '600' },
-  statusTextBad: { color: colors.bad },
-  actions: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  statusBad: { backgroundColor: 'rgba(180,60,60,0.12)', borderColor: '#b43c3c' },
+  statusText: { color: colors.ink, fontSize: 13, flex: 1 },
+  statusTextBad: { color: '#ffb4b4' },
   btnPrimary: {
-    flex: 1,
     backgroundColor: colors.accent,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
+    marginBottom: 8,
   },
-  btnPrimaryText: { color: '#06241c', fontWeight: '800' },
-  btnSecondary: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  btnSecondaryText: { color: colors.ink, fontWeight: '700' },
+  btnPrimaryText: { color: '#06241c', fontWeight: '800', fontSize: 15 },
+  hint: { color: colors.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 },
   disabled: { opacity: 0.55 },
   empty: {
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
+    backgroundColor: colors.card,
     borderColor: colors.line,
-    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
   },
-  emptyTitle: { color: colors.ink, fontWeight: '700', fontSize: 16 },
+  emptyTitle: { color: colors.ink, fontWeight: '700', fontSize: 15 },
   emptyText: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 6 },
   card: {
-    marginTop: 12,
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 14,
     padding: 14,
-    gap: 4,
+    marginBottom: 10,
   },
   cardTitle: { color: colors.ink, fontWeight: '700', fontSize: 15 },
-  meta: { color: colors.muted, fontSize: 12, lineHeight: 17 },
-  evRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' },
+  meta: { color: colors.muted, fontSize: 12, marginTop: 4, lineHeight: 17 },
+  evRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   evBadge: {
-    color: colors.good,
+    backgroundColor: colors.accentDim,
+    color: colors.accent,
     fontWeight: '800',
-    fontSize: 14,
-    backgroundColor: colors.good + '22',
+    fontSize: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
     overflow: 'hidden',
   },
-  pickLine: { color: colors.ink, fontWeight: '600', fontSize: 14 },
-  stake: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  warn: { color: colors.warn, fontSize: 12, marginTop: 4 },
+  pickLine: { color: colors.ink, fontSize: 13, flex: 1 },
+  stake: { color: colors.muted, fontSize: 12, marginTop: 6 },
+  warn: { color: '#ffb86c', fontSize: 12, marginTop: 6, lineHeight: 17 },
   copyBtn: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.line,
+    marginTop: 10,
     backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
   },
-  copyBtnText: { color: colors.accent, fontWeight: '600', fontSize: 12 },
+  copyBtnText: { color: colors.ink, fontWeight: '600', fontSize: 13 },
 });
