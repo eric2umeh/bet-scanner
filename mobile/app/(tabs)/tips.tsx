@@ -162,16 +162,13 @@ function slipLegSummary(legs: TipOut[]): string {
 
 function LegResultBadge({ result, compact }: { result: string; compact?: boolean }) {
   const r = (result || 'pending').toLowerCase();
+  const color = resultColor(r);
   return (
-    <Text
-      style={[
-        styles.legResult,
-        compact && styles.legResultCompact,
-        { color: resultColor(r) },
-      ]}
-    >
-      {r.toUpperCase()}
-    </Text>
+    <View style={[styles.legResultPill, compact && styles.legResultPillCompact, { borderColor: color }]}>
+      <Text style={[styles.legResult, compact && styles.legResultCompact, { color }]}>
+        {r.toUpperCase()}
+      </Text>
+    </View>
   );
 }
 
@@ -588,23 +585,17 @@ export default function TipsScreen() {
               const combined = combinedOdds(legs);
               const overall = slipOverall(legs);
               const stake = stakeOf(legs);
-              const headId = legs[0].id;
               const open = !!expanded[slipId];
               const legSummary = slipLegSummary(legs);
 
               return (
-                <SwipeableRow
-                  key={slipId}
-                  style={{ marginTop: 12 }}
-                  onDelete={() =>
-                    modal.alert({
-                      title: 'Multi slip',
-                      message: 'Expand the multi and swipe each leg left to delete.',
-                    })
-                  }
-                >
+                <View key={slipId} style={{ marginTop: 12 }}>
                   <View style={styles.cardInner}>
-                    <Pressable onPress={() => setExpanded((e) => ({ ...e, [slipId]: !open }))}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setExpanded((e) => ({ ...e, [slipId]: !open }))}
+                      style={styles.multiHeader}
+                    >
                       <Text style={styles.cardTitle}>
                         Multi · {book} · {legs.length} legs
                         {combined != null ? ` @ ${combined.toFixed(2)}` : ''}
@@ -614,41 +605,41 @@ export default function TipsScreen() {
                         <Text style={{ color: resultColor(overall), fontWeight: '700' }}>
                           {overall.toUpperCase()}
                         </Text>
-                        {slipLegSummary(legs) ? ` · ${legSummary}` : ''}
+                        {legSummary ? ` · ${legSummary}` : ''}
                         {' · '}stake ₦{stake ?? '—'}
                       </Text>
-                      {legs.map((leg) => (
-                        <View key={leg.id} style={styles.legBlock}>
-                          <View style={styles.legHeader}>
-                            <Text style={[styles.legTeams, styles.legTeamsFlex]} numberOfLines={1}>
-                              {leg.home_team} vs {leg.away_team}
-                            </Text>
-                            <LegResultBadge result={leg.result} compact />
-                          </View>
-                          <PickLines t={leg} />
-                          <Text style={styles.when}>{matchWhen(leg, true)}</Text>
-                        </View>
-                      ))}
+                      {!open ? (
+                        <Text style={styles.collapsedHint}>
+                          Tap to {open ? 'hide' : 'show'} {legs.length} leg
+                          {legs.length === 1 ? '' : 's'}
+                          {legSummary ? ` (${legSummary})` : ''}
+                        </Text>
+                      ) : null}
                     </Pressable>
-                    {open && tab === 'active' ? (
+                    {open ? (
                       <View style={styles.expandBox}>
                         {legs.map((leg) => (
-                          <SwipeableRow
-                            key={leg.id}
-                            style={{ marginTop: 8 }}
-                            onDelete={() => onDelete(leg.id, `${leg.home_team} vs ${leg.away_team}`)}
-                          >
-                            <View style={styles.legBlock}>
-                              <LegResultBadge result={leg.result} />
-                              <PickLines t={leg} />
-                              <SettleButtons tipId={leg.id} current={leg.result} compact />
+                          <View key={leg.id} style={styles.legBlock}>
+                            <View style={styles.legHeader}>
+                              <Text
+                                style={[styles.legTeams, styles.legTeamsFlex]}
+                                numberOfLines={2}
+                              >
+                                {leg.home_team} vs {leg.away_team}
+                              </Text>
+                              <LegResultBadge result={leg.result} compact />
                             </View>
-                          </SwipeableRow>
+                            <PickLines t={leg} />
+                            <Text style={styles.when}>{matchWhen(leg, true)}</Text>
+                            {tab === 'active' ? (
+                              <SettleButtons tipId={leg.id} current={leg.result} compact />
+                            ) : null}
+                          </View>
                         ))}
                       </View>
                     ) : null}
                   </View>
-                </SwipeableRow>
+                </View>
               );
             })}
 
@@ -807,6 +798,8 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   cardTitle: { color: colors.ink, fontWeight: '700', fontSize: 15 },
+  multiHeader: { cursor: 'pointer' as const },
+  collapsedHint: { color: colors.muted, fontSize: 11, marginTop: 6 },
   pickBox: { marginTop: 8 },
   pickTitle: { color: colors.ink, fontWeight: '600', fontSize: 13, lineHeight: 18 },
   pickMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
@@ -825,6 +818,15 @@ const styles = StyleSheet.create({
   legTeamsFlex: { flex: 1, marginBottom: 0 },
   legResult: { fontWeight: '800', fontSize: 11, letterSpacing: 0.3 },
   legResultCompact: { fontSize: 10 },
+  legResultPill: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: colors.surface,
+    flexShrink: 0,
+  },
+  legResultPillCompact: { paddingHorizontal: 5, paddingVertical: 1 },
   youthHint: { color: colors.warn, fontSize: 11, marginTop: 4, lineHeight: 15 },
   leanNote: {
     color: colors.muted,
