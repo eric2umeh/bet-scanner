@@ -4,17 +4,35 @@ Tip logging + hit-rate stats (Phase 4 + 10D multi slips).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import Settings, get_settings
 from app.models import Match, Tip
 from app.services.match_score_backfill import refresh_scores_for_matches
 from app.services.tip_settle import selection_won
+
+
+def _confidence_display(tip: Tip) -> float | None:
+    """Stored lean %, or recompute from fav/dog odds when older rows lack the column."""
+    if tip.confidence_pct is not None:
+        return round(float(tip.confidence_pct), 1)
+    fav, dog = tip.fav_odds, tip.dog_odds
+    if fav is not None and dog is not None:
+        try:
+            fa = Decimal(str(fav))
+            db = Decimal(str(dog))
+            if fa > 1 and db > 1:
+                from app.services.scan_goal_markets import _confidence
+
+                return _confidence(fa, db)
+        except Exception:
+            pass
+    return None
 
 
 def tip_to_dict(tip: Tip) -> dict:
@@ -42,6 +60,7 @@ def tip_to_dict(tip: Tip) -> dict:
         "slip_id": tip.slip_id,
         "owner_id": tip.owner_id,
         "rationale": tip.rationale,
+        "confidence_pct": _confidence_display(tip),
         "result": tip.result,
         "created_at": tip.created_at,
         "settled_at": tip.settled_at,
@@ -211,6 +230,7 @@ def create_tip(
     source: str = "manual",
     slip_id: str | None = None,
     rationale: str | None = None,
+    confidence_pct: float | None = None,
     owner_id: str | None = None,
     skip_duplicate: bool = True,
 ) -> tuple[Tip | None, str]:
@@ -251,6 +271,7 @@ def create_tip(
         slip_id=slip_id,
         owner_id=owner_id,
         rationale=rationale,
+        confidence_pct=confidence_pct,
         result="pending",
     )
     db.add(tip)
@@ -336,6 +357,7 @@ def log_selected_tips(
             source=str(t.get("source") or "manual"),
             slip_id=slip_id,
             rationale=t.get("rationale"),
+            confidence_pct=t.get("confidence_pct"),
             owner_id=owner_id,
             skip_duplicate=True,
         )
@@ -419,56 +441,104 @@ def log_safe_picks(db: Session, picks: list[dict], *, source: str = "safe_builde
     }
 
 
+def _market_filter_clause(market: str | None):
+    """Map UI chip → SQL market filter."""
+    if not market or market == "all":
+        return None
+    key = market.strip().lower()
+    if key in {"dc", "double_chance"}:
+        return Tip.market == "double_chance"
+    if key in {"1x2", "winner", "ml"}:
+        return Tip.market.in_(("1X2", "1x2"))
+    if key == "ou_2_5":
+        return Tip.market == "ou_2_5"
+    if key == "btts":
+        return Tip.market == "btts"
+    return Tip.market == key
+
+
 def list_tips(
     db: Session,
     *,
     result: str | None = None,
     source: str | None = None,
-    limit: int = 50,
+    market: str | None = None,
+    limit: int = 10,
+    offset: int = 0,
+    q: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     hide_void: bool = False,
     owner_id: str | None = None,
-) -> list[dict]:
-    # Clean existing duplicates so Load tips doesn't show Beijing twice
-    cleanup_duplicate_tips(db)
+) -> dict:
+    """
+    Paginated tip list — one SQL page, no duplicate cleanup (saves DB + egress).
+    Returns { items, has_more, limit, offset }.
+    """
+    page_size = max(1, min(int(limit), 50))
+    off = max(0, int(offset))
+    needle = (q or "").strip()
 
-    q = select(Tip).options(joinedload(Tip.match)).order_by(Tip.created_at.desc())
+    stmt = (
+        select(Tip)
+        .join(Match, Tip.match_id == Match.id)
+        .options(joinedload(Tip.match))
+        .order_by(Tip.created_at.desc(), Tip.id.desc())
+    )
     if result:
-        q = q.where(Tip.result == result)
+        stmt = stmt.where(Tip.result == result)
     elif hide_void:
-        q = q.where(Tip.result != "void")
+        stmt = stmt.where(Tip.result != "void")
     if source:
-        q = q.where(Tip.source == source)
+        stmt = stmt.where(Tip.source == source)
+    mclause = _market_filter_clause(market)
+    if mclause is not None:
+        stmt = stmt.where(mclause)
     if owner_id:
-        q = q.where(Tip.owner_id == owner_id)
-    q = q.limit(limit * 3)  # fetch extra before dedupe
-    rows = [tip_to_dict(t) for t in db.scalars(q).unique().all()]
-
-    # Display: keep all multi legs; collapse Safe Builder singles per match
-    def keep_score(t: dict) -> tuple:
-        result = t.get("result") or ""
-        pri = {"won": 4, "lost": 4, "pending": 2, "void": 0}.get(result, 1)
-        dc = 1 if t.get("market") == "double_chance" else 0
-        tip_id = t.get("id") or 0
-        return (pri, dc, tip_id)
-
-    best: dict[tuple, dict] = {}
-    for t in rows:
-        if t.get("slip_id"):
-            key: tuple = ("slip", t["slip_id"], t["id"])
-        elif t.get("source") == "safe_builder":
-            key = (t["match_id"], t["source"])
-        else:
-            key = (
-                t["match_id"],
-                _norm_book(t.get("bookmaker")),
-                str(t.get("market") or "").lower(),
-                _norm_sel(str(t.get("selection") or "")),
+        stmt = stmt.where(Tip.owner_id == owner_id)
+    if date_from is not None:
+        start = datetime.combine(date_from, datetime.min.time(), tzinfo=timezone.utc)
+        stmt = stmt.where(Tip.created_at >= start)
+    if date_to is not None:
+        end = datetime.combine(date_to, datetime.max.time(), tzinfo=timezone.utc)
+        stmt = stmt.where(Tip.created_at <= end)
+    if needle:
+        like = f"%{needle}%"
+        stmt = stmt.where(
+            or_(
+                Match.home_team.ilike(like),
+                Match.away_team.ilike(like),
+                Tip.market.ilike(like),
+                Tip.selection.ilike(like),
+                Tip.bookmaker.ilike(like),
             )
-        if key not in best or keep_score(t) > keep_score(best[key]):
-            best[key] = t
+        )
 
-    unique = sorted(best.values(), key=lambda t: t.get("created_at") or "", reverse=True)
-    return unique[:limit]
+    stmt = stmt.offset(off).limit(page_size + 1)
+    rows = list(db.scalars(stmt).unique().all())
+    has_more = len(rows) > page_size
+    items = [tip_to_dict(t) for t in rows[:page_size]]
+    return {
+        "items": items,
+        "has_more": has_more,
+        "limit": page_size,
+        "offset": off,
+    }
+
+
+def delete_tip(
+    db: Session,
+    tip_id: int,
+    *,
+    owner_id: str | None = None,
+) -> None:
+    tip = db.get(Tip, tip_id)
+    if tip is None:
+        raise LookupError(f"Tip {tip_id} not found")
+    if owner_id and tip.owner_id and tip.owner_id != owner_id:
+        raise PermissionError("Not allowed to delete this tip")
+    db.delete(tip)
+    db.commit()
 
 
 def settle_tip(
