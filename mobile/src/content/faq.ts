@@ -56,12 +56,36 @@ export const FAQ_ITEMS: FaqItem[] = [
     keywords: ['settle', 'auto', 'won', 'lost', 'finished'],
   },
   {
-    id: 'tips-multi',
-    category: 'Tips',
-    question: 'How do I settle one leg in a multi?',
+    id: 'today-youth',
+    category: 'Today',
+    question: 'Why does SportyBet only allow singles on some games?',
     answer:
-      'On Tips, tap a multi card to expand it. Use the Won / Lost / Void buttons under each leg. “All Won” marks every leg in that multi at once.',
-    keywords: ['multi', 'leg', 'accumulator', 'partial'],
+      'Youth, reserve, and academy fixtures (U19, U23, etc.) are often singles-only on SportyBet — no accumulator and sometimes O/U or BTTS markets are disabled live even if our feed still had a price. Bet Scanner now hides most youth/reserve O/U and BTTS picks from Load real bets. For first-team leagues you can usually combine legs in a multi; bet builder is a separate product on the book app.',
+    keywords: ['u19', 'u23', 'youth', 'single', 'multi', 'accumulator', 'bet builder', 'disabled'],
+  },
+  {
+    id: 'today-disabled',
+    category: 'Today',
+    question: 'Why do odds show here but are disabled on SportyBet?',
+    answer:
+      'We pull prices from odds-api.io, not directly from the SportyBet app. Markets can suspend after sync. We skip suspended API markets and youth leagues where O/U and BTTS are often off. Always confirm live in the book before staking.',
+    keywords: ['disabled', 'suspended', 'stale', 'odds', 'sportybet'],
+  },
+  {
+    id: 'arb-books',
+    category: 'Arbitrage',
+    question: 'Can I swap Bet9ja for another bookmaker?',
+    answer:
+      'Yes — on the free odds-api.io plan you pick any 2 recreational books in their dashboard, then set ODDS_API_IO_BOOKMAKERS in root .env (e.g. SportyBet,BetKing or SportyBet,1xBet). Restart the API and run Load real bets. True surebets stay rare; a second book with more overlapping fixtures helps more than Bet9ja alone if Bet9ja coverage is thin.',
+    keywords: ['bet9ja', 'betking', '1xbet', 'bookmaker', 'change', 'swap', 'odds-api'],
+  },
+  {
+    id: 'tips-history',
+    category: 'Tips',
+    question: 'Where is my tip history?',
+    answer:
+      'Open Tips → History tab. Search by team or market, filter by date logged (YYYY-MM-DD), and tap Load more for older rows. Active shows only open (pending) tips. Tap Remove on any card to delete a log you no longer want.',
+    keywords: ['history', 'search', 'delete', 'remove', 'confidence'],
   },
   {
     id: 'arb-what',
