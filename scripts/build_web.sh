@@ -21,12 +21,38 @@ fi
 
 npm install
 
+# Load mobile/.env then repo root .env (Expo export does not always pick up .env on its own).
+load_dotenv() {
+  local f="$1"
+  [[ -f "$f" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    if [[ "$line" == export\ * ]]; then
+      eval "$line"
+    else
+      export "$line"
+    fi
+  done < "$f"
+}
+
+load_dotenv "$ROOT/.env"
+load_dotenv "$ROOT/mobile/.env"
+
 # Empty EXPO_PUBLIC_API_URL → client uses window.location.origin (same host as the API).
 export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-}"
 export EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${SUPABASE_URL:-}}"
 export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${SUPABASE_ANON_KEY:-}}"
 
-npx expo export --platform web
+if [[ -z "${EXPO_PUBLIC_SUPABASE_URL:-}" || -z "${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}" ]]; then
+  echo "build_web: WARNING — Supabase keys missing; web login at / will be disabled."
+  echo "  Add EXPO_PUBLIC_SUPABASE_URL + EXPO_PUBLIC_SUPABASE_ANON_KEY to mobile/.env"
+  echo "  (or SUPABASE_URL + SUPABASE_ANON_KEY in root .env), then re-run this script."
+else
+  echo "build_web: Supabase URL configured for web export."
+fi
+
+npx expo export --platform web --clear
 
 DIST="$ROOT/mobile/dist"
 ICO_SRC="$ROOT/mobile/assets/images/favicon.png"
