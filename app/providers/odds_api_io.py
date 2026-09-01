@@ -22,6 +22,7 @@ import httpx
 
 from app.config import Settings
 from app.providers.base import OddQuote
+from app.services.ng_market_filters import market_block_is_active, selection_price_active
 
 
 class OddsApiIoError(Exception):
@@ -228,6 +229,7 @@ class OddsApiIoProvider:
             return []
         now = datetime.now(timezone.utc)
         bookmakers = payload.get("bookmakers") or {}
+        league_name = league.get("name") if isinstance(league, dict) else None
 
         out: list[OddQuote] = []
         for book_name, markets in bookmakers.items():
@@ -236,6 +238,8 @@ class OddsApiIoProvider:
                 continue
             for market in markets:
                 if not isinstance(market, dict):
+                    continue
+                if not market_block_is_active(market):
                     continue
                 mname = str(market.get("name") or "").strip()
                 odds_rows = market.get("odds") or []
@@ -252,7 +256,7 @@ class OddsApiIoProvider:
                             away_team=away,
                             kickoff_at=kickoff,
                             competition_code=code,
-                            competition_name=name,
+                            competition_name=name or league_name or code,
                             bookmaker=book_key,
                             captured_at=now,
                         ),
@@ -267,6 +271,8 @@ def _quotes_for_market(*, market_name: str, odds_rows: list, base: dict) -> list
     out: list[OddQuote] = []
 
     def add(market: str, selection: str, raw_price) -> None:
+        if not selection_price_active(raw_price):
+            return
         price = _dec(raw_price)
         if price is None or price <= 1:
             return
