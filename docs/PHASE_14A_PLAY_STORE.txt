@@ -1,0 +1,200 @@
+================================================================================
+PHASE 14A — PRODUCTION RELEASE (Google Play first · App Store later)
+================================================================================
+
+Goal:
+  Ship an installable Bet Scanner app to the Google Play Store (internal →
+  production). iOS follows once you have an Apple Developer account ($99/yr).
+
+Prerequisites:
+  - Phase 11F EAS config (mobile/eas.json) — done
+  - Live API on Render (or similar): https://bet-scanner-znvg.onrender.com
+  - Expo account (owner: eric2umeh) — projectId in app.json
+  - Google Play Developer account ($25 one-time)
+
+
+--------------------------------------------------------------------------------
+CHECKLIST BEFORE YOU BUILD
+--------------------------------------------------------------------------------
+
+  Run from repo root:
+
+    python scripts/check_eas_release.py
+
+  Manual:
+  [ ] Icons look good (mobile/assets/images/icon.png, adaptive-icon.png)
+  [ ] Privacy URL live after deploy: https://YOUR_HOST/privacy
+  [ ] mobile/.env uses production API (not localhost) for store builds
+  [ ] Render has SUPABASE_* if app login is required
+
+
+--------------------------------------------------------------------------------
+STEP 1 — EAS SECRETS (production API baked into the AAB)
+--------------------------------------------------------------------------------
+
+Store builds run on Expo servers — they do NOT read your laptop mobile/.env.
+
+From mobile/:
+
+  npm i -g eas-cli
+  eas login
+  eas whoami
+
+Set secrets (replace YOUR_HOST):
+
+  eas secret:create --scope project --name EXPO_PUBLIC_API_URL \
+    --value https://bet-scanner-znvg.onrender.com
+
+If using email login in the app:
+
+  eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_URL \
+    --value https://xxxx.supabase.co
+  eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY \
+    --value eyJhbGciOi...
+
+List:
+
+  eas secret:list --scope project
+
+
+--------------------------------------------------------------------------------
+STEP 2 — PRODUCTION ANDROID BUILD (AAB, not APK)
+--------------------------------------------------------------------------------
+
+Preview profile = APK for sideload testing (Phase 11F).
+Production profile = App Bundle for Play Store.
+
+  cd mobile
+  npm run build:production
+
+  # same as:
+  eas build --platform android --profile production
+
+What happens:
+  - buildType: app-bundle (.aab)
+  - autoIncrement: bumps Android versionCode on EAS
+  - channel: production (for EAS Update if you use it later)
+
+Download the .aab from the Expo build page when finished.
+
+
+--------------------------------------------------------------------------------
+STEP 3 — GOOGLE PLAY CONSOLE (first release)
+--------------------------------------------------------------------------------
+
+  1) https://play.google.com/console → Create app
+     - Name: Bet Scanner
+     - App / Games → App
+     - Free
+
+  2) Store listing (minimum):
+     - Short description (80 chars)
+     - Full description (see template below)
+     - App icon: 512×512 PNG (export from assets/images/icon.png)
+     - Feature graphic: 1024×500 PNG (see docs/store/SCREENSHOTS.txt)
+     - Phone screenshots: at least 2 (1080×1920 or 9:16)
+
+  3) Privacy policy URL (required):
+     https://bet-scanner-znvg.onrender.com/privacy
+     (Deploy repo with app/static/privacy.html first.)
+
+  4) App content questionnaires:
+     - Not primarily for children
+     - Gambling: tool for adults; user places own bets (declare honestly)
+     - Data safety: email if Supabase login; tips stored on your server
+
+  5) Release → Testing → Internal testing → Create release → Upload AAB
+
+  6) Add testers (email list) → share opt-in link
+
+  7) After internal OK → Production track (staged rollout recommended)
+
+
+--------------------------------------------------------------------------------
+STEP 4 — OPTIONAL: eas submit (automated upload)
+--------------------------------------------------------------------------------
+
+  1) Play Console → Setup → API access → Link Google Cloud project
+  2) Create service account → Grant “Release manager” on the app
+  3) Download JSON key → save as:
+       mobile/google-play-service-account.json  (gitignored)
+
+  4) Submit latest production build:
+
+       cd mobile
+       npm run submit:android
+
+  eas.json submit.production.android uses track: internal, releaseStatus: draft
+  so you can review in Play Console before publishing.
+
+
+--------------------------------------------------------------------------------
+STEP 5 — iOS (when ready)
+--------------------------------------------------------------------------------
+
+  Requires Apple Developer Program.
+
+  1) eas build --platform ios --profile production
+  2) App Store Connect → new app → bundle id com.betscanner.app
+  3) Fill eas.json submit.production.ios (appleId, ascAppId, appleTeamId)
+  4) npm run submit:ios
+
+  Expo Go on iPhone still works for dev; store build is separate.
+
+
+--------------------------------------------------------------------------------
+STORE LISTING COPY (starter — edit to taste)
+--------------------------------------------------------------------------------
+
+Short:
+  Scan football tips, log slips, track hit rate — SportyBet & Bet9ja odds.
+
+Full:
+  Bet Scanner helps you work through a disciplined betting morning:
+
+  • Load real bets — sync SportyBet and Bet9ja odds, see Safe picks and goal markets
+  • Log what you actually placed — singles and multis, swipe to remove mistakes
+  • Tips tab — hit rate, history, pagination, confidence on each pick
+  • Arb & Value tools — compare books when you want to go deeper
+  • Optional account — keep tips across devices with email login
+
+  This app does not place bets for you. Always verify odds live in your bookmaker
+  app before staking. For adults only where sports betting is legal.
+
+
+--------------------------------------------------------------------------------
+PREVIEW vs PRODUCTION
+--------------------------------------------------------------------------------
+
+  | Profile    | Output | Use case                    |
+  |------------|--------|-----------------------------|
+  | preview    | APK    | Share with friends, sideload |
+  | production | AAB    | Google Play Store           |
+
+
+--------------------------------------------------------------------------------
+FILES (Phase 14A)
+--------------------------------------------------------------------------------
+
+  mobile/eas.json              production + submit profiles
+  mobile/app.json              version 1.0.0, versionCode, bundle ids
+  mobile/package.json          build:production, submit:android
+  app/static/privacy.html      Play Store privacy URL
+  app/main.py                  GET /privacy
+  scripts/check_eas_release.py preflight script
+  docs/store/SCREENSHOTS.txt   screenshot sizes checklist
+
+
+--------------------------------------------------------------------------------
+TROUBLESHOOTING
+--------------------------------------------------------------------------------
+
+  Build fails “projectId” → eas init in mobile/
+
+  App opens but API errors → EXPO_PUBLIC_API_URL secret wrong or Render asleep
+
+  Login broken in store build → add Supabase secrets on EAS
+
+  Play rejects gambling → emphasize decision-support / logging tool in listing
+
+================================================================================
