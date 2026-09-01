@@ -216,29 +216,27 @@ export default function MeScreen() {
     }
   }
 
-  async function onMorning(withOdds: boolean) {
+  async function onMorning() {
     const s = parsedSettings();
     await saveSettings(s);
     setSettings(s);
     setOpsBusy(true);
     flash(
-      withOdds
-        ? 'Morning routine running: match list, bookmaker odds, settle tips, brief… (1–3 min if the server is waking up).'
-        : 'Morning routine running: match list, settle tips, brief… (1–3 min if the server is waking up).'
+      'Morning update: match list, settle tips, brief… (1–3 min if the server is waking up).'
     );
     try {
       const data = await runDailyOps({
         bankroll_ngn: s.bankroll,
         unit_pct: s.unitPct,
         pick_market: s.pickMarket,
-        sync_odds: withOdds,
+        sync_odds: false,
         sync_fixtures: true,
         auto_settle: true,
         build_brief: true,
         prefer_llm: true,
       });
       setOpsResult(data);
-      flash(data.message || data.summary || 'Morning routine finished.');
+      flash(data.message || data.summary || 'Morning update finished.');
     } catch (e) {
       flash(e instanceof Error ? e.message : String(e), true);
     } finally {
@@ -384,7 +382,7 @@ export default function MeScreen() {
         ) : null}
         <Text style={styles.label}>App access key</Text>
         <Text style={styles.hint}>
-          Required for Load real bets / Sync odds when the API is on Render with APP_API_KEY set.
+          Required for odds sync when the API is on Render with APP_API_KEY set.
           Paste the same value as APP_API_KEY in Render → Environment, then tap Save settings below.
           API: {API_URL.replace(/^https?:\/\//, '')}
         </Text>
@@ -400,33 +398,23 @@ export default function MeScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.section}>Morning routine</Text>
+        <Text style={styles.section}>Daily update</Text>
         <Text style={styles.hint}>
-          Updates the match list and scores from football calendar sites (not odds-api.io),
-          marks finished tips won or lost when scores are known, then writes a short decision
-          brief below. Tap “Also refresh odds” only when you need fresh SportyBet / Bet9ja
-          prices — that step uses the free odds-api.io allowance.
+          Refreshes the match list from football calendars, settles finished tips when scores are
+          known, and writes a short decision brief below. For fresh SportyBet / Bet9ja prices,
+          pull down on the Today tab (uses odds-api.io quota).
         </Text>
-        <View style={styles.row}>
-          <Pressable
-            style={[styles.btn, styles.btnFlex, opsBusy && styles.btnDisabled]}
-            disabled={opsBusy}
-            onPress={() => onMorning(false)}
-          >
-            {opsBusy ? (
-              <ActivityIndicator color="#06241c" />
-            ) : (
-              <Text style={styles.btnText}>Run morning routine</Text>
-            )}
-          </Pressable>
-          <Pressable
-            style={[styles.btnSecondary, styles.btnFlex, opsBusy && styles.btnDisabled]}
-            disabled={opsBusy}
-            onPress={() => onMorning(true)}
-          >
-            <Text style={styles.btnSecondaryText}>Also refresh odds</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          style={[styles.btn, opsBusy && styles.btnDisabled]}
+          disabled={opsBusy}
+          onPress={() => onMorning()}
+        >
+          {opsBusy ? (
+            <ActivityIndicator color="#06241c" />
+          ) : (
+            <Text style={styles.btnText}>Run morning update</Text>
+          )}
+        </Pressable>
         {opsResult ? (
           <View style={styles.opsBox}>
             <Text style={styles.opsSummary}>{opsResult.summary}</Text>
