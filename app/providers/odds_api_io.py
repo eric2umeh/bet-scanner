@@ -22,6 +22,7 @@ import httpx
 
 from app.config import Settings
 from app.providers.base import FixtureMatch, OddQuote
+from app.services.match_status import normalize_match_status
 from app.services.ng_market_filters import market_block_is_active, selection_price_active
 
 
@@ -70,21 +71,21 @@ class OddsApiIoProvider:
         to_dt: datetime,
     ) -> list[FixtureMatch]:
         """
-        Finished football events with scores (for auto-settle backfill).
+        Finished + cancelled football events (scores + status for auto-settle).
 
-        Uses GET /events?status=settled — same key as odds sync.
+        One request: GET /events?status=settled,cancelled
         """
         params = {
             "apiKey": self.api_key,
             "sport": "football",
-            "status": "settled",
+            "status": "settled,cancelled",
             "from": _format_rfc3339(from_dt),
             "to": _format_rfc3339(to_dt),
             "limit": 5000,
         }
         data = self._get("/events", params)
         if not isinstance(data, list):
-            raise OddsApiIoError(f"Unexpected /events settled response: {type(data)}")
+            raise OddsApiIoError(f"Unexpected /events result response: {type(data)}")
 
         out: list[FixtureMatch] = []
         for event in data:
@@ -93,7 +94,7 @@ class OddsApiIoProvider:
             fx = _event_to_fixture(event)
             if fx is not None:
                 out.append(fx)
-        print(f"[odds-api-io] settled events={len(out)}/{len(data)}")
+        print(f"[odds-api-io] result events={len(out)}/{len(data)}")
         return out
 
     def search_settled_fixture(
@@ -502,19 +503,24 @@ def _team_name_score(a: str, b: str) -> float:
 
 
 def _event_to_fixture(event: dict) -> FixtureMatch | None:
-    """Map odds-api.io event JSON → FixtureMatch when settled with scores."""
-    status = (event.get("status") or "").lower()
-    if status not in {"settled", "finished"}:
-        return None
+    """Map odds-api.io event JSON → FixtureMatch (finished or voidable)."""
+    raw_status = event.get("status") or ""
+    status = normalize_match_status(str(raw_status))
     scores = event.get("scores") or {}
     home_score = scores.get("home")
     away_score = scores.get("away")
-    if home_score is None or away_score is None:
+    home_i: int | None = None
+    away_i: int | None = None
+    if home_score is not None and away_score is not None:
+        try:
+            home_i = int(home_score)
+            away_i = int(away_score)
+        except (TypeError, ValueError):
+            home_i = away_i = None
+
+    if status == "FINISHED" and (home_i is None or away_i is None):
         return None
-    try:
-        home_i = int(home_score)
-        away_i = int(away_score)
-    except (TypeError, ValueError):
+    if status not in {"FINISHED", "POSTPONED", "CANCELLED", "SUSPENDED"}:
         return None
 
     league = event.get("league") or {}
@@ -533,7 +539,7 @@ def _event_to_fixture(event: dict) -> FixtureMatch | None:
         home_team=str(event.get("home") or "TBD"),
         away_team=str(event.get("away") or "TBD"),
         kickoff_at=_parse_dt(event.get("date")),
-        status="FINISHED",
+        status=status,
         home_score=home_i,
         away_score=away_i,
     )
