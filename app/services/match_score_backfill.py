@@ -23,7 +23,6 @@ from app.models import Match
 from app.providers.api_football import ApiFootballError, ApiFootballProvider
 from app.providers.base import FixtureMatch
 from app.providers.odds_api_io import OddsApiIoError, OddsApiIoProvider
-from app.services.match_store import upsert_fixture
 
 _JUNK_TOKENS = {
     "fc",
@@ -42,7 +41,40 @@ _JUNK_TOKENS = {
     "ii",
 }
 
-_MAX_SEARCH_FALLBACK = 8
+_MAX_SEARCH_FALLBACK = 3
+_MAX_SETTLED_FETCH_DAYS = 14
+
+
+def _fixture_could_match_need(match: Match, fx: FixtureMatch) -> bool:
+    pair, _ = _pair_score(match.home_team, match.away_team, fx.home_team, fx.away_team)
+    if pair < 0.72:
+        return False
+    m_ko = _kickoff_utc(match.kickoff_at)
+    fx_ko = _kickoff_utc(fx.kickoff_at)
+    if m_ko and fx_ko:
+        hours = abs((m_ko - fx_ko).total_seconds()) / 3600.0
+        if hours > 18:
+            return False
+    return True
+
+
+def _filter_finished_for_need(need: list[Match], finished: list[FixtureMatch]) -> list[FixtureMatch]:
+    """Keep only finished rows that might match a pending tip — avoids scanning thousands."""
+    if not need or not finished:
+        return finished
+    out: list[FixtureMatch] = []
+    for fx in finished:
+        if any(_fixture_could_match_need(m, fx) for m in need):
+            out.append(fx)
+    return out
+
+
+def _clamp_date_window(dates: set[str]) -> tuple[datetime, datetime]:
+    start, end = _date_window(dates)
+    max_span = timedelta(days=_MAX_SETTLED_FETCH_DAYS)
+    if end - start > max_span:
+        end = start + max_span
+    return start, end
 
 
 def _norm_tokens(name: str) -> set[str]:
@@ -136,47 +168,36 @@ def _fetch_finished_fixtures(
     """
     Return (finished fixtures, provider label, notes).
 
-    Tries API-Football first; falls back to odds-api.io when that fails or
-    returns no finished rows.
+    odds-api.io first (one request, matches NG tip rows). API-Football second.
     """
     notes: list[str] = []
-    api_football_error: str | None = None
-    api_football_finished: list[FixtureMatch] = []
+
+    if _odds_api_io_configured(settings):
+        try:
+            from_dt, to_dt = _clamp_date_window(dates)
+            oaio = OddsApiIoProvider(settings)
+            settled = oaio.fetch_settled_fixtures(from_dt, to_dt)
+            if settled:
+                return settled, "odds-api-io", notes
+            notes.append("odds-api.io returned no settled events for that window.")
+        except OddsApiIoError as exc:
+            notes.append(f"odds-api.io: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            notes.append(f"odds-api.io: {exc}")
 
     try:
         provider = ApiFootballProvider(settings)
         fixtures = provider.fetch_for_dates(sorted(dates), all_leagues=True)
-        api_football_finished = _finished_candidates(fixtures)
-        if api_football_finished:
-            return api_football_finished, "api-football", notes
+        finished = _finished_candidates(fixtures)
+        if finished:
+            if notes:
+                notes.append("Used API-Football after odds-api.io had no rows.")
+            return finished, "api-football", notes
         notes.append("API-Football returned no finished fixtures for those dates.")
     except ApiFootballError as exc:
-        api_football_error = str(exc)
         notes.append(f"API-Football: {exc}")
     except Exception as exc:  # noqa: BLE001
-        api_football_error = str(exc)
         notes.append(f"API-Football: {exc}")
-
-    if not _odds_api_io_configured(settings):
-        if api_football_error:
-            notes.append("Score refresh skipped: no ODDS_API_IO_KEY for fallback.")
-        return [], "none", notes
-
-    try:
-        from_dt, to_dt = _date_window(dates)
-        oaio = OddsApiIoProvider(settings)
-        settled = oaio.fetch_settled_fixtures(from_dt, to_dt)
-        if settled:
-            if api_football_error:
-                notes.append("Used odds-api.io fallback (API-Football unavailable).")
-            else:
-                notes.append("Used odds-api.io fallback (API-Football had no finished rows).")
-            return settled, "odds-api-io", notes
-        notes.append("odds-api.io returned no settled events for that window.")
-    except OddsApiIoError as exc:
-        notes.append(f"odds-api.io fallback failed: {exc}")
-    except Exception as exc:  # noqa: BLE001
-        notes.append(f"odds-api.io fallback failed: {exc}")
 
     return [], "none", notes
 
@@ -236,11 +257,15 @@ def _search_fallback(
 
     found: list[FixtureMatch] = []
     for match in unresolved[:_MAX_SEARCH_FALLBACK]:
-        fx = oaio.search_settled_fixture(
-            match.home_team,
-            match.away_team,
-            match.kickoff_at,  # type: ignore[arg-type]
-        )
+        try:
+            fx = oaio.search_settled_fixture(
+                match.home_team,
+                match.away_team,
+                match.kickoff_at,  # type: ignore[arg-type]
+            )
+        except OddsApiIoError as exc:
+            print(f"[odds-api-io] search skip {match.home_team}: {exc}")
+            continue
         if fx is not None:
             found.append(fx)
     return found
@@ -264,9 +289,7 @@ def refresh_scores_for_matches(
         return {"refreshed": 0, "fetched": 0, "message": "No kickoff dates to query."}
 
     finished, provider, notes = _fetch_finished_fixtures(settings, dates)
-
-    for fx in finished:
-        upsert_fixture(db, fx)
+    finished = _filter_finished_for_need(need, finished)
 
     refreshed_ids: set[int] = set()
     refreshed = 0
@@ -278,9 +301,13 @@ def refresh_scores_for_matches(
         refreshed += 1
         refreshed_ids.add(match.id)
 
-    search_found = _search_fallback(settings, need, refreshed_ids)
-    for fx in search_found:
-        upsert_fixture(db, fx)
+    search_found: list[FixtureMatch] = []
+    if any(m.id not in refreshed_ids for m in need):
+        search_found = _search_fallback(settings, need, refreshed_ids)
+        search_found = _filter_finished_for_need(
+            [m for m in need if m.id not in refreshed_ids],
+            search_found,
+        )
 
     for match in need:
         if match.id in refreshed_ids:
