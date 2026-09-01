@@ -16,6 +16,7 @@ from app.services.safe_builder import (
     evaluate_match,
     normalize_pick_market,
 )
+from app.services.ng_market_filters import is_youth_or_reserve_match
 from app.services.tip_learning import (
     build_learning_model,
     enrich_picks_with_learning,
@@ -135,6 +136,13 @@ def scan_safe_picks(
                 ko = ko.replace(tzinfo=timezone.utc)
             if ko <= now:
                 continue
+        if match is not None and is_youth_or_reserve_match(
+            match.home_team,
+            match.away_team,
+            competition_code=match.competition_code,
+            competition_name=match.competition_name,
+        ):
+            continue
         for book, sels in books.items():
             if not {"home", "draw", "away"} <= set(sels):
                 continue
