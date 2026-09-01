@@ -14,14 +14,14 @@ Flow:
      (/multi = 1 request for up to 10 events — saves free quota)
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import time
 
 import httpx
 
 from app.config import Settings
-from app.providers.base import OddQuote
+from app.providers.base import FixtureMatch, OddQuote
 from app.services.ng_market_filters import market_block_is_active, selection_price_active
 
 
@@ -63,6 +63,102 @@ class OddsApiIoProvider:
         self.api_key = key
         self.bookmakers = settings.odds_api_io_bookmakers_list
         self.event_limit = max(1, min(settings.odds_api_io_event_limit, 40))
+
+    def fetch_settled_fixtures(
+        self,
+        from_dt: datetime,
+        to_dt: datetime,
+    ) -> list[FixtureMatch]:
+        """
+        Finished football events with scores (for auto-settle backfill).
+
+        Uses GET /events?status=settled — same key as odds sync.
+        """
+        params = {
+            "apiKey": self.api_key,
+            "sport": "football",
+            "status": "settled",
+            "from": _format_rfc3339(from_dt),
+            "to": _format_rfc3339(to_dt),
+            "limit": 5000,
+        }
+        data = self._get("/events", params)
+        if not isinstance(data, list):
+            raise OddsApiIoError(f"Unexpected /events settled response: {type(data)}")
+
+        out: list[FixtureMatch] = []
+        for event in data:
+            if not isinstance(event, dict):
+                continue
+            fx = _event_to_fixture(event)
+            if fx is not None:
+                out.append(fx)
+        print(f"[odds-api-io] settled events={len(out)}/{len(data)}")
+        return out
+
+    def search_settled_fixture(
+        self,
+        home_team: str,
+        away_team: str,
+        kickoff_at: datetime,
+    ) -> FixtureMatch | None:
+        """
+        Find one finished match by team name when bulk /events missed it.
+
+        GET /historical/events/search — up to ~31-day window around kickoff.
+        """
+        ko = kickoff_at
+        if ko.tzinfo is None:
+            ko = ko.replace(tzinfo=timezone.utc)
+        else:
+            ko = ko.astimezone(timezone.utc)
+        window_from = ko - timedelta(hours=18)
+        window_to = ko + timedelta(hours=18)
+
+        query = (home_team or away_team or "").strip()
+        if len(query) < 3:
+            return None
+
+        params = {
+            "apiKey": self.api_key,
+            "query": query[:80],
+            "sport": "football",
+            "from": _format_rfc3339(window_from),
+            "to": _format_rfc3339(window_to),
+        }
+        data = self._get("/historical/events/search", params)
+        if not isinstance(data, list):
+            return None
+
+        best: FixtureMatch | None = None
+        best_pair = 0.0
+        for event in data:
+            if not isinstance(event, dict):
+                continue
+            fx = _event_to_fixture(event)
+            if fx is None:
+                continue
+            direct = (
+                _team_name_score(home_team, fx.home_team)
+                + _team_name_score(away_team, fx.away_team)
+            ) / 2
+            swapped = (
+                _team_name_score(home_team, fx.away_team)
+                + _team_name_score(away_team, fx.home_team)
+            ) / 2
+            pair = max(direct, swapped)
+            if pair < 0.72:
+                continue
+            fx_ko = fx.kickoff_at
+            if fx_ko.tzinfo is None:
+                fx_ko = fx_ko.replace(tzinfo=timezone.utc)
+            hours = abs((ko - fx_ko.astimezone(timezone.utc)).total_seconds()) / 3600.0
+            if hours > 18:
+                continue
+            if pair > best_pair:
+                best_pair = pair
+                best = fx
+        return best
 
     def fetch_h2h_odds(self) -> list[OddQuote]:
         """
@@ -386,3 +482,58 @@ def _future_events_only(events: list[dict]) -> list[dict]:
         if _is_future_kickoff(_parse_dt(event.get("date"))):
             out.append(event)
     return out
+
+
+def _format_rfc3339(dt: datetime) -> str:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _team_name_score(a: str, b: str) -> float:
+    al, bl = (a or "").lower().strip(), (b or "").lower().strip()
+    if not al or not bl:
+        return 0.0
+    if al == bl:
+        return 1.0
+    if al in bl or bl in al:
+        return 0.92
+    return 0.0
+
+
+def _event_to_fixture(event: dict) -> FixtureMatch | None:
+    """Map odds-api.io event JSON → FixtureMatch when settled with scores."""
+    status = (event.get("status") or "").lower()
+    if status not in {"settled", "finished"}:
+        return None
+    scores = event.get("scores") or {}
+    home_score = scores.get("home")
+    away_score = scores.get("away")
+    if home_score is None or away_score is None:
+        return None
+    try:
+        home_i = int(home_score)
+        away_i = int(away_score)
+    except (TypeError, ValueError):
+        return None
+
+    league = event.get("league") or {}
+    if not isinstance(league, dict):
+        league = {}
+    code, name = _league_code(league.get("slug"), league.get("name"))
+    event_id = event.get("id")
+    if event_id is None:
+        return None
+
+    return FixtureMatch(
+        external_id=str(event_id),
+        provider="odds-api-io",
+        competition_code=code,
+        competition_name=name,
+        home_team=str(event.get("home") or "TBD"),
+        away_team=str(event.get("away") or "TBD"),
+        kickoff_at=_parse_dt(event.get("date")),
+        status="FINISHED",
+        home_score=home_i,
+        away_score=away_i,
+    )
