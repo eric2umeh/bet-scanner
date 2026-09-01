@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -7,24 +7,36 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   autoSettleTips,
+  deleteTip,
+  fetchTipStats,
+  fetchTipsPage,
   settleTip,
+  TIPS_PAGE_SIZE,
   type TipOut,
 } from '../../src/api/tips';
 import { isAuthError } from '../../src/api/client';
 import { SignInRequiredBanner } from '../../src/components/SignInRequiredBanner';
+import { SwipeableRow } from '../../src/components/SwipeableRow';
 import { useAppModal } from '../../src/components/modal';
-import { useNeedsSignIn, useTipsFeed } from '../../src/hooks/useTipsFeed';
+import { useDebouncedValue } from '../../src/hooks/useDebouncedValue';
+import { useNeedsSignIn } from '../../src/hooks/useTipsFeed';
 import { invalidateTipsCache } from '../../src/query/invalidate';
+import { queryKeys } from '../../src/query/client';
 import { bookLabel, marketLabel } from '../../src/lib/tipKey';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
+
+type TipsTab = 'active' | 'history';
+type MarketFilter = 'all' | 'double_chance' | '1x2' | 'ou_2_5' | 'btts';
 
 const SETTLE_OPTS: { value: string; label: string }[] = [
   { value: 'won', label: 'Won' },
@@ -32,6 +44,16 @@ const SETTLE_OPTS: { value: string; label: string }[] = [
   { value: 'void', label: 'Void' },
   { value: 'pending', label: 'Pend' },
 ];
+
+const MARKET_CHIPS: { id: MarketFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'double_chance', label: 'DC' },
+  { id: '1x2', label: '1X2' },
+  { id: 'ou_2_5', label: 'O/U' },
+  { id: 'btts', label: 'BTTS' },
+];
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function resultColor(result: string) {
   const r = (result || '').toLowerCase();
@@ -67,12 +89,10 @@ function stakeOf(legs: TipOut[]) {
   return legs.map((l) => l.stake_ngn).find((s) => s != null && Number(s) > 0);
 }
 
-/** Date + kickoff, or FT score when finished. */
 function matchWhen(t: TipOut, compact = false): string {
   const status = (t.match_status || '').toUpperCase();
   const finished = status === 'FINISHED';
   const hasScore = t.home_score != null && t.away_score != null;
-
   let when = '—';
   if (t.kickoff_at) {
     const d = new Date(t.kickoff_at);
@@ -86,51 +106,159 @@ function matchWhen(t: TipOut, compact = false): string {
           minute: '2-digit',
         });
   }
-
   if (finished && hasScore) {
     const ft = `FT ${t.home_score}-${t.away_score}`;
     return compact ? `${when} · ${ft}` : `${when} · ${ft}`;
   }
-  if (!finished && t.kickoff_at) {
-    return compact ? when : `Kickoff ${when}`;
-  }
+  if (!finished && t.kickoff_at) return compact ? when : `Kickoff ${when}`;
   return when;
+}
+
+function loggedWhen(t: TipOut): string {
+  if (!t.created_at) return '';
+  return new Date(t.created_at).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** Same two-line layout as Today match cards. */
+function PickLines({ t }: { t: TipOut }) {
+  const odds = t.odds_price != null ? String(t.odds_price) : null;
+  return (
+    <>
+      <Text style={styles.pickTitle} numberOfLines={2}>
+        {marketLabel(t.market)} · {String(t.selection).toUpperCase()}
+        {odds ? ` @ ${odds}` : ''}
+      </Text>
+      <Text style={styles.pickMeta} numberOfLines={1}>
+        {bookLabel(t.bookmaker || '')}
+        {t.confidence_pct != null ? ` · ${t.confidence_pct}%` : ''}
+      </Text>
+    </>
+  );
 }
 
 export default function TipsScreen() {
   const insets = useSafeAreaInsets();
   const modal = useAppModal();
   const needsSignInBase = useNeedsSignIn();
-  const { tips, stats, isLoading, isRefreshing, isOfflineCache, error, refresh } =
-    useTipsFeed(50);
-  const needsSignIn = needsSignInBase || isAuthError(error);
-  const signInMessage = isAuthError(error)
-    ? 'Your session expired or you are not signed in. Sign in again to view tips.'
-    : undefined;
-  const [status, setStatus] = useState('Loading tips…');
+  const [tab, setTab] = useState<TipsTab>('active');
+  const [tips, setTips] = useState<TipOut[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [pageOffset, setPageOffset] = useState(0);
+  const [listBusy, setListBusy] = useState(false);
+  const [status, setStatus] = useState('');
   const [settlingId, setSettlingId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  const [searchQ, setSearchQ] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [marketFilter, setMarketFilter] = useState<MarketFilter>('all');
+
+  const debouncedQ = useDebouncedValue(searchQ, 450);
+  const debouncedFrom = useDebouncedValue(
+    DATE_RE.test(dateFrom.trim()) ? dateFrom.trim() : '',
+    300
+  );
+  const debouncedTo = useDebouncedValue(DATE_RE.test(dateTo.trim()) ? dateTo.trim() : '', 300);
+
+  const filterKey = `${tab}|${debouncedQ}|${debouncedFrom}|${debouncedTo}|${marketFilter}`;
+  const filterKeyRef = useRef(filterKey);
+
+  const statsQuery = useQuery({
+    queryKey: queryKeys.tipStats,
+    queryFn: () => fetchTipStats(),
+    staleTime: 120_000,
+    enabled: !needsSignInBase,
+  });
+  const stats = statsQuery.data ?? null;
+  const needsSignIn = needsSignInBase;
+
+  const loadMore = useCallback(async () => {
+    if (needsSignIn || listBusy || !hasMore) return;
+    setListBusy(true);
+    try {
+      const page = await fetchTipsPage({
+        limit: TIPS_PAGE_SIZE,
+        offset: tips.length,
+        result: tab === 'active' ? 'pending' : undefined,
+        market: marketFilter === 'all' ? undefined : marketFilter,
+        q: debouncedQ || undefined,
+        date_from: debouncedFrom || undefined,
+        date_to: debouncedTo || undefined,
+      });
+      setTips((prev) => [...prev, ...(page.items ?? [])]);
+      setHasMore(page.has_more);
+      setPageOffset(tips.length + page.items.length);
+    } catch (e) {
+      if (!isAuthError(e)) {
+        await modal.alert({
+          title: 'Could not load more',
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
+    } finally {
+      setListBusy(false);
+    }
+  }, [
+    needsSignIn,
+    listBusy,
+    hasMore,
+    tips.length,
+    tab,
+    marketFilter,
+    debouncedQ,
+    debouncedFrom,
+    debouncedTo,
+    modal,
+  ]);
+
   useEffect(() => {
-    if (needsSignIn) {
-      setStatus('Sign in required to view tips.');
-      return;
-    }
-    if (isOfflineCache) {
-      setStatus('Offline — showing last saved tips.');
-      return;
-    }
-    if (tips.length) setStatus(`Loaded ${tips.length} tip(s)`);
-    else if (!isLoading) setStatus('No tips logged yet');
-  }, [needsSignIn, isOfflineCache, tips.length, isLoading]);
+    if (needsSignIn) return;
+    const changed = filterKeyRef.current !== filterKey;
+    filterKeyRef.current = filterKey;
+    setPageOffset(0);
+    void (async () => {
+      setListBusy(true);
+      try {
+        const page = await fetchTipsPage({
+          limit: TIPS_PAGE_SIZE,
+          offset: 0,
+          result: tab === 'active' ? 'pending' : undefined,
+          market: marketFilter === 'all' ? undefined : marketFilter,
+          q: debouncedQ || undefined,
+          date_from: debouncedFrom || undefined,
+          date_to: debouncedTo || undefined,
+        });
+        setTips(page.items);
+        setHasMore(page.has_more);
+        setPageOffset(page.items.length);
+        setStatus(
+          `${tab === 'active' ? 'Active' : 'History'} · ${page.items.length} tip(s)${page.has_more ? ' · more available' : ''}`
+        );
+      } catch (e) {
+        if (!isAuthError(e)) {
+          setStatus(e instanceof Error ? e.message : String(e));
+        }
+      } finally {
+        setListBusy(false);
+      }
+    })();
+  }, [filterKey, needsSignIn, tab, marketFilter, debouncedQ, debouncedFrom, debouncedTo]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!needsSignIn) void refresh();
-    }, [needsSignIn, refresh])
+      if (!needsSignIn) {
+        void statsQuery.refetch();
+      }
+    }, [needsSignIn, statsQuery])
   );
 
-  const busy = isRefreshing;
+  const busy = listBusy;
 
   const { singles, multis } = useMemo(() => {
     const singles: TipOut[] = [];
@@ -148,16 +276,30 @@ export default function TipsScreen() {
     return { singles, multis };
   }, [tips]);
 
+  async function reloadAll() {
+    filterKeyRef.current = '';
+    setPageOffset(0);
+    await invalidateTipsCache();
+    await statsQuery.refetch();
+    const page = await fetchTipsPage({
+      limit: TIPS_PAGE_SIZE,
+      offset: 0,
+      result: tab === 'active' ? 'pending' : undefined,
+      market: marketFilter === 'all' ? undefined : marketFilter,
+      q: debouncedQ || undefined,
+      date_from: debouncedFrom || undefined,
+      date_to: debouncedTo || undefined,
+    });
+    setTips(page.items);
+    setHasMore(page.has_more);
+    setPageOffset(page.items.length);
+  }
+
   async function onSettle(tipId: number, result: string, applyToSlip = false) {
     setSettlingId(tipId);
     try {
       await settleTip(tipId, result, { apply_to_slip: applyToSlip });
-      setStatus(
-        applyToSlip
-          ? `Whole multi → ${result}`
-          : `Tip #${tipId} → ${result}`
-      );
-      await refresh();
+      await reloadAll();
     } catch (e) {
       await modal.alert({
         title: 'Settle failed',
@@ -168,15 +310,31 @@ export default function TipsScreen() {
     }
   }
 
+  async function onDelete(tipId: number, label: string) {
+    const ok = await modal.confirm({
+      title: 'Remove tip',
+      message: `Delete ${label}?`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteTip(tipId);
+      await reloadAll();
+    } catch (e) {
+      await modal.alert({
+        title: 'Delete failed',
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
   async function onAutoSettle() {
-    setStatus('Settling finished tips from final scores…');
+    setStatus('Settling finished tips…');
     try {
       const data = await autoSettleTips();
-      setStatus(
-        `${data.message} Open games stay pending. Each multi selection settles when that match ends.`
-      );
-      invalidateTipsCache();
-      await refresh();
+      setStatus(data.message);
+      await reloadAll();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setStatus(msg);
@@ -225,6 +383,9 @@ export default function TipsScreen() {
     );
   }
 
+  const showEmpty = !busy && !tips.length && !needsSignIn;
+  const pageNum = Math.max(1, Math.ceil(pageOffset / TIPS_PAGE_SIZE));
+
   return (
     <View style={styles.root}>
       <ScrollView
@@ -239,22 +400,30 @@ export default function TipsScreen() {
           },
         ]}
         refreshControl={
-          <RefreshControl refreshing={busy} onRefresh={refresh} tintColor={colors.accent} />
+          <RefreshControl refreshing={busy} onRefresh={() => reloadAll()} tintColor={colors.accent} />
         }
       >
-        <Text style={styles.muted}>
-          Settle finished tips marks Won or Lost from final match scores. Games that have not
-          ended stay pending. For a multi, each selection settles when that match finishes —
-          open the multi to mark a single selection by hand.
-        </Text>
-        <Text style={styles.status}>{status}</Text>
+        <View style={styles.tabRow}>
+          <Pressable
+            style={[styles.tabBtn, tab === 'active' && styles.tabBtnOn]}
+            onPress={() => setTab('active')}
+          >
+            <Text style={[styles.tabText, tab === 'active' && styles.tabTextOn]}>Active</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tabBtn, tab === 'history' && styles.tabBtnOn]}
+            onPress={() => setTab('history')}
+          >
+            <Text style={[styles.tabText, tab === 'history' && styles.tabTextOn]}>History</Text>
+          </Pressable>
+        </View>
 
-        {needsSignIn ? (
-          <SignInRequiredBanner
-            title={isAuthError(error) ? 'Access denied' : undefined}
-            message={signInMessage}
-          />
-        ) : null}
+        <Text style={styles.muted}>
+          Swipe a card left to delete. {TIPS_PAGE_SIZE} tips per page — filters update automatically.
+        </Text>
+        {status ? <Text style={styles.status}>{status}</Text> : null}
+
+        {needsSignIn ? <SignInRequiredBanner /> : null}
 
         {!needsSignIn && stats ? (
           <View style={styles.stats}>
@@ -278,134 +447,181 @@ export default function TipsScreen() {
         ) : null}
 
         {!needsSignIn ? (
-        <>
-        <View style={styles.row}>
-          <Pressable style={[styles.btn, busy && styles.disabled]} onPress={onAutoSettle} disabled={busy}>
-            <Text style={styles.btnText}>Settle finished tips</Text>
-          </Pressable>
-          <Pressable style={[styles.btnSecondary, busy && styles.disabled]} onPress={refresh} disabled={busy}>
-            <Text style={styles.btnSecondaryText}>Refresh</Text>
-          </Pressable>
-        </View>
-
-        {busy && !tips.length ? (
-          <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
-        ) : null}
-
-        {!busy && !tips.length ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No tips yet</Text>
-            <Text style={styles.muted}>
-              On Today, tick tips → Log selected. They appear here.
-            </Text>
-          </View>
-        ) : null}
-
-        {Object.entries(multis).map(([slipId, legs]) => {
-          const book = bookLabel(legs[0].bookmaker || '');
-          const combined = combinedOdds(legs);
-          const stake = stakeOf(legs);
-          const overall = slipOverall(legs);
-          const headId = legs[0].id;
-          const open = !!expanded[slipId];
-          const dense = legs.length >= 3;
-
-          return (
-            <View key={slipId} style={styles.card}>
-              <Pressable onPress={() => setExpanded((e) => ({ ...e, [slipId]: !open }))}>
-                <Text style={[styles.cardTitle, dense && styles.cardTitleSm]}>
-                  Multi · {book} · {legs.length} legs
-                  {combined != null ? ` @ ${combined.toFixed(2)}` : ''}
-                  {open ? ' ▲' : ' ▼'}
-                </Text>
-                <Text style={[styles.meta, dense && styles.metaSm]}>
-                  <Text style={{ color: resultColor(overall), fontWeight: '700' }}>
-                    {overall.toUpperCase()}
-                  </Text>
-                  {' · '}stake ₦{stake ?? '—'} · tap to edit legs
-                </Text>
-                {legs.map((leg) => (
-                  <Text key={leg.id} style={[styles.leg, dense && styles.legSm]} numberOfLines={dense ? 2 : 3}>
-                    <Text style={{ color: resultColor(leg.result), fontWeight: '700' }}>
-                      {leg.result.slice(0, 1).toUpperCase()}
+          <>
+            <View style={styles.filters}>
+              <TextInput
+                style={styles.input}
+                value={searchQ}
+                onChangeText={setSearchQ}
+                placeholder="Search club, market, book…"
+                placeholderTextColor={colors.muted}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <View style={styles.filterRow}>
+                <TextInput
+                  style={[styles.input, styles.dateInput]}
+                  value={dateFrom}
+                  onChangeText={setDateFrom}
+                  placeholder="From YYYY-MM-DD"
+                  placeholderTextColor={colors.muted}
+                  autoCapitalize="none"
+                />
+                <TextInput
+                  style={[styles.input, styles.dateInput]}
+                  value={dateTo}
+                  onChangeText={setDateTo}
+                  placeholder="To YYYY-MM-DD"
+                  placeholderTextColor={colors.muted}
+                  autoCapitalize="none"
+                />
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
+                {MARKET_CHIPS.map((c) => (
+                  <Pressable
+                    key={c.id}
+                    style={[styles.chip, marketFilter === c.id && styles.chipOn]}
+                    onPress={() => setMarketFilter(c.id)}
+                  >
+                    <Text style={[styles.chipText, marketFilter === c.id && styles.chipTextOn]}>
+                      {c.label}
                     </Text>
-                    {' '}
-                    {leg.home_team} vs {leg.away_team}
-                    {' · '}
-                    {marketLabel(leg.market)}/{String(leg.selection).toUpperCase()}
-                    {leg.odds_price != null ? ` @${leg.odds_price}` : ''}
-                    {'\n'}
-                    <Text style={styles.when}>{matchWhen(leg, true)}</Text>
-                  </Text>
+                  </Pressable>
                 ))}
-              </Pressable>
-
-              {open ? (
-                <View style={styles.expandBox}>
-                  <Text style={styles.expandLabel}>Settle each leg</Text>
-                  {legs.map((leg) => (
-                    <View key={leg.id} style={styles.legBlock}>
-                      <Text style={styles.legBlockTitle} numberOfLines={2}>
-                        {leg.home_team} vs {leg.away_team}
-                      </Text>
-                      <Text style={styles.when}>{matchWhen(leg)}</Text>
-                      <Text style={styles.metaSm}>
-                        {marketLabel(leg.market)}/{String(leg.selection).toUpperCase()}
-                        {leg.odds_price != null ? ` @ ${leg.odds_price}` : ''}
-                        {' · '}
-                        <Text style={{ color: resultColor(leg.result) }}>{leg.result}</Text>
-                      </Text>
-                      <SettleButtons tipId={leg.id} current={leg.result} compact />
-                    </View>
-                  ))}
-                  <Text style={[styles.expandLabel, { marginTop: 10 }]}>Whole multi</Text>
-                  <View style={styles.settleRow}>
-                    {SETTLE_OPTS.map((opt) => (
-                      <Pressable
-                        key={opt.value}
-                        style={[styles.settleBtn, styles.settleBtnSm, settlingId === headId && styles.disabled]}
-                        disabled={settlingId === headId || busy}
-                        onPress={async () => {
-                          const ok = await modal.confirm({
-                            title: 'Settle whole multi',
-                            message: `Mark all ${legs.length} legs as ${opt.label}?`,
-                            confirmLabel: 'Yes',
-                            destructive: opt.value === 'lost',
-                          });
-                          if (ok) void onSettle(headId, opt.value, true);
-                        }}
-                      >
-                        <Text style={styles.settleBtnTextSm}>All {opt.label}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
+              </ScrollView>
             </View>
-          );
-        })}
 
-        {singles.map((t) => (
-          <View key={t.id} style={styles.card}>
-            <Text style={styles.cardTitle}>
-              {t.home_team} vs {t.away_team}
-            </Text>
-            <Text style={styles.when}>{matchWhen(t)}</Text>
-            <Text style={styles.meta}>
-              <Text style={{ color: resultColor(t.result), fontWeight: '700' }}>
-                {t.result.toUpperCase()}
-              </Text>
-              {' · '}
-              {marketLabel(t.market)}/{String(t.selection).toUpperCase()}
-              {t.odds_price != null ? ` @ ${t.odds_price}` : ''}
-              {' · '}
-              {bookLabel(t.bookmaker || '')}
-              {' · '}stake ₦{t.stake_ngn ?? '—'}
-            </Text>
-            <SettleButtons tipId={t.id} current={t.result} />
-          </View>
-        ))}
-        </>
+            <View style={styles.row}>
+              <Pressable
+                style={[styles.btn, busy && styles.disabled]}
+                onPress={onAutoSettle}
+                disabled={busy}
+              >
+                <Text style={styles.btnText}>Settle finished tips</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btnSecondary, busy && styles.disabled]}
+                onPress={() => reloadAll()}
+                disabled={busy}
+              >
+                <Text style={styles.btnSecondaryText}>Refresh</Text>
+              </Pressable>
+            </View>
+
+            {busy && !tips.length ? (
+              <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
+            ) : null}
+
+            {showEmpty ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyTitle}>No tips match</Text>
+                <Text style={styles.muted}>Log from Today or change filters.</Text>
+              </View>
+            ) : null}
+
+            {Object.entries(multis).map(([slipId, legs]) => {
+              const book = bookLabel(legs[0].bookmaker || '');
+              const combined = combinedOdds(legs);
+              const overall = slipOverall(legs);
+              const stake = stakeOf(legs);
+              const headId = legs[0].id;
+              const open = !!expanded[slipId];
+
+              return (
+                <SwipeableRow
+                  key={slipId}
+                  style={{ marginTop: 12 }}
+                  onDelete={() =>
+                    modal.alert({
+                      title: 'Multi slip',
+                      message: 'Expand the multi and swipe each leg left to delete.',
+                    })
+                  }
+                >
+                  <View style={styles.cardInner}>
+                    <Pressable onPress={() => setExpanded((e) => ({ ...e, [slipId]: !open }))}>
+                      <Text style={styles.cardTitle}>
+                        Multi · {book} · {legs.length} legs
+                        {combined != null ? ` @ ${combined.toFixed(2)}` : ''}
+                        {open ? ' ▲' : ' ▼'}
+                      </Text>
+                      <Text style={styles.meta}>
+                        <Text style={{ color: resultColor(overall), fontWeight: '700' }}>
+                          {overall.toUpperCase()}
+                        </Text>
+                        {' · '}stake ₦{stake ?? '—'}
+                      </Text>
+                      {legs.map((leg) => (
+                        <View key={leg.id} style={styles.legBlock}>
+                          <Text style={styles.legTeams} numberOfLines={1}>
+                            {leg.home_team} vs {leg.away_team}
+                          </Text>
+                          <PickLines t={leg} />
+                          <Text style={styles.when}>{matchWhen(leg, true)}</Text>
+                        </View>
+                      ))}
+                    </Pressable>
+                    {open && tab === 'active' ? (
+                      <View style={styles.expandBox}>
+                        {legs.map((leg) => (
+                          <SwipeableRow
+                            key={leg.id}
+                            style={{ marginTop: 8 }}
+                            onDelete={() => onDelete(leg.id, `${leg.home_team} vs ${leg.away_team}`)}
+                          >
+                            <View style={styles.legBlock}>
+                              <PickLines t={leg} />
+                              <SettleButtons tipId={leg.id} current={leg.result} compact />
+                            </View>
+                          </SwipeableRow>
+                        ))}
+                      </View>
+                    ) : null}
+                  </View>
+                </SwipeableRow>
+              );
+            })}
+
+            {singles.map((t) => (
+              <SwipeableRow
+                key={t.id}
+                style={{ marginTop: 12 }}
+                onDelete={() => onDelete(t.id, `${t.home_team} vs ${t.away_team}`)}
+              >
+                <View style={styles.cardInner}>
+                  <Text style={styles.cardTitle}>
+                    {t.home_team} vs {t.away_team}
+                  </Text>
+                  <Text style={styles.when}>
+                    {matchWhen(t)}
+                    {loggedWhen(t) ? ` · logged ${loggedWhen(t)}` : ''}
+                  </Text>
+                  <View style={styles.pickBox}>
+                    <PickLines t={t} />
+                  </View>
+                  <Text style={styles.meta}>
+                    <Text style={{ color: resultColor(t.result), fontWeight: '700' }}>
+                      {t.result.toUpperCase()}
+                    </Text>
+                    {' · '}stake ₦{t.stake_ngn ?? '—'}
+                  </Text>
+                  {tab === 'active' ? <SettleButtons tipId={t.id} current={t.result} /> : null}
+                </View>
+              </SwipeableRow>
+            ))}
+
+            {hasMore && tips.length > 0 ? (
+              <Pressable
+                style={[styles.btnSecondary, { marginTop: 16, alignSelf: 'center' }, busy && styles.disabled]}
+                disabled={busy}
+                onPress={() => loadMore()}
+              >
+                <Text style={styles.btnSecondaryText}>
+                  Load more (page {pageNum + 1})
+                </Text>
+              </Pressable>
+            ) : null}
+          </>
         ) : null}
       </ScrollView>
     </View>
@@ -416,9 +632,47 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   screen: { flex: 1 },
   content: { padding: 16 },
-  title: { color: colors.ink, fontSize: 28, fontWeight: '700' },
+  tabRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+  },
+  tabBtnOn: { borderColor: colors.accent, backgroundColor: colors.accentDim },
+  tabText: { color: colors.muted, fontWeight: '600', fontSize: 14 },
+  tabTextOn: { color: colors.accent },
   muted: { color: colors.muted, marginTop: 6, fontSize: 13, lineHeight: 18 },
-  status: { color: colors.ink, marginTop: 10, fontSize: 13 },
+  status: { color: colors.ink, marginTop: 8, fontSize: 13 },
+  filters: { marginTop: 12, gap: 8 },
+  input: {
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.ink,
+    fontSize: 14,
+  },
+  filterRow: { flexDirection: 'row', gap: 8 },
+  dateInput: { flex: 1 },
+  chips: { marginTop: 4 },
+  chip: {
+    marginRight: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  chipOn: { borderColor: colors.accent, backgroundColor: colors.accentDim },
+  chipText: { color: colors.muted, fontWeight: '600', fontSize: 12 },
+  chipTextOn: { color: colors.accent },
   stats: { flexDirection: 'row', gap: 8, marginTop: 14 },
   stat: {
     flex: 1,
@@ -458,8 +712,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   emptyTitle: { color: colors.ink, fontWeight: '700', fontSize: 16 },
-  card: {
-    marginTop: 12,
+  cardInner: {
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
@@ -467,19 +720,11 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   cardTitle: { color: colors.ink, fontWeight: '700', fontSize: 15 },
-  cardTitleSm: { fontSize: 13 },
-  meta: { color: colors.muted, marginTop: 4, fontSize: 12, lineHeight: 17 },
-  metaSm: { color: colors.muted, marginTop: 2, fontSize: 11, lineHeight: 15 },
+  pickBox: { marginTop: 8 },
+  pickTitle: { color: colors.ink, fontWeight: '600', fontSize: 13, lineHeight: 18 },
+  pickMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  meta: { color: colors.muted, marginTop: 6, fontSize: 12, lineHeight: 17 },
   when: { color: colors.muted, fontSize: 11, marginTop: 2 },
-  leg: { color: colors.ink, marginTop: 6, fontSize: 12, lineHeight: 16 },
-  legSm: { fontSize: 11, lineHeight: 14, marginTop: 4 },
-  expandBox: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-  },
-  expandLabel: { color: colors.accent, fontWeight: '700', fontSize: 12, marginBottom: 6 },
   legBlock: {
     marginTop: 8,
     padding: 8,
@@ -488,7 +733,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  legBlockTitle: { color: colors.ink, fontWeight: '700', fontSize: 12 },
+  legTeams: { color: colors.ink, fontWeight: '600', fontSize: 12, marginBottom: 4 },
+  expandBox: { marginTop: 8 },
   settleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   settleBtn: {
     paddingVertical: 7,
