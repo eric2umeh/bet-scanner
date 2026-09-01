@@ -27,6 +27,7 @@ export type TipOut = {
 export type TipListPage = {
   items: TipOut[];
   has_more: boolean;
+  total: number;
   limit: number;
   offset: number;
 };
@@ -106,21 +107,27 @@ export function logTipBatch(opts: {
 
 export function fetchTipsPage(params: FetchTipsParams = {}) {
   const limit = params.limit ?? TIPS_PAGE_SIZE;
+  const offset = params.offset ?? 0;
   return getJson<TipListPage | TipOut[]>(`/tips${tipsQuery(params)}`).then((raw) => {
-    // Back-compat: older API / Render deploy still returns a bare array.
     if (Array.isArray(raw)) {
+      const slice = raw.slice(offset, offset + limit);
+      const total = raw.length;
       return {
-        items: raw,
-        has_more: raw.length >= limit,
+        items: slice,
+        has_more: offset + limit < total,
+        total,
         limit,
-        offset: params.offset ?? 0,
+        offset,
       };
     }
+    const items = raw.items ?? [];
+    const total = raw.total ?? items.length;
     return {
-      items: raw.items ?? [],
+      items,
       has_more: Boolean(raw.has_more),
+      total,
       limit: raw.limit ?? limit,
-      offset: raw.offset ?? params.offset ?? 0,
+      offset: raw.offset ?? offset,
     };
   });
 }
