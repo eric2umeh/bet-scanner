@@ -1,10 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
-const url = (process.env.EXPO_PUBLIC_SUPABASE_URL || '').trim();
-const anon = (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+type SupabaseExtra = {
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
+};
+
+function extraSupabase(): SupabaseExtra {
+  return (Constants.expoConfig?.extra ?? {}) as SupabaseExtra;
+}
+
+/** EXPO_PUBLIC_* is inlined by Metro; app.config.js extra is the reliable path for web export. */
+const url = (
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  extraSupabase().supabaseUrl ||
+  ''
+).trim();
+const anon = (
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  extraSupabase().supabaseAnonKey ||
+  ''
+).trim();
 
 export function isSupabaseConfigured(): boolean {
   return Boolean(url && anon);
