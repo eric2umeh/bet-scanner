@@ -1,6 +1,6 @@
 import { queryClient, queryKeys } from './client';
 
-export function invalidateTipsCache() {
-  void queryClient.invalidateQueries({ queryKey: ['tips'] });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.tipStats });
+export async function invalidateTipsCache() {
+  await queryClient.invalidateQueries({ queryKey: queryKeys.tipStats });
+  await queryClient.refetchQueries({ queryKey: queryKeys.tipStats });
 }
