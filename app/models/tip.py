@@ -42,6 +42,8 @@ class Tip(Base):
     # Phase 12C — Supabase Auth user id (uuid string); null = legacy / anonymous
     owner_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
+    confidence_pct: Mapped[float | None] = mapped_column(Numeric(5, 1), nullable=True)
+
     rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # pending | won | lost | void
