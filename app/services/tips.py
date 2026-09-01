@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.config import Settings, get_settings
 from app.models import Match, Tip
 from app.services.match_score_backfill import refresh_scores_for_matches
+from app.services.ng_market_filters import is_youth_or_reserve_match
 from app.services.match_status import is_voidable_match_status, normalize_match_status, void_reason_label
 from app.services.tip_settle import selection_won
 
@@ -332,6 +333,22 @@ def log_selected_tips(
         if mid is None:
             errors.append("tip missing match_id")
             continue
+
+        market = str(t.get("market") or "").lower()
+        if market in ("ou_2_5", "btts"):
+            match_row = db.get(Match, int(mid))
+            if match_row and is_youth_or_reserve_match(
+                match_row.home_team,
+                match_row.away_team,
+                competition_code=match_row.competition_code,
+                competition_name=match_row.competition_name,
+            ):
+                errors.append(
+                    f"Skipped youth/reserve O/U or BTTS: "
+                    f"{match_row.home_team} vs {match_row.away_team}"
+                )
+                continue
+
         slip_id = slip_for_index.get(i)
         stake = t.get("stake_ngn")
         if stake is not None:
