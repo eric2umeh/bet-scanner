@@ -18,7 +18,6 @@ export const asyncStoragePersister = createAsyncStoragePersister({
 });
 
 export const queryKeys = {
-  tips: (limit: number) => ['tips', limit] as const,
   tipStats: ['tipStats'] as const,
   authStatus: ['authStatus'] as const,
 };

@@ -140,6 +140,10 @@ export async function postJson<T>(
   );
 }
 
+export async function deleteJson<T>(path: string): Promise<T> {
+  return fetchJson<T>(path, { method: 'DELETE' });
+}
+
 export type HealthResponse = {
   status: string;
   env?: string;
