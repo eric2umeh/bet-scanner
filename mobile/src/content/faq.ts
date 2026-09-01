@@ -20,15 +20,15 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Getting started',
     question: 'What should I do each morning?',
     answer:
-      'Open Today → Load real bets (or run Morning routine in Me). Tick the tips you plan to place → Log selected. After matches finish, open Tips → Settle finished tips.',
+      'Pull down on Today to sync odds and Safe picks (or run Morning update in Me for fixtures only). Tick tips you plan to place → Log selected. After matches finish, open Tips → Settle finished tips.',
     keywords: ['morning', 'routine', 'daily', 'workflow'],
   },
   {
     id: 'today-load',
     category: 'Today',
-    question: 'What does “Load real bets” do?',
+    question: 'How do I refresh odds and picks?',
     answer:
-      'It syncs fresh SportyBet and Bet9ja odds from the server (uses your free odds-api.io quota). After it finishes, Safe picks and goal-market tips appear on each match card.',
+      'On Today, pull down to sync fresh SportyBet and Bet9ja odds from the server (uses your free odds-api.io quota). Safe picks and goal-market tips then appear on each match card.',
     keywords: ['load', 'real', 'bets', 'sync', 'odds'],
   },
   {
@@ -60,7 +60,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Today',
     question: 'Why does SportyBet only allow singles on some games?',
     answer:
-      'Youth, reserve, and academy fixtures (U19, U23, etc.) are often singles-only on SportyBet — no accumulator and sometimes O/U or BTTS markets are disabled live even if our feed still had a price. Bet Scanner now hides most youth/reserve O/U and BTTS picks from Load real bets. For first-team leagues you can usually combine legs in a multi; bet builder is a separate product on the book app.',
+      'Youth, reserve, and academy fixtures (U19, U23, etc.) are often singles-only on SportyBet — no accumulator and sometimes O/U or BTTS markets are disabled live even if our feed still had a price. Bet Scanner now hides most youth/reserve O/U and BTTS picks after you refresh odds on Today. For first-team leagues you can usually combine legs in a multi; bet builder is a separate product on the book app.',
     keywords: ['u19', 'u23', 'youth', 'single', 'multi', 'accumulator', 'bet builder', 'disabled'],
   },
   {
@@ -76,7 +76,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'Can I swap Bet9ja for another bookmaker?',
     answer:
-      'Yes — on the free odds-api.io plan you pick any 2 recreational books in their dashboard, then set ODDS_API_IO_BOOKMAKERS in root .env (e.g. SportyBet,BetKing or SportyBet,1xBet). Restart the API and run Load real bets. True surebets stay rare; a second book with more overlapping fixtures helps more than Bet9ja alone if Bet9ja coverage is thin.',
+      'Yes — on the free odds-api.io plan you pick any 2 recreational books in their dashboard, then set ODDS_API_IO_BOOKMAKERS in root .env (e.g. SportyBet,BetKing or SportyBet,1xBet). Restart the API and pull down on Today to sync. True surebets stay rare; a second book with more overlapping fixtures helps more than Bet9ja alone if Bet9ja coverage is thin.',
     keywords: ['bet9ja', 'betking', '1xbet', 'bookmaker', 'change', 'swap', 'odds-api'],
   },
   {
@@ -100,7 +100,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'How do I use the Arb tab?',
     answer:
-      '1) Set bankroll in Me → Settings. 2) Refresh odds (Me → Morning routine → Also refresh odds, or Today → Load real bets). 3) Open Arb → Scan for surebets. 4) Copy the stake plan and place each leg quickly. 5) Optionally Log surebets to track them on Tips.',
+      '1) Set bankroll in Me → Settings. 2) Open Arb → Find surebets (syncs odds + scans). 3) Copy the stake plan and place each leg quickly.',
     keywords: ['arb', 'how', 'steps', 'stake', 'plan'],
   },
   {
@@ -124,7 +124,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Value',
     question: 'How do I use Value picks?',
     answer:
-      'Open Tools → Value picks. The scan uses your bankroll and unit % from Me. Tap Scan, review EV % and suggested stake, then Log value tips if you want them on the Tips tab.',
+      'Open Tools → Value picks. Tap Scan value (syncs odds + scans) using your bankroll and unit % from Me. Review EV % and suggested stake, then log from Today if you placed a pick.',
     keywords: ['value', 'scan', 'log', 'stake'],
   },
   {
@@ -164,7 +164,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Odds & API',
     question: 'Why should I avoid syncing odds too often?',
     answer:
-      'Free odds-api.io has a small hourly quota (~100 requests). Use Morning routine without odds for daily updates, and “Also refresh odds” or Load real bets only when you need fresh prices.',
+      'Free odds-api.io has a small hourly quota (~100 requests). Use Morning update in Me for daily fixtures without odds, and pull down on Today (or Find surebets / Scan value) only when you need fresh prices.',
     keywords: ['quota', 'limit', '429', 'sync', 'odds', 'rate'],
   },
   {
