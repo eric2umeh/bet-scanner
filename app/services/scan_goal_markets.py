@@ -207,7 +207,7 @@ def _lean_two_way(
 
 
 def _confidence(a: Decimal, b: Decimal) -> float:
-    """Bigger gap between sides → slightly higher (capped) confidence display."""
+    """Display-only: bigger odds gap → higher lean score (not win probability)."""
     lo, hi = (a, b) if a <= b else (b, a)
     if lo <= 0:
         return 50.0
