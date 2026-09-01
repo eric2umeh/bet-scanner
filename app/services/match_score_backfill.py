@@ -5,6 +5,10 @@ Odds sync creates match rows (provider=odds-api-io) that stay SCHEDULED forever.
 Fixture sync writes separate api-football rows. Auto-settle needs scores on the
 row the tip points at — so we fetch finished fixtures and copy scores by
 team + kickoff proximity.
+
+Primary source: API-Football (all leagues by date).
+Fallback when API-Football fails or returns no finished rows: odds-api.io
+(settled /events + optional historical team search).
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ from app.config import Settings
 from app.models import Match
 from app.providers.api_football import ApiFootballError, ApiFootballProvider
 from app.providers.base import FixtureMatch
+from app.providers.odds_api_io import OddsApiIoError, OddsApiIoProvider
 from app.services.match_store import upsert_fixture
 
 _JUNK_TOKENS = {
@@ -36,6 +41,8 @@ _JUNK_TOKENS = {
     "the",
     "ii",
 }
+
+_MAX_SEARCH_FALLBACK = 8
 
 
 def _norm_tokens(name: str) -> set[str]:
@@ -84,6 +91,161 @@ def _kickoff_utc(dt: datetime | None) -> datetime | None:
     return dt.astimezone(timezone.utc)
 
 
+def _kickoff_dates(matches: list[Match]) -> set[str]:
+    dates: set[str] = set()
+    for m in matches:
+        ko = _kickoff_utc(m.kickoff_at)
+        if ko is None:
+            continue
+        dates.add(ko.date().isoformat())
+        dates.add((ko - timedelta(hours=12)).date().isoformat())
+        dates.add((ko + timedelta(hours=12)).date().isoformat())
+    return dates
+
+
+def _date_window(dates: set[str]) -> tuple[datetime, datetime]:
+    sorted_days = sorted(dates)
+    start = datetime.fromisoformat(sorted_days[0]).replace(tzinfo=timezone.utc) - timedelta(
+        hours=12
+    )
+    end = datetime.fromisoformat(sorted_days[-1]).replace(tzinfo=timezone.utc) + timedelta(
+        hours=36
+    )
+    return start, end
+
+
+def _finished_candidates(fixtures: list[FixtureMatch]) -> list[FixtureMatch]:
+    return [
+        fx
+        for fx in fixtures
+        if (fx.status or "").upper() == "FINISHED"
+        and fx.home_score is not None
+        and fx.away_score is not None
+    ]
+
+
+def _odds_api_io_configured(settings: Settings) -> bool:
+    key = (settings.odds_api_io_key or "").strip()
+    return bool(key) and key != "your_odds_api_io_key_here"
+
+
+def _fetch_finished_fixtures(
+    settings: Settings,
+    dates: set[str],
+) -> tuple[list[FixtureMatch], str, list[str]]:
+    """
+    Return (finished fixtures, provider label, notes).
+
+    Tries API-Football first; falls back to odds-api.io when that fails or
+    returns no finished rows.
+    """
+    notes: list[str] = []
+    api_football_error: str | None = None
+    api_football_finished: list[FixtureMatch] = []
+
+    try:
+        provider = ApiFootballProvider(settings)
+        fixtures = provider.fetch_for_dates(sorted(dates), all_leagues=True)
+        api_football_finished = _finished_candidates(fixtures)
+        if api_football_finished:
+            return api_football_finished, "api-football", notes
+        notes.append("API-Football returned no finished fixtures for those dates.")
+    except ApiFootballError as exc:
+        api_football_error = str(exc)
+        notes.append(f"API-Football: {exc}")
+    except Exception as exc:  # noqa: BLE001
+        api_football_error = str(exc)
+        notes.append(f"API-Football: {exc}")
+
+    if not _odds_api_io_configured(settings):
+        if api_football_error:
+            notes.append("Score refresh skipped: no ODDS_API_IO_KEY for fallback.")
+        return [], "none", notes
+
+    try:
+        from_dt, to_dt = _date_window(dates)
+        oaio = OddsApiIoProvider(settings)
+        settled = oaio.fetch_settled_fixtures(from_dt, to_dt)
+        if settled:
+            if api_football_error:
+                notes.append("Used odds-api.io fallback (API-Football unavailable).")
+            else:
+                notes.append("Used odds-api.io fallback (API-Football had no finished rows).")
+            return settled, "odds-api-io", notes
+        notes.append("odds-api.io returned no settled events for that window.")
+    except OddsApiIoError as exc:
+        notes.append(f"odds-api.io fallback failed: {exc}")
+    except Exception as exc:  # noqa: BLE001
+        notes.append(f"odds-api.io fallback failed: {exc}")
+
+    return [], "none", notes
+
+
+def _match_fixture(
+    match: Match,
+    finished: list[FixtureMatch],
+) -> tuple[FixtureMatch | None, bool]:
+    best_fx: FixtureMatch | None = None
+    best_score = 0.0
+    best_swapped = False
+    m_ko = _kickoff_utc(match.kickoff_at)
+    for fx in finished:
+        pair, swapped = _pair_score(match.home_team, match.away_team, fx.home_team, fx.away_team)
+        if pair < 0.72:
+            continue
+        fx_ko = _kickoff_utc(fx.kickoff_at)
+        if m_ko and fx_ko:
+            hours = abs((m_ko - fx_ko).total_seconds()) / 3600.0
+            if hours > 18:
+                continue
+            pair = pair - min(hours, 6) * 0.01
+        if pair > best_score:
+            best_score = pair
+            best_fx = fx
+            best_swapped = swapped
+    return best_fx, best_swapped
+
+
+def _apply_fixture_to_match(match: Match, fx: FixtureMatch, swapped: bool) -> None:
+    if swapped:
+        match.home_score = fx.away_score
+        match.away_score = fx.home_score
+    else:
+        match.home_score = fx.home_score
+        match.away_score = fx.away_score
+    match.status = "FINISHED"
+
+
+def _search_fallback(
+    settings: Settings,
+    need: list[Match],
+    already_refreshed: set[int],
+) -> list[FixtureMatch]:
+    """Per-match historical search for rows bulk fetch did not match."""
+    if not _odds_api_io_configured(settings):
+        return []
+
+    unresolved = [m for m in need if m.id not in already_refreshed and m.kickoff_at]
+    if not unresolved:
+        return []
+
+    try:
+        oaio = OddsApiIoProvider(settings)
+    except OddsApiIoError:
+        return []
+
+    found: list[FixtureMatch] = []
+    for match in unresolved[:_MAX_SEARCH_FALLBACK]:
+        fx = oaio.search_settled_fixture(
+            match.home_team,
+            match.away_team,
+            match.kickoff_at,  # type: ignore[arg-type]
+        )
+        if fx is not None:
+            found.append(fx)
+    return found
+
+
 def refresh_scores_for_matches(
     db: Session,
     settings: Settings,
@@ -97,89 +259,57 @@ def refresh_scores_for_matches(
     if not need:
         return {"refreshed": 0, "fetched": 0, "message": "No matches need scores."}
 
-    dates: set[str] = set()
-    for m in need:
-        ko = _kickoff_utc(m.kickoff_at)
-        if ko is None:
-            continue
-        # Cover timezone edge (kickoff evening UTC vs local calendar day)
-        dates.add(ko.date().isoformat())
-        dates.add((ko - timedelta(hours=12)).date().isoformat())
-        dates.add((ko + timedelta(hours=12)).date().isoformat())
-
+    dates = _kickoff_dates(need)
     if not dates:
         return {"refreshed": 0, "fetched": 0, "message": "No kickoff dates to query."}
 
-    try:
-        provider = ApiFootballProvider(settings)
-        fixtures = provider.fetch_for_dates(sorted(dates), all_leagues=True)
-    except ApiFootballError as exc:
-        return {
-            "refreshed": 0,
-            "fetched": 0,
-            "message": f"Score refresh skipped: {exc}",
-        }
-    except Exception as exc:  # noqa: BLE001
-        return {
-            "refreshed": 0,
-            "fetched": 0,
-            "message": f"Score refresh skipped: {exc}",
-        }
+    finished, provider, notes = _fetch_finished_fixtures(settings, dates)
 
-    finished = [
-        fx
-        for fx in fixtures
-        if (fx.status or "").upper() == "FINISHED"
-        and fx.home_score is not None
-        and fx.away_score is not None
-    ]
-
-    # Keep api-football rows in sync too (separate from odds-provider tip rows)
     for fx in finished:
         upsert_fixture(db, fx)
 
+    refreshed_ids: set[int] = set()
     refreshed = 0
     for match in need:
-        best_fx: FixtureMatch | None = None
-        best_score = 0.0
-        best_swapped = False
-        m_ko = _kickoff_utc(match.kickoff_at)
-        for fx in finished:
-            pair, swapped = _pair_score(
-                match.home_team, match.away_team, fx.home_team, fx.away_team
-            )
-            if pair < 0.72:
-                continue
-            fx_ko = _kickoff_utc(fx.kickoff_at)
-            if m_ko and fx_ko:
-                hours = abs((m_ko - fx_ko).total_seconds()) / 3600.0
-                if hours > 18:
-                    continue
-                # Prefer closer kickoffs
-                pair = pair - min(hours, 6) * 0.01
-            if pair > best_score:
-                best_score = pair
-                best_fx = fx
-                best_swapped = swapped
-
+        best_fx, best_swapped = _match_fixture(match, finished)
         if best_fx is None:
             continue
-
-        if best_swapped:
-            match.home_score = best_fx.away_score
-            match.away_score = best_fx.home_score
-        else:
-            match.home_score = best_fx.home_score
-            match.away_score = best_fx.away_score
-        match.status = "FINISHED"
+        _apply_fixture_to_match(match, best_fx, best_swapped)
         refreshed += 1
+        refreshed_ids.add(match.id)
+
+    search_found = _search_fallback(settings, need, refreshed_ids)
+    for fx in search_found:
+        upsert_fixture(db, fx)
+
+    for match in need:
+        if match.id in refreshed_ids:
+            continue
+        best_fx, best_swapped = _match_fixture(match, search_found)
+        if best_fx is None:
+            continue
+        _apply_fixture_to_match(match, best_fx, best_swapped)
+        refreshed += 1
+        refreshed_ids.add(match.id)
 
     if refreshed:
         db.flush()
 
+    if refreshed:
+        msg = (
+            f"Refreshed scores on {refreshed} match(es) from {len(finished)} "
+            f"finished fixture(s) via {provider}."
+        )
+    elif notes:
+        msg = " ".join(notes) + " Auto-settle may still work for matches already FINISHED in DB."
+    else:
+        msg = "No finished fixtures found to refresh scores."
+
     return {
         "refreshed": refreshed,
-        "fetched": len(fixtures),
+        "fetched": len(finished) + len(search_found),
         "finished_candidates": len(finished),
-        "message": f"Refreshed scores on {refreshed} match(es) from {len(finished)} finished fixture(s).",
+        "provider": provider,
+        "notes": notes,
+        "message": msg,
     }
