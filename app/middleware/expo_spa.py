@@ -23,6 +23,7 @@ _SKIP_PREFIXES = (
     "/openapi",
     "/health",
     "/legacy",
+    "/privacy",
     "/auth",
     "/matches",
     "/odds",
