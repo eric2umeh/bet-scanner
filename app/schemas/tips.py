@@ -191,6 +191,7 @@ class LogValueScanResponse(BaseModel):
 class TipListResponse(BaseModel):
     items: list[TipOut]
     has_more: bool
+    total: int
     limit: int
     offset: int
 

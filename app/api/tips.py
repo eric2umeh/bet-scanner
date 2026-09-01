@@ -384,6 +384,7 @@ def list_tips_endpoint(
     return TipListResponse(
         items=[TipOut(**t) for t in page["items"]],
         has_more=page["has_more"],
+        total=page["total"],
         limit=page["limit"],
         offset=page["offset"],
     )
