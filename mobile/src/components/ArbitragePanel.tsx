@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,11 +12,11 @@ import {
 
 import {
   formatSurebetPlan,
-  logSurebetScan,
   scanSurebets,
   type ArbLeg,
   type ArbOpportunity,
 } from '../api/edge';
+import { syncOdds } from '../api/odds';
 import { bookLabel } from '../lib/tipKey';
 import { shareOrCopyText } from '../lib/shareText';
 import { loadSettings, type AppSettings } from '../store/settings';
@@ -40,7 +41,6 @@ export function ArbitragePanel({ onFlash }: Props) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [statusBad, setStatusBad] = useState(false);
-  const [showGuide, setShowGuide] = useState(true);
 
   function flash(msg: string, bad = false) {
     setStatus(msg);
@@ -48,7 +48,7 @@ export function ArbitragePanel({ onFlash }: Props) {
     onFlash?.(msg, bad);
   }
 
-  const refresh = useCallback(async () => {
+  const scanOnly = useCallback(async () => {
     setBusy(true);
     try {
       const s = await loadSettings();
@@ -58,7 +58,7 @@ export function ArbitragePanel({ onFlash }: Props) {
       flash(
         data.opportunities?.length
           ? data.message || `Found ${data.opportunities.length} surebet(s).`
-          : data.message || 'No surebets right now — try after refreshing odds.'
+          : data.message || 'No surebets on saved odds — pull down or tap Find surebets.'
       );
     } catch (e) {
       flash(e instanceof Error ? e.message : String(e), true);
@@ -67,23 +67,35 @@ export function ArbitragePanel({ onFlash }: Props) {
     }
   }, []);
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  const findSurebets = useCallback(
+    async (withOddsSync: boolean) => {
+      setBusy(true);
+      try {
+        const s = await loadSettings();
+        setSettings(s);
+        if (withOddsSync) {
+          flash('Syncing odds, then scanning…');
+          await syncOdds();
+        }
+        const data = await scanSurebets({ sample_stake_ngn: s.bankroll });
+        setOpps(data.opportunities || []);
+        flash(
+          data.opportunities?.length
+            ? data.message || `Found ${data.opportunities.length} surebet(s).`
+            : data.message || 'No surebets right now — try again closer to kickoff.'
+        );
+      } catch (e) {
+        flash(e instanceof Error ? e.message : String(e), true);
+      } finally {
+        setBusy(false);
+      }
+    },
+    []
+  );
 
-  async function onLog() {
-    if (!settings) return;
-    setBusy(true);
-    try {
-      const data = await logSurebetScan({ bankroll_ngn: settings.bankroll });
-      flash(data.message || 'Surebets logged to Tips tab.');
-      await refresh();
-    } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
-    } finally {
-      setBusy(false);
-    }
-  }
+  useEffect(() => {
+    void scanOnly();
+  }, [scanOnly]);
 
   async function onCopyPlan(opp: ArbOpportunity) {
     try {
@@ -106,27 +118,21 @@ export function ArbitragePanel({ onFlash }: Props) {
         styles.content,
         Platform.OS === 'web' ? { paddingBottom: webScrollBottom(20) } : null,
       ]}
+      refreshControl={
+        <RefreshControl
+          refreshing={busy}
+          onRefresh={() => findSurebets(true)}
+          tintColor={colors.accent}
+        />
+      }
     >
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>Surebet scanner</Text>
         <Text style={styles.heroText}>
-          Finds 1X2 arbitrage across SportyBet and Bet9ja. Stake each outcome so you lock profit
-          no matter the result — if the edge still exists when you place all legs.
+          Finds 1X2 arbitrage across SportyBet and Bet9ja. Set bankroll in Me → Settings, then find
+          surebets here — copy the stake plan and place all legs quickly before the edge moves.
         </Text>
       </View>
-
-      <Pressable style={styles.guideToggle} onPress={() => setShowGuide((v) => !v)}>
-        <Text style={styles.guideToggleText}>
-          {showGuide ? '▼' : '▶'} How to use (3 steps)
-        </Text>
-      </Pressable>
-      {showGuide ? (
-        <View style={styles.guideBox}>
-          <Text style={styles.guideStep}>1 · Set bankroll in Me → Settings (sample stake ₦{bank})</Text>
-          <Text style={styles.guideStep}>2 · Refresh odds — Me → Morning routine → Also refresh odds</Text>
-          <Text style={styles.guideStep}>3 · Scan here → copy stake plan → place all legs quickly</Text>
-        </View>
-      ) : null}
 
       <View style={styles.statsRow}>
         <View style={styles.stat}>
@@ -152,29 +158,23 @@ export function ArbitragePanel({ onFlash }: Props) {
         </View>
       ) : null}
 
-      <View style={styles.actions}>
-        <Pressable
-          style={[styles.btnPrimary, busy && styles.disabled]}
-          disabled={busy}
-          onPress={() => void refresh()}
-        >
-          <Text style={styles.btnPrimaryText}>{busy ? 'Scanning…' : 'Scan for surebets'}</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.btnSecondary, busy && styles.disabled]}
-          disabled={busy || !opps.length}
-          onPress={() => void onLog()}
-        >
-          <Text style={styles.btnSecondaryText}>Log to Tips</Text>
-        </Pressable>
-      </View>
+      <Pressable
+        style={[styles.btnPrimary, busy && styles.disabled]}
+        disabled={busy}
+        onPress={() => void findSurebets(true)}
+      >
+        <Text style={styles.btnPrimaryText}>{busy ? 'Working…' : 'Find surebets'}</Text>
+      </Pressable>
+      <Text style={styles.hint}>
+        Syncs odds + scans in one step. Pull down to repeat. Tap a card to copy the stake plan.
+      </Text>
 
       {!opps.length && !busy ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No surebets right now</Text>
           <Text style={styles.emptyText}>
-            This is normal — arbs are rare on two Nigerian books. Refresh odds and scan again
-            closer to kickoff. Tiny % edges may not be placeable in practice.
+            True arbs are rare on two Nigerian books. Tap Find surebets or pull down closer to
+            kickoff — tiny edges may not be placeable in practice.
           </Text>
         </View>
       ) : null}
@@ -201,37 +201,22 @@ function ArbCard({ opp, onCopy }: { opp: ArbOpportunity; onCopy: () => void }) {
           </Text>
         </View>
         <View style={styles.profitBadge}>
-          <Text style={styles.profitPct}>+{String(opp.profit_pct)}%</Text>
-          <Text style={styles.profitSub}>~₦{String(opp.sample_profit_ngn)}</Text>
+          <Text style={styles.profitText}>{Number(opp.profit_pct).toFixed(2)}%</Text>
         </View>
       </View>
-
-      <Text style={styles.stakeTotal}>
-        Total stake ₦{String(opp.sample_total_stake_ngn)} across {legs.length} legs
-      </Text>
-
-      <View style={styles.legsGrid}>
-        {legs.map((leg, i) => (
-          <LegPill key={`${leg.bookmaker}-${leg.selection}-${i}`} leg={leg} />
-        ))}
-      </View>
-
-      {opp.warning ? <Text style={styles.warn}>{opp.warning}</Text> : null}
-
+      {legs.map((leg: ArbLeg, i: number) => (
+        <View key={`${leg.bookmaker}-${leg.selection}-${i}`} style={styles.legRow}>
+          <Text style={styles.legSel}>{selLabel(leg.selection)}</Text>
+          <Text style={styles.legOdds}>@{leg.odds}</Text>
+          <Text style={styles.legBook}>{bookLabel(leg.bookmaker)}</Text>
+          {leg.stake_ngn != null ? (
+            <Text style={styles.legStake}>₦{Number(leg.stake_ngn).toLocaleString()}</Text>
+          ) : null}
+        </View>
+      ))}
       <Pressable style={styles.copyBtn} onPress={onCopy}>
-        <Text style={styles.copyBtnText}>Copy full stake plan</Text>
+        <Text style={styles.copyBtnText}>Copy stake plan</Text>
       </Pressable>
-    </View>
-  );
-}
-
-function LegPill({ leg }: { leg: ArbLeg }) {
-  return (
-    <View style={styles.legPill}>
-      <Text style={styles.legSel}>{selLabel(leg.selection)}</Text>
-      <Text style={styles.legBook}>{bookLabel(leg.bookmaker)}</Text>
-      <Text style={styles.legOdds}>@{String(leg.odds)}</Text>
-      <Text style={styles.legStake}>₦{String(leg.stake_ngn ?? '—')}</Text>
     </View>
   );
 }
@@ -240,39 +225,27 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, paddingBottom: 40 },
   hero: {
-    backgroundColor: colors.accentDim,
-    borderColor: colors.accent,
+    backgroundColor: colors.card,
+    borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
   },
-  heroTitle: { color: colors.accent, fontWeight: '800', fontSize: 18 },
-  heroText: { color: colors.ink, fontSize: 13, lineHeight: 19, marginTop: 6 },
-  guideToggle: { marginBottom: 6 },
-  guideToggleText: { color: colors.muted, fontWeight: '700', fontSize: 13 },
-  guideBox: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 12,
-    gap: 6,
-    marginBottom: 12,
-  },
-  guideStep: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  heroTitle: { color: colors.ink, fontWeight: '800', fontSize: 17 },
+  heroText: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 6 },
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   stat: {
     flex: 1,
     backgroundColor: colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
     borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 12,
     padding: 10,
     alignItems: 'center',
   },
   statVal: { color: colors.ink, fontWeight: '800', fontSize: 16 },
-  statGood: { color: colors.good },
+  statGood: { color: colors.accent },
   statLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
   statusBox: {
     flexDirection: 'row',
@@ -284,41 +257,28 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
-  statusBad: {
-    backgroundColor: 'rgba(239, 107, 107, 0.12)',
-    borderColor: colors.bad,
-  },
-  statusText: { flex: 1, color: colors.accent, fontSize: 13, fontWeight: '600' },
-  statusTextBad: { color: colors.bad },
-  actions: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  statusBad: { backgroundColor: 'rgba(180,60,60,0.12)', borderColor: '#b43c3c' },
+  statusText: { color: colors.ink, fontSize: 13, flex: 1 },
+  statusTextBad: { color: '#ffb4b4' },
   btnPrimary: {
-    flex: 1,
     backgroundColor: colors.accent,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
+    marginBottom: 8,
   },
   btnPrimaryText: { color: '#06241c', fontWeight: '800', fontSize: 15 },
-  btnSecondary: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  btnSecondaryText: { color: colors.ink, fontWeight: '700' },
+  hint: { color: colors.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 },
   disabled: { opacity: 0.55 },
   empty: {
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
+    backgroundColor: colors.card,
     borderColor: colors.line,
-    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
     marginBottom: 12,
   },
-  emptyTitle: { color: colors.ink, fontWeight: '700', fontSize: 16 },
+  emptyTitle: { color: colors.ink, fontWeight: '700', fontSize: 15 },
   emptyText: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 6 },
   card: {
     backgroundColor: colors.card,
@@ -326,47 +286,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 14,
     padding: 14,
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  cardHead: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
   cardTitle: { color: colors.ink, fontWeight: '700', fontSize: 15 },
-  cardMeta: { color: colors.muted, fontSize: 12, marginTop: 4 },
+  cardMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
   profitBadge: {
-    backgroundColor: colors.good + '22',
-    borderRadius: 10,
-    paddingHorizontal: 10,
+    backgroundColor: colors.accentDim,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  profitText: { color: colors.accent, fontWeight: '800', fontSize: 13 },
+  legRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
     paddingVertical: 6,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.good,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
   },
-  profitPct: { color: colors.good, fontWeight: '800', fontSize: 15 },
-  profitSub: { color: colors.good, fontSize: 11, fontWeight: '600' },
-  stakeTotal: { color: colors.muted, fontSize: 12, marginTop: 10, fontWeight: '600' },
-  legsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  legPill: {
-    flex: 1,
-    minWidth: '30%',
-    backgroundColor: colors.bg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 10,
-    alignItems: 'center',
-  },
-  legSel: { color: colors.ink, fontWeight: '800', fontSize: 13 },
-  legBook: { color: colors.muted, fontSize: 11, marginTop: 2 },
-  legOdds: { color: colors.accent, fontWeight: '700', fontSize: 13, marginTop: 4 },
-  legStake: { color: colors.ink, fontWeight: '700', fontSize: 12, marginTop: 2 },
-  warn: { color: colors.warn, fontSize: 12, marginTop: 8 },
+  legSel: { color: colors.ink, fontWeight: '600', fontSize: 13 },
+  legOdds: { color: colors.accent, fontWeight: '700', fontSize: 13 },
+  legBook: { color: colors.muted, fontSize: 12 },
+  legStake: { color: colors.ink, fontSize: 12, marginLeft: 'auto' },
   copyBtn: {
-    marginTop: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
+    marginTop: 10,
     backgroundColor: colors.surface,
-    borderWidth: 1,
     borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: 'center',
   },
-  copyBtnText: { color: colors.accent, fontWeight: '700' },
+  copyBtnText: { color: colors.ink, fontWeight: '600', fontSize: 13 },
 });
