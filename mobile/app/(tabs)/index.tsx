@@ -250,7 +250,7 @@ export default function TodayScreen() {
         stakeFallback: unitStakeNgn(s),
       });
       clearSelection();
-      invalidateTipsCache();
+      await invalidateTipsCache();
       setStatus(data.message);
       await modal.alert({
         title: 'Logged',
@@ -412,10 +412,15 @@ export default function TodayScreen() {
                             {marketLabel(p.market)} · {String(p.selection).toUpperCase()}
                             {p.odds != null ? ` @ ${p.odds}` : ''}
                           </Text>
-                          <Text style={styles.tipMeta} numberOfLines={1}>
+                          <Text style={styles.tipMeta} numberOfLines={2}>
                             {bookLabel(p.bookmaker)}
                             {p.confidence_pct != null ? ` · ${p.confidence_pct}%` : ''}
                           </Text>
+                          {p.singles_only_hint ? (
+                            <Text style={styles.tipWarn} numberOfLines={2}>
+                              {p.singles_only_hint}
+                            </Text>
+                          ) : null}
                         </View>
                       </Pressable>
                     );
@@ -615,6 +620,7 @@ const styles = StyleSheet.create({
   checkMark: { color: '#06241c', fontWeight: '800', fontSize: 12 },
   tipTitle: { color: colors.ink, fontWeight: '700', fontSize: 14 },
   tipMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  tipWarn: { color: colors.warn, fontSize: 11, marginTop: 4, lineHeight: 15 },
   empty: {
     marginTop: 24,
     padding: 16,
