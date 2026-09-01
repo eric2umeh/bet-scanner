@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.config import Settings, get_settings
 from app.models import Match, Tip
 from app.services.match_score_backfill import refresh_scores_for_matches
+from app.services.match_status import is_voidable_match_status, normalize_match_status, void_reason_label
 from app.services.tip_settle import selection_won
 
 
@@ -641,16 +642,14 @@ def auto_settle_finished(
     settings: Settings | None = None,
     *,
     owner_id: str | None = None,
+    refresh_scores: bool = True,
 ) -> dict:
     """
     Settle each pending tip whose match is FINISHED with scores.
 
-    Multi legs are judged one-by-one (per market). Slip overall is derived
-    in the UI: won only if every leg won; lost if any leg lost.
+    POSTPONED / CANCELLED / SUSPENDED matches → tip auto-voided with reason in logs.
 
-    Before judging, refresh scores onto odds-linked match rows (API-Football
-    by kickoff date, odds-api.io fallback when API-Football is down) so MLS /
-    USL / Liga MX / NG tips can settle.
+    refresh_scores=False uses DB only (no odds-api / API-Football call).
     """
     q = select(Tip).options(joinedload(Tip.match)).where(Tip.result == "pending")
     if owner_id:
@@ -659,10 +658,14 @@ def auto_settle_finished(
 
     cfg = settings or get_settings()
     score_refresh = refresh_scores_for_matches(
-        db, cfg, [t.match for t in tips if t.match is not None]
+        db,
+        cfg,
+        [t.match for t in tips if t.match is not None],
+        fetch_external=refresh_scores,
     )
 
     settled: list[dict] = []
+    voided: list[dict] = []
     unresolved: list[dict] = []
     now = datetime.now(timezone.utc)
 
@@ -671,9 +674,27 @@ def auto_settle_finished(
         if m is None:
             unresolved.append({"tip_id": tip.id, "reason": "no match"})
             continue
-        status = (m.status or "").upper()
+        status = normalize_match_status(m.status)
+        if is_voidable_match_status(status):
+            reason = void_reason_label(status)
+            tip.result = "void"
+            tip.settled_at = now
+            suffix = f"auto-void: {reason}"
+            tip.rationale = (
+                f"{tip.rationale} | {suffix}".strip(" |")
+                if tip.rationale
+                else suffix
+            )
+            voided.append(tip_to_dict(tip))
+            continue
         if status != "FINISHED" or m.home_score is None or m.away_score is None:
-            unresolved.append({"tip_id": tip.id, "reason": "match not finished"})
+            unresolved.append(
+                {
+                    "tip_id": tip.id,
+                    "reason": "match not finished",
+                    "match_status": status,
+                }
+            )
             continue
         won = selection_won(tip.market, tip.selection, m.home_score, m.away_score)
         if won is None:
@@ -686,14 +707,23 @@ def auto_settle_finished(
         settled.append(tip_to_dict(tip))
 
     db.commit()
-    msg = f"Auto-settled {len(settled)} tip(s) from finished matches."
+    parts: list[str] = []
     refresh_msg = score_refresh.get("message") or ""
     if refresh_msg:
-        msg = f"{refresh_msg} {msg}"
+        parts.append(refresh_msg)
+    if voided:
+        parts.append(f"Auto-voided {len(voided)} tip(s) (postponed/cancelled).")
+    if settled:
+        parts.append(f"Auto-settled {len(settled)} tip(s) from finished matches.")
+    if not voided and not settled:
+        parts.append("No tips settled — matches may still be in play or need scores.")
+    msg = " ".join(parts)
     return {
         "settled_count": len(settled),
+        "voided_count": len(voided),
         "unresolved_count": len(unresolved),
         "settled": settled,
+        "voided": voided,
         "unresolved": unresolved[:20],
         "score_refresh": score_refresh,
         "message": msg,
