@@ -24,6 +24,7 @@ import {
   type TipOut,
 } from '../../src/api/tips';
 import { isAuthError } from '../../src/api/client';
+import { PaginationBar } from '../../src/components/PaginationBar';
 import { SignInRequiredBanner } from '../../src/components/SignInRequiredBanner';
 import { SwipeableRow } from '../../src/components/SwipeableRow';
 import { useAppModal } from '../../src/components/modal';
@@ -147,8 +148,9 @@ export default function TipsScreen() {
   const needsSignInBase = useNeedsSignIn();
   const [tab, setTab] = useState<TipsTab>('active');
   const [tips, setTips] = useState<TipOut[]>([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [pageOffset, setPageOffset] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(TIPS_PAGE_SIZE);
   const [listBusy, setListBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [settlingId, setSettlingId] = useState<number | null>(null);
@@ -166,8 +168,58 @@ export default function TipsScreen() {
   );
   const debouncedTo = useDebouncedValue(DATE_RE.test(dateTo.trim()) ? dateTo.trim() : '', 300);
 
-  const filterKey = `${tab}|${debouncedQ}|${debouncedFrom}|${debouncedTo}|${marketFilter}`;
-  const filterKeyRef = useRef(filterKey);
+  const listKey = `${tab}|${marketFilter}|${debouncedQ}|${debouncedFrom}|${debouncedTo}|${pageSize}`;
+  const prevListKey = useRef(listKey);
+
+  const fetchParams = useCallback(
+    (page: number) => ({
+      limit: pageSize,
+      offset: page * pageSize,
+      result: tab === 'active' ? 'pending' : undefined,
+      market: marketFilter === 'all' ? undefined : marketFilter,
+      q: debouncedQ || undefined,
+      date_from: debouncedFrom || undefined,
+      date_to: debouncedTo || undefined,
+    }),
+    [pageSize, tab, marketFilter, debouncedQ, debouncedFrom, debouncedTo]
+  );
+
+  const loadPage = useCallback(
+    async (page: number) => {
+      if (needsSignIn) return;
+      setListBusy(true);
+      try {
+        const data = await fetchTipsPage(fetchParams(page));
+        setTips(data.items ?? []);
+        setTotalCount(data.total ?? 0);
+        const pages = Math.max(1, Math.ceil((data.total ?? 0) / pageSize) || 1);
+        setStatus(
+          `${tab === 'active' ? 'Active' : 'History'} · ${data.total ?? 0} total · page ${page + 1} of ${pages}`
+        );
+      } catch (e) {
+        if (!isAuthError(e)) {
+          setStatus(e instanceof Error ? e.message : String(e));
+        }
+      } finally {
+        setListBusy(false);
+      }
+    },
+    [needsSignIn, fetchParams, tab, pageSize]
+  );
+
+  useEffect(() => {
+    if (needsSignIn) return;
+    let page = pageIndex;
+    if (prevListKey.current !== listKey) {
+      prevListKey.current = listKey;
+      page = 0;
+      if (pageIndex !== 0) {
+        setPageIndex(0);
+        return;
+      }
+    }
+    void loadPage(page);
+  }, [listKey, pageIndex, needsSignIn, loadPage]);
 
   const statsQuery = useQuery({
     queryKey: queryKeys.tipStats,
@@ -178,77 +230,8 @@ export default function TipsScreen() {
   const stats = statsQuery.data ?? null;
   const needsSignIn = needsSignInBase;
 
-  const loadMore = useCallback(async () => {
-    if (needsSignIn || listBusy || !hasMore) return;
-    setListBusy(true);
-    try {
-      const page = await fetchTipsPage({
-        limit: TIPS_PAGE_SIZE,
-        offset: tips.length,
-        result: tab === 'active' ? 'pending' : undefined,
-        market: marketFilter === 'all' ? undefined : marketFilter,
-        q: debouncedQ || undefined,
-        date_from: debouncedFrom || undefined,
-        date_to: debouncedTo || undefined,
-      });
-      setTips((prev) => [...prev, ...(page.items ?? [])]);
-      setHasMore(page.has_more);
-      setPageOffset(tips.length + page.items.length);
-    } catch (e) {
-      if (!isAuthError(e)) {
-        await modal.alert({
-          title: 'Could not load more',
-          message: e instanceof Error ? e.message : String(e),
-        });
-      }
-    } finally {
-      setListBusy(false);
-    }
-  }, [
-    needsSignIn,
-    listBusy,
-    hasMore,
-    tips.length,
-    tab,
-    marketFilter,
-    debouncedQ,
-    debouncedFrom,
-    debouncedTo,
-    modal,
-  ]);
-
-  useEffect(() => {
-    if (needsSignIn) return;
-    const changed = filterKeyRef.current !== filterKey;
-    filterKeyRef.current = filterKey;
-    setPageOffset(0);
-    void (async () => {
-      setListBusy(true);
-      try {
-        const page = await fetchTipsPage({
-          limit: TIPS_PAGE_SIZE,
-          offset: 0,
-          result: tab === 'active' ? 'pending' : undefined,
-          market: marketFilter === 'all' ? undefined : marketFilter,
-          q: debouncedQ || undefined,
-          date_from: debouncedFrom || undefined,
-          date_to: debouncedTo || undefined,
-        });
-        setTips(page.items);
-        setHasMore(page.has_more);
-        setPageOffset(page.items.length);
-        setStatus(
-          `${tab === 'active' ? 'Active' : 'History'} · ${page.items.length} tip(s)${page.has_more ? ' · more available' : ''}`
-        );
-      } catch (e) {
-        if (!isAuthError(e)) {
-          setStatus(e instanceof Error ? e.message : String(e));
-        }
-      } finally {
-        setListBusy(false);
-      }
-    })();
-  }, [filterKey, needsSignIn, tab, marketFilter, debouncedQ, debouncedFrom, debouncedTo]);
+  const totalPages = totalCount > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 0;
+  const currentPage = pageIndex + 1;
 
   useFocusEffect(
     useCallback(() => {
@@ -277,22 +260,9 @@ export default function TipsScreen() {
   }, [tips]);
 
   async function reloadAll() {
-    filterKeyRef.current = '';
-    setPageOffset(0);
     await invalidateTipsCache();
     await statsQuery.refetch();
-    const page = await fetchTipsPage({
-      limit: TIPS_PAGE_SIZE,
-      offset: 0,
-      result: tab === 'active' ? 'pending' : undefined,
-      market: marketFilter === 'all' ? undefined : marketFilter,
-      q: debouncedQ || undefined,
-      date_from: debouncedFrom || undefined,
-      date_to: debouncedTo || undefined,
-    });
-    setTips(page.items);
-    setHasMore(page.has_more);
-    setPageOffset(page.items.length);
+    await loadPage(pageIndex);
   }
 
   async function onSettle(tipId: number, result: string, applyToSlip = false) {
@@ -383,8 +353,7 @@ export default function TipsScreen() {
     );
   }
 
-  const showEmpty = !busy && !tips.length && !needsSignIn;
-  const pageNum = Math.max(1, Math.ceil(pageOffset / TIPS_PAGE_SIZE));
+  const showEmpty = !busy && !tips.length && !needsSignIn && totalCount === 0;
 
   return (
     <View style={styles.root}>
@@ -419,7 +388,7 @@ export default function TipsScreen() {
         </View>
 
         <Text style={styles.muted}>
-          Swipe a card left to delete. {TIPS_PAGE_SIZE} tips per page — filters update automatically.
+          Swipe a card left to delete. Use pagination below — default 10 per page (one API call per page).
         </Text>
         {status ? <Text style={styles.status}>{status}</Text> : null}
 
@@ -519,6 +488,20 @@ export default function TipsScreen() {
               </View>
             ) : null}
 
+            {totalCount > 0 ? (
+              <PaginationBar
+                page={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                disabled={busy}
+                onPageChange={(p) => setPageIndex(p - 1)}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPageIndex(0);
+                }}
+              />
+            ) : null}
+
             {Object.entries(multis).map(([slipId, legs]) => {
               const book = bookLabel(legs[0].bookmaker || '');
               const combined = combinedOdds(legs);
@@ -610,16 +593,18 @@ export default function TipsScreen() {
               </SwipeableRow>
             ))}
 
-            {hasMore && tips.length > 0 ? (
-              <Pressable
-                style={[styles.btnSecondary, { marginTop: 16, alignSelf: 'center' }, busy && styles.disabled]}
+            {totalCount > 0 ? (
+              <PaginationBar
+                page={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
                 disabled={busy}
-                onPress={() => loadMore()}
-              >
-                <Text style={styles.btnSecondaryText}>
-                  Load more (page {pageNum + 1})
-                </Text>
-              </Pressable>
+                onPageChange={(p) => setPageIndex(p - 1)}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPageIndex(0);
+                }}
+              />
             ) : null}
           </>
         ) : null}
