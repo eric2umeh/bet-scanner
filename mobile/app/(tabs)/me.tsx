@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 
+import Constants from 'expo-constants';
 import { API_URL, pingHealth, setCachedAccessKey } from '../../src/api/client';
 import { runDailyOps, type DailyOpsResponse } from '../../src/api/ops';
 import { MIN_PASSWORD_LENGTH } from '../../src/lib/password';
@@ -445,6 +447,19 @@ export default function MeScreen() {
             ) : null}
           </View>
         ) : null}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.section}>About</Text>
+        <Text style={styles.hint}>
+          Version {Constants.expoConfig?.version ?? '1.0.0'} · package com.betscanner.app
+        </Text>
+        <Pressable
+          style={styles.btnSecondary}
+          onPress={() => void Linking.openURL(`${API_URL}/privacy`)}
+        >
+          <Text style={styles.btnSecondaryText}>Privacy policy</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
