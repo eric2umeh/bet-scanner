@@ -83,6 +83,7 @@ def _ensure_tip_columns() -> None:
         "ALTER TABLE tips ADD COLUMN IF NOT EXISTS fav_odds NUMERIC(10, 3)",
         "ALTER TABLE tips ADD COLUMN IF NOT EXISTS slip_id VARCHAR(36)",
         "ALTER TABLE tips ADD COLUMN IF NOT EXISTS owner_id VARCHAR(36)",
+        "ALTER TABLE tips ADD COLUMN IF NOT EXISTS confidence_pct NUMERIC(5, 1)",
         "ALTER TABLE tipsters ADD COLUMN IF NOT EXISTS owner_id VARCHAR(36)",
     ]
     try:

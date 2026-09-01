@@ -32,6 +32,7 @@ export type TipPick = {
   confidence_pct?: number | null;
   confidence_label?: string | null;
   learning_note?: string | null;
+  singles_only_hint?: string | null;
 };
 
 export type SafeScanResponse = {
