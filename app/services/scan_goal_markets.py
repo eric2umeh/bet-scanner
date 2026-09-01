@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models import Match
 from app.services.bankroll import potential_return, unit_stake_ngn
+from app.services.ng_market_filters import is_youth_or_reserve_match, singles_only_hint
 
 
 def _latest_rows(db: Session, markets: tuple[str, ...]):
@@ -112,6 +113,13 @@ def scan_goal_market_picks(
                 ko = ko.replace(tzinfo=timezone.utc)
             if ko <= now:
                 continue
+        if match is not None and is_youth_or_reserve_match(
+            match.home_team,
+            match.away_team,
+            competition_code=match.competition_code,
+            competition_name=match.competition_name,
+        ):
+            continue
         for book, mkts in books.items():
             if "ou_2_5" in wanted and "ou_2_5" in mkts:
                 pick = _lean_two_way(
@@ -170,6 +178,8 @@ def _lean_two_way(
         return None
     pa = sels[label_a]["price"]
     pb = sels[label_b]["price"]
+    if pa <= 1 or pb <= 1:
+        return None
     if pa > max_odds or pb > max_odds:
         return None
     # Shorter price = market favourite
@@ -215,6 +225,14 @@ def _pack_pick(
     bankroll_ngn: Decimal,
 ) -> dict:
     ret = potential_return(stake, pick["odds"]) if pick.get("odds") else None
+    hint = None
+    if match is not None:
+        hint = singles_only_hint(
+            match.home_team,
+            match.away_team,
+            competition_code=match.competition_code,
+            competition_name=match.competition_name,
+        )
     return {
         "match_id": mid,
         "home_team": match.home_team if match else "?",
@@ -227,7 +245,7 @@ def _pack_pick(
         "selection": pick["selection"],
         "odds": pick["odds"],
         "dog_odds": pick.get("other_odds"),
-        "fav_odds": pick["odds"],
+        "fav_odds": pick.get("odds"),
         "fav_side": pick["selection"],
         "dog_side": pick.get("other_selection"),
         "pick_market": pick["pick_market"],
@@ -237,6 +255,7 @@ def _pack_pick(
         "odds_captured_at": pick["odds_captured_at"],
         "confidence_pct": pick["confidence_pct"],
         "confidence_label": pick["confidence_label"],
+        "singles_only_hint": hint,
         "home_odds": None,
         "draw_odds": None,
         "away_odds": None,
