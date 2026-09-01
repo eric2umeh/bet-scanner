@@ -158,10 +158,13 @@ export function deleteTip(tipId: number) {
   return deleteJson<{ ok: boolean; message: string }>(`/tips/${tipId}`);
 }
 
-export function autoSettleTips() {
+export function autoSettleTips(opts?: { refreshScores?: boolean }) {
+  const refresh = opts?.refreshScores !== false;
+  const q = refresh ? '' : '?refresh_scores=false';
   return postJson<{
     settled_count: number;
+    voided_count?: number;
     unresolved_count: number;
     message: string;
-  }>('/tips/auto-settle', {});
+  }>(`/tips/auto-settle${q}`, {});
 }
