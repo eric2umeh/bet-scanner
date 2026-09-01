@@ -649,7 +649,8 @@ def auto_settle_finished(
     in the UI: won only if every leg won; lost if any leg lost.
 
     Before judging, refresh scores onto odds-linked match rows (API-Football
-    all-leagues fetch by kickoff date) so MLS/USL/Liga MX tips can settle.
+    by kickoff date, odds-api.io fallback when API-Football is down) so MLS /
+    USL / Liga MX / NG tips can settle.
     """
     q = select(Tip).options(joinedload(Tip.match)).where(Tip.result == "pending")
     if owner_id:
