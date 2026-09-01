@@ -210,7 +210,9 @@ class TipStatsResponse(BaseModel):
 
 class AutoSettleResponse(BaseModel):
     settled_count: int
+    voided_count: int = 0
     unresolved_count: int
     settled: list[TipOut]
+    voided: list[TipOut] = Field(default_factory=list)
     unresolved: list[dict]
     message: str
