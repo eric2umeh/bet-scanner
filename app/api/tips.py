@@ -418,7 +418,16 @@ def auto_settle_endpoint(
     user: AuthUser | None = Depends(get_current_user),
 ) -> AutoSettleResponse:
     """Use finished match scores to mark pending tips won/lost."""
-    result = auto_settle_finished(db, settings, owner_id=user.id if user else None)
+    try:
+        result = auto_settle_finished(db, settings, owner_id=user.id if user else None)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                f"Auto-settle failed: {exc}. "
+                "Try again in a moment or settle tips manually (Won/Lost)."
+            ),
+        ) from exc
     return AutoSettleResponse(
         settled_count=result["settled_count"],
         unresolved_count=result["unresolved_count"],
