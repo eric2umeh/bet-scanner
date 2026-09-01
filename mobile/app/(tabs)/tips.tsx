@@ -538,22 +538,13 @@ export default function TipsScreen() {
               ))}
             </ScrollView>
 
-            <View style={styles.row}>
-              <Pressable
-                style={[styles.btn, busy && styles.disabled]}
-                onPress={onAutoSettle}
-                disabled={busy}
-              >
-                <Text style={styles.btnText}>Settle finished tips</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.btnSecondary, busy && styles.disabled]}
-                onPress={() => reloadAll()}
-                disabled={busy}
-              >
-                <Text style={styles.btnSecondaryText}>Refresh</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              style={[styles.btn, busy && styles.disabled]}
+              onPress={onAutoSettle}
+              disabled={busy}
+            >
+              <Text style={styles.btnText}>Settle finished tips</Text>
+            </Pressable>
 
             {busy && !tips.length ? (
               <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
