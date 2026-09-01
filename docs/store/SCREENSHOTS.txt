@@ -1,0 +1,37 @@
+================================================================================
+PHASE 14A — Store graphics checklist (Google Play)
+================================================================================
+
+Replace placeholders before submitting. Export from the running app (Expo Go or
+production build) or use mobile/assets/images/ for the icon.
+
+REQUIRED — Google Play
+----------------------
+  App icon (store listing)     512 × 512 px    PNG, 32-bit, no transparency
+  Feature graphic            1024 × 500 px    JPG or PNG
+  Phone screenshots            min 2           9:16 (e.g. 1080 × 1920)
+
+RECOMMENDED screens to capture
+------------------------------
+  1) Today — match cards with tips + Load real bets
+  2) Tips — Active tab with confidence % and pagination
+  3) Me — settings + morning routine
+  4) Arb or Tools (optional)
+
+HOW
+---
+  - Android: Power + Vol down (or adb exec-out screencap)
+  - iOS Simulator: Cmd+S
+  - Crop to phone frame; avoid status bar clutter if possible
+
+FEATURE GRAPHIC (1024×500)
+--------------------------
+  Dark background #0b1014, logo mark + “Bet Scanner” + tagline:
+  “Scan · Log · Track hit rate”
+
+PRIVACY URL (paste in Play Console)
+-----------------------------------
+  https://bet-scanner-znvg.onrender.com/privacy
+  (Use your Render URL after deploy.)
+
+================================================================================
