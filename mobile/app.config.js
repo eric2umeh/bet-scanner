@@ -1,5 +1,4 @@
 /** @type {import('expo/config').ExpoConfig} */
-const appJson = require('./app.json');
 const fs = require('fs');
 const path = require('path');
 
@@ -35,11 +34,56 @@ const supabaseAnonKey =
 
 module.exports = {
   expo: {
-    ...appJson.expo,
+    name: 'Bet Scanner',
+    slug: 'bet-scanner',
+    version: '1.0.0',
+    orientation: 'portrait',
+    icon: './assets/images/icon.png',
+    scheme: 'betscanner',
+    userInterfaceStyle: 'dark',
+    runtimeVersion: {
+      policy: 'appVersion',
+    },
+    updates: {
+      url: 'https://u.expo.dev/27b6a070-e8b3-4a73-b73a-3b3d103e34e4',
+      checkAutomatically: 'ON_LOAD',
+      fallbackToCacheTimeout: 0,
+    },
+    splash: {
+      image: './assets/images/splash-icon.png',
+      resizeMode: 'contain',
+      backgroundColor: '#0b1014',
+    },
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: 'com.betscanner.app',
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+      },
+    },
+    android: {
+      package: 'com.betscanner.app',
+      versionCode: 1,
+      adaptiveIcon: {
+        foregroundImage: './assets/images/adaptive-icon.png',
+        backgroundColor: '#0b1014',
+      },
+      edgeToEdgeEnabled: true,
+      predictiveBackGestureEnabled: false,
+    },
+    web: {
+      bundler: 'metro',
+      favicon: './assets/images/favicon.png',
+    },
+    plugins: ['expo-router', 'expo-secure-store', 'expo-updates'],
     extra: {
-      ...appJson.expo.extra,
+      router: {},
+      eas: {
+        projectId: '27b6a070-e8b3-4a73-b73a-3b3d103e34e4',
+      },
       supabaseUrl,
       supabaseAnonKey,
     },
+    owner: 'eric2umeh',
   },
 };

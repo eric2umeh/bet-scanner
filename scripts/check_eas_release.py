@@ -33,7 +33,7 @@ def main() -> int:
     ok = True
 
     eas_path = MOBILE / "eas.json"
-    app_path = MOBILE / "app.json"
+    app_path = MOBILE / "app.config.js"
     privacy = ROOT / "app" / "static" / "privacy.html"
 
     if not eas_path.is_file():
@@ -49,26 +49,39 @@ def main() -> int:
             _ok("eas.json production → Android App Bundle (AAB)")
 
     if not app_path.is_file():
-        _fail("mobile/app.json missing")
+        _fail("mobile/app.config.js missing")
         ok = False
     else:
-        app = json.loads(app_path.read_text())["expo"]
-        pkg = app.get("android", {}).get("package")
-        bid = app.get("ios", {}).get("bundleIdentifier")
-        if pkg != "com.betscanner.app":
-            _warn(f"android.package is {pkg!r} (expected com.betscanner.app)")
-        else:
-            _ok(f"android.package={pkg}")
-        if bid != "com.betscanner.app":
-            _warn(f"ios.bundleIdentifier is {bid!r}")
-        else:
-            _ok(f"ios.bundleIdentifier={bid}")
-        pid = (app.get("extra") or {}).get("eas", {}).get("projectId")
-        if not pid:
-            _fail("expo.extra.eas.projectId missing — run: cd mobile && eas init")
+        import subprocess
+
+        try:
+            raw = subprocess.check_output(
+                ['node', '-p', 'JSON.stringify(require("./app.config.js").expo)'],
+                cwd=MOBILE,
+                text=True,
+            )
+            app = json.loads(raw)
+        except (subprocess.CalledProcessError, json.JSONDecodeError) as exc:
+            _fail(f"mobile/app.config.js invalid: {exc}")
             ok = False
-        else:
-            _ok("Expo projectId configured")
+            app = {}
+        if app:
+            pkg = app.get("android", {}).get("package")
+            bid = app.get("ios", {}).get("bundleIdentifier")
+            if pkg != "com.betscanner.app":
+                _warn(f"android.package is {pkg!r} (expected com.betscanner.app)")
+            else:
+                _ok(f"android.package={pkg}")
+            if bid != "com.betscanner.app":
+                _warn(f"ios.bundleIdentifier is {bid!r}")
+            else:
+                _ok(f"ios.bundleIdentifier={bid}")
+            pid = (app.get("extra") or {}).get("eas", {}).get("projectId")
+            if not pid:
+                _fail("expo.extra.eas.projectId missing — run: cd mobile && eas init")
+                ok = False
+            else:
+                _ok("Expo projectId configured")
 
     for name in ("icon.png", "adaptive-icon.png", "splash-icon.png"):
         p = MOBILE / "assets" / "images" / name
