@@ -52,7 +52,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Tips',
     question: 'How does auto-settle work?',
     answer:
-      'Settle finished tips checks final scores for your pending tips and marks them Won or Lost when the match status is FINISHED. Multis settle leg by leg as each game ends.',
+      'Opening the Tips tab quietly settles finished games (no API quota). A score refresh from odds-api.io runs at most every 6 hours, or when you tap Settle finished tips. Postponed or cancelled matches void the tip automatically.',
     keywords: ['settle', 'auto', 'won', 'lost', 'finished'],
   },
   {
