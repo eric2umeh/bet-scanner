@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bet Scanner — Privacy Policy</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #0b1014;
+      color: #e8eef2;
+      line-height: 1.55;
+      margin: 0;
+      padding: 24px 20px 48px;
+      max-width: 720px;
+      margin-inline: auto;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    h2 { font-size: 1.1rem; margin-top: 1.75rem; color: #2dd4a8; }
+    p, li { color: #8b9aab; font-size: 0.95rem; }
+    strong { color: #e8eef2; }
+    .updated { font-size: 0.85rem; margin-bottom: 1.5rem; }
+    a { color: #2dd4a8; }
+  </style>
+</head>
+<body>
+  <h1>Bet Scanner — Privacy Policy</h1>
+  <p class="updated">Last updated: September 2026</p>
+
+  <p>
+    Bet Scanner (“the app”) helps you scan football fixtures, compare bookmaker odds,
+    log betting tips, and track hit rate. This policy describes what we collect and why.
+  </p>
+
+  <h2>What we collect</h2>
+  <ul>
+    <li><strong>Account (optional):</strong> If you sign in, we use Supabase Auth (email). Your user id links tips you log to your account.</li>
+    <li><strong>Tips you log:</strong> Match, market, selection, odds, stake, and result — stored in our database so you can review history and hit rate.</li>
+    <li><strong>App access key:</strong> If you set an API key in Me, it is stored on your device only (SecureStore / browser storage) to call our API.</li>
+    <li><strong>Technical data:</strong> Standard server logs (IP, request time, errors) on our hosting provider for security and debugging.</li>
+  </ul>
+
+  <h2>What we do not do</h2>
+  <ul>
+    <li>We do not place bets for you or access your SportyBet / Bet9ja accounts.</li>
+    <li>We do not sell your personal data.</li>
+    <li>We do not read your SMS, contacts, or location (the app does not request those permissions).</li>
+  </ul>
+
+  <h2>Third-party services</h2>
+  <ul>
+    <li><strong>Hosting:</strong> API and web app may run on Render; database on Supabase.</li>
+    <li><strong>Auth:</strong> Supabase (email login) — see <a href="https://supabase.com/privacy">Supabase privacy</a>.</li>
+    <li><strong>Odds data:</strong> Fetched from configured odds providers (e.g. odds-api.io); we send fixture/book requests, not your identity.</li>
+    <li><strong>Telegram (optional):</strong> If enabled on the server, digest messages go to a chat you configure — not from the mobile app directly.</li>
+  </ul>
+
+  <h2>Data retention</h2>
+  <p>
+    Tips and account data remain until you delete them (remove tips in the app) or ask us to delete your account.
+    Server logs are rotated by the host.
+  </p>
+
+  <h2>Your choices</h2>
+  <ul>
+    <li>Use the app without signing in when the server allows it.</li>
+    <li>Remove logged tips via swipe-to-delete in the Tips tab.</li>
+    <li>Clear the app access key in Me or uninstall the app to remove local storage.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>The app is intended for adults where sports betting is legal. We do not knowingly collect data from children.</p>
+
+  <h2>Contact</h2>
+  <p>
+    Questions about this policy: contact the app owner via the support email listed on the
+    Google Play store listing for Bet Scanner.
+  </p>
+
+  <p><a href="/">← Back to app</a></p>
+</body>
+</html>
