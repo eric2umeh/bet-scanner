@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Play Store submit key (never commit)
+google-play-service-account.json
