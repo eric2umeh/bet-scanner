@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useNavigation } from 'expo-router';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -22,6 +22,7 @@ import { logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
+import { SyncHeaderButton } from '../../src/components/SyncHeaderButton';
 import { useAppModal } from '../../src/components/modal';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import { formatConfidencePct } from '../../src/lib/marketLean';
@@ -70,6 +71,7 @@ function dedupePicks(picks: TipPick[]): TipPick[] {
 
 export default function TodayScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const modal = useAppModal();
   const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -158,6 +160,22 @@ export default function TodayScreen() {
     [loadScans, settings]
   );
 
+  const onSyncOdds = useCallback(() => {
+    void refresh({ withOdds: true });
+  }, [refresh]);
+
+  useLayoutEffect(() => {
+    if (isWeb) return;
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={styles.headerActions}>
+          <SyncHeaderButton onPress={onSyncOdds} disabled={busy} busy={busy} />
+          <HelpHeaderButton />
+        </View>
+      ),
+    });
+  }, [navigation, onSyncOdds, busy]);
+
   useEffect(() => {
     void refresh({ withOdds: false });
   }, []);
@@ -215,7 +233,7 @@ export default function TodayScreen() {
         refreshControl={
           <RefreshControl
             refreshing={busy}
-            onRefresh={() => refresh({ withOdds: true })}
+            onRefresh={onSyncOdds}
             tintColor={colors.accent}
           />
         }
@@ -223,7 +241,12 @@ export default function TodayScreen() {
         <View style={[styles.topbar, isWeb && styles.topbarWeb]}>
           <View style={styles.hero}>
             <BrandLogo size="md" showWordmark />
-            {isWeb ? <HelpHeaderButton /> : null}
+            {isWeb ? (
+              <View style={styles.headerActions}>
+                <SyncHeaderButton onPress={onSyncOdds} disabled={busy} busy={busy} />
+                <HelpHeaderButton />
+              </View>
+            ) : null}
           </View>
           <Text style={styles.statusLine}>{status}</Text>
         </View>
@@ -241,7 +264,7 @@ export default function TodayScreen() {
         </ScrollView>
 
         <Text style={styles.hint}>
-          Pull down to sync odds & rescan · tick same-book legs → Log selected.
+          Pull down or tap ↻ to sync odds & rescan · tick same-book legs → Log selected.
         </Text>
 
         {busy && !matches.length ? (
@@ -378,6 +401,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   statusLine: {
     color: colors.muted,
