@@ -7,11 +7,9 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError, pingHealth } from '../../src/api/client';
 import { fetchBettableMatches, syncFixtures } from '../../src/api/matches';
@@ -24,15 +22,20 @@ import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
 import { SyncHeaderButton } from '../../src/components/SyncHeaderButton';
+import { BetSlipFab } from '../../src/components/BetSlipFab';
 import { useAppModal } from '../../src/components/modal';
+import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import { formatConfidencePct } from '../../src/lib/marketLean';
 import { setMatchCache } from '../../src/store/matchCache';
+import { isTipLogged, markTipsLogged, subscribeLoggedTips } from '../../src/store/loggedTips';
 import {
   clearSelection,
   getSelectedCount,
   getSelectedTips,
+  initSelection,
   isTipSelected,
+  pruneSelection,
   subscribeSelection,
   toggleTip,
 } from '../../src/store/selection';
@@ -75,27 +78,46 @@ export default function TodayScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const modal = useAppModal();
-  const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [picks, setPicks] = useState<TipPick[]>([]);
   const [filter, setFilter] = useState<MarketFilter>('all');
+  const [bookFilter, setBookFilter] = useState<string>('all');
   const [status, setStatus] = useState('Pull down to refresh odds & Safe picks');
   const [busy, setBusy] = useState(false);
   const [selectedN, setSelectedN] = useState(0);
   const [asMulti, setAsMulti] = useState(true);
+  const [, setLoggedRev] = useState(0);
+
+  useEffect(() => {
+    void initSelection();
+  }, []);
 
   useEffect(() => subscribeSelection(() => setSelectedN(getSelectedCount())), []);
+  useEffect(() => subscribeLoggedTips(() => setLoggedRev((n) => n + 1)), []);
+
+  const availableBooks = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of picks) {
+      if (p.bookmaker) set.add(String(p.bookmaker).toLowerCase());
+    }
+    return [...set].sort();
+  }, [picks]);
+
+  const filteredPicks = useMemo(() => {
+    if (bookFilter === 'all') return picks;
+    return picks.filter((p) => String(p.bookmaker).toLowerCase() === bookFilter);
+  }, [picks, bookFilter]);
 
   const picksByMatch = useMemo(() => {
     const map: Record<number, TipPick[]> = {};
-    for (const p of picks) {
+    for (const p of filteredPicks) {
       if (filter !== 'all' && String(p.market).toLowerCase() !== filter) continue;
       if (!map[p.match_id]) map[p.match_id] = [];
       map[p.match_id].push(p);
     }
     return map;
-  }, [picks, filter]);
+  }, [filteredPicks, filter]);
 
   const visibleMatches = useMemo(() => {
     if (filter === 'all') return matches;
@@ -171,6 +193,7 @@ export default function TodayScreen() {
         const merged = enrichMatchesFromPicks(bettable, all);
         setMatches(merged);
         setMatchCache(merged, all);
+        pruneSelection(new Set(merged.map((m) => m.id)));
         setStatus(
           merged.length
             ? `${merged.length} match(es) with odds · ${n} Safe tip(s)${withOdds ? ' · odds updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
@@ -224,6 +247,7 @@ export default function TodayScreen() {
       const merged = enrichMatchesFromPicks(bettable, all);
       setMatches(merged);
       setMatchCache(merged, all);
+      pruneSelection(new Set(merged.map((m) => m.id)));
       const line = `${sync.message || 'Odds synced'} · ${merged.length} match(es) · ${n} tip(s).`;
       setStatus(line);
       await modal.alert({
@@ -262,6 +286,7 @@ export default function TodayScreen() {
       const merged = enrichMatchesFromPicks(bettable, all);
       setMatches(merged);
       setMatchCache(merged, all);
+      pruneSelection(new Set(merged.map((m) => m.id)));
       setStatus(`${result.message} · ${merged.length} match(es) · ${n} tip(s)`);
       await modal.alert({
         title: 'Fixtures synced',
@@ -293,6 +318,7 @@ export default function TodayScreen() {
         as_multi: asMulti,
         stakeFallback: unitStakeNgn(s),
       });
+      await markTipsLogged(tips);
       clearSelection();
       await invalidateTipsCache();
       setStatus(data.message);
@@ -324,7 +350,11 @@ export default function TodayScreen() {
     <View style={styles.root}>
       <ScrollView
         style={styles.screen}
-        contentContainerStyle={[styles.content, isWeb && { paddingBottom: webScrollBottom(20) }]}
+        contentContainerStyle={[
+          styles.content,
+          isWeb && { paddingBottom: webScrollBottom(20) },
+          selectedN > 0 && { paddingBottom: webScrollBottom(88) },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={busy}
@@ -358,6 +388,30 @@ export default function TodayScreen() {
           ))}
         </ScrollView>
 
+        {availableBooks.length > 1 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
+            <Pressable
+              style={[styles.chip, bookFilter === 'all' && styles.chipOn]}
+              onPress={() => setBookFilter('all')}
+            >
+              <Text style={[styles.chipText, bookFilter === 'all' && styles.chipTextOn]}>
+                All books
+              </Text>
+            </Pressable>
+            {availableBooks.map((b) => (
+              <Pressable
+                key={b}
+                style={[styles.chip, bookFilter === b && styles.chipOn]}
+                onPress={() => setBookFilter(b)}
+              >
+                <Text style={[styles.chipText, bookFilter === b && styles.chipTextOn]}>
+                  {bookLabel(b)}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
+
         <Text style={styles.hint}>
           Pull down or tap ↻ to sync odds & rescan · tick same-book legs → Log selected.
         </Text>
@@ -390,7 +444,7 @@ export default function TodayScreen() {
           <View style={styles.staleBanner}>
             <Text style={styles.emptyTitle}>No Safe tips yet</Text>
             <Text style={styles.staleText}>
-              Pull down to sync SportyBet/Bet9ja odds and rescan Safe picks.
+              Pull down to sync SportyBet/1xBet odds and rescan Safe picks.
             </Text>
           </View>
         ) : null}
@@ -423,25 +477,30 @@ export default function TodayScreen() {
                     {kickoffLabel(m.kickoff_at)}
                   </Text>
                 </View>
-                <Text style={styles.match} numberOfLines={3}>
-                  {m.home_team} vs {m.away_team}
+                <Text style={styles.match} numberOfLines={1}>
+                  {formatMatchTitle(m.home_team, m.away_team)}
                 </Text>
                 {!tips.length ? (
                   <Text style={styles.noTip}>No tip — open for odds</Text>
                 ) : (
                   tips.map((p) => {
                     const on = isTipSelected(p);
+                    const logged = isTipLogged(p);
                     return (
                       <Pressable
                         key={tipKey(p)}
-                        style={[styles.tipRow, on && styles.tipRowOn]}
-                        onPress={() => toggleTip(p)}
+                        style={[styles.tipRow, on && styles.tipRowOn, logged && styles.tipRowLogged]}
+                        onPress={() => !logged && toggleTip(p)}
+                        disabled={logged}
                       >
-                        <View style={[styles.check, on && styles.checkOn]}>
-                          {on ? <Text style={styles.checkMark}>✓</Text> : null}
+                        <View style={[styles.check, on && styles.checkOn, logged && styles.checkLogged]}>
+                          {logged ? <Text style={styles.checkMark}>✓</Text> : on ? <Text style={styles.checkMark}>✓</Text> : null}
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.tipTitle} numberOfLines={2}>
+                          <Text
+                            style={[styles.tipTitle, logged && styles.tipTitleLogged]}
+                            numberOfLines={2}
+                          >
                             {marketLabel(p.market)} · {String(p.selection).toUpperCase()}
                             {p.odds != null ? ` @ ${p.odds}` : ''}
                           </Text>
@@ -468,33 +527,12 @@ export default function TodayScreen() {
         </View>
       </ScrollView>
 
-      {selectedN > 0 ? (
-        <View style={[styles.selectBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <View style={styles.selectTop}>
-            <Text style={styles.selectCount}>{selectedN} selected</Text>
-            <View style={styles.multiRow}>
-              <Text style={styles.multiLabel}>Log as multi</Text>
-              <Switch
-                value={asMulti}
-                onValueChange={setAsMulti}
-                trackColor={{ true: colors.accent, false: colors.line }}
-              />
-            </View>
-          </View>
-          <View style={styles.selectActions}>
-            <Pressable
-              style={[styles.btn, styles.selectBtnFlex, busy && styles.btnDisabled]}
-              onPress={onLogSelected}
-              disabled={busy}
-            >
-              <Text style={styles.btnText}>Log selected</Text>
-            </Pressable>
-            <Pressable style={[styles.btnSecondary, styles.selectBtnFlex]} onPress={clearSelection}>
-              <Text style={styles.btnSecondaryText}>Clear</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
+      <BetSlipFab
+        asMulti={asMulti}
+        onAsMultiChange={setAsMulti}
+        onLog={() => void onLogSelected()}
+        busy={busy}
+      />
     </View>
   );
 }
@@ -649,6 +687,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(42, 53, 64, 0.85)',
   },
   tipRowOn: { backgroundColor: colors.accentDim, borderRadius: 10, paddingHorizontal: 8, paddingBottom: 8 },
+  tipRowLogged: { opacity: 0.72 },
   check: {
     width: 22,
     height: 22,
@@ -660,8 +699,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   checkOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  checkLogged: { backgroundColor: colors.muted, borderColor: colors.muted },
   checkMark: { color: '#06241c', fontWeight: '800', fontSize: 12 },
   tipTitle: { color: colors.ink, fontWeight: '700', fontSize: 14 },
+  tipTitleLogged: { textDecorationLine: 'line-through', color: colors.muted },
   tipMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
   tipWarn: { color: colors.warn, fontSize: 11, marginTop: 4, lineHeight: 15 },
   empty: {
