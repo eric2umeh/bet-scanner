@@ -26,7 +26,7 @@ router = APIRouter(prefix="/arbitrage", tags=["arbitrage"])
 @router.get(
     "/scan",
     response_model=ScanResponse,
-    summary="Scan surebets (try bookmakers=sportybet,bet9ja)",
+    summary="Scan surebets across all synced bookmakers",
 )
 def scan_arbitrage(
     min_profit_pct: Decimal | None = Query(
@@ -47,8 +47,8 @@ def scan_arbitrage(
     bookmakers: str | None = Query(
         default=None,
         description=(
-            "Optional comma list to only use these books, "
-            "e.g. sportybet,bet9ja (Phase 3B Nigeria focus)"
+            "Optional comma list to limit books, e.g. sportybet,onexbet. "
+            "Omit to scan every bookmaker with fresh 1X2 odds in the DB."
         ),
     ),
     db: Session = Depends(get_db),
@@ -57,8 +57,8 @@ def scan_arbitrage(
     """
     Scan stored 1X2 odds for surebets.
 
-    Uses best home / draw / away prices across bookmakers for each match.
-    Tip: after NG odds sync, try bookmakers=sportybet,bet9ja
+    Uses best home / draw / away prices across all synced bookmakers (unless
+    bookmakers= filter is set). Each opportunity lists which book each leg uses.
     """
     allowed = None
     if bookmakers:
