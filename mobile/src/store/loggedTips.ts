@@ -36,6 +36,10 @@ export function subscribeLoggedTips(listener: Listener) {
   return () => listeners.delete(listener);
 }
 
+export async function initLoggedTips() {
+  await ensureLoaded();
+}
+
 export async function markTipsLogged(tips: TipPick[]) {
   await ensureLoaded();
   for (const t of tips) keys.add(tipKey(t));
