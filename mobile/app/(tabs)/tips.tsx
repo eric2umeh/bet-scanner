@@ -136,6 +136,20 @@ function loggedWhen(t: TipOut): string {
   return formatLoggedAt(t.created_at);
 }
 
+function WebDeleteButton({ onPress, label = 'Delete' }: { onPress: () => void; label?: string }) {
+  if (Platform.OS !== 'web') return null;
+  return (
+    <Pressable
+      style={styles.webHeaderDelete}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Text style={styles.webHeaderDeleteText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 function formatLoggedAt(iso?: string | null): string {
   if (!iso) return '';
   return new Date(iso).toLocaleString(undefined, {
@@ -518,8 +532,8 @@ export default function TipsScreen() {
 
         <Text style={styles.muted}>
           {tab === 'active'
-            ? 'Active = bets still in play. When a match ends, tips auto-settle and move to History. Swipe left to delete (or use Delete on web).'
-            : 'History = settled tips (won, lost, or void). Swipe left to delete (or use Delete on web).'}
+            ? 'Active = bets still in play. When a match ends, tips auto-settle and move to History. On web, tap Delete on each card; on phone, swipe left.'
+            : 'History = settled tips (won, lost, or void). On web, tap Delete on each card; on phone, swipe left.'}
         </Text>
         {status ? <Text style={styles.status}>{status}</Text> : null}
 
@@ -651,14 +665,16 @@ export default function TipsScreen() {
                 <SwipeableRow
                   key={slipId}
                   style={{ marginTop: 12 }}
+                  showDeleteOnWeb={false}
                   onDelete={() => void onDeleteSlip(legs)}
                 >
                   <View style={styles.cardInner}>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setExpanded((e) => ({ ...e, [slipId]: !open }))}
-                      style={styles.multiHeader}
-                    >
+                    <View style={styles.cardHeadRow}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => setExpanded((e) => ({ ...e, [slipId]: !open }))}
+                        style={[styles.multiHeader, styles.cardHeadMain]}
+                      >
                       <Text style={styles.cardTitle}>
                         Multi · {book} · {legs.length} legs
                         {combined != null ? ` @ ${combined.toFixed(2)}` : ''}
@@ -679,7 +695,12 @@ export default function TipsScreen() {
                           {loggedAt ? ` · logged ${formatLoggedAt(loggedAt)}` : ''}
                         </Text>
                       ) : null}
-                    </Pressable>
+                      </Pressable>
+                      <WebDeleteButton
+                        label="Delete slip"
+                        onPress={() => void onDeleteSlip(legs)}
+                      />
+                    </View>
                     {open ? (
                       <View style={styles.expandBox}>
                         {legs.map((leg) => (
@@ -719,12 +740,18 @@ export default function TipsScreen() {
               <SwipeableRow
                 key={t.id}
                 style={{ marginTop: 12 }}
+                showDeleteOnWeb={false}
                 onDelete={() => onDelete(t.id, `${t.home_team} vs ${t.away_team}`)}
               >
                 <View style={styles.cardInner}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>
-                    {formatMatchTitle(t.home_team, t.away_team)}
-                  </Text>
+                  <View style={styles.cardHeadRow}>
+                    <Text style={[styles.cardTitle, styles.cardHeadMain]} numberOfLines={1}>
+                      {formatMatchTitle(t.home_team, t.away_team)}
+                    </Text>
+                    <WebDeleteButton
+                      onPress={() => void onDelete(t.id, `${t.home_team} vs ${t.away_team}`)}
+                    />
+                  </View>
                   <Text style={styles.when}>
                     {matchWhen(t)}
                     {loggedWhen(t) ? ` · logged ${loggedWhen(t)}` : ''}
@@ -739,12 +766,6 @@ export default function TipsScreen() {
                     {' · '}stake ₦{t.stake_ngn ?? '—'}
                   </Text>
                   {tab === 'active' ? <SettleButtons tipId={t.id} current={t.result} /> : null}
-                  <Pressable
-                    style={[styles.cardDeleteBtn, Platform.OS !== 'web' && styles.cardDeleteBtnNative]}
-                    onPress={() => void onDelete(t.id, `${t.home_team} vs ${t.away_team}`)}
-                  >
-                    <Text style={styles.cardDeleteText}>Delete</Text>
-                  </Pressable>
                 </View>
               </SwipeableRow>
             ))}
@@ -876,6 +897,20 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   cardTitle: { color: colors.ink, fontWeight: '700', fontSize: 15 },
+  cardHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  cardHeadMain: { flex: 1, minWidth: 0 },
+  webHeaderDelete: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: colors.bad,
+    flexShrink: 0,
+  },
+  webHeaderDeleteText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   multiHeader: { cursor: 'pointer' as const },
   collapsedHint: { color: colors.muted, fontSize: 11, marginTop: 6 },
   pickBox: { marginTop: 8 },
@@ -907,17 +942,6 @@ const styles = StyleSheet.create({
   legResultPillCompact: { paddingHorizontal: 5, paddingVertical: 1 },
   legDeleteBtn: { marginTop: 8, alignSelf: 'flex-start' },
   legDeleteText: { color: colors.bad, fontSize: 12, fontWeight: '600' },
-  cardDeleteBtn: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.bad,
-  },
-  cardDeleteBtnNative: { display: 'none' },
-  cardDeleteText: { color: colors.bad, fontSize: 12, fontWeight: '700' },
   youthHint: { color: colors.warn, fontSize: 11, marginTop: 4, lineHeight: 15 },
   leanNote: {
     color: colors.muted,
