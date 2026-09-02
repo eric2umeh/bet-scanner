@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 
 from app.config import Settings, get_settings
 from app.deps.auth import AuthUser, auth_verification_enabled, get_current_user
+from app.services.bookmakers import configured_odds_books
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -19,6 +20,8 @@ def auth_config(settings: Settings = Depends(get_settings)) -> dict:
         "supabase_url": url or None,
         "supabase_anon_key": anon or None,
         "auth_configured": bool(url and anon),
+        "odds_bookmakers": configured_odds_books(settings),
+        "odds_sync_enabled": bool(settings.odds_sync_enabled),
     }
 
 
