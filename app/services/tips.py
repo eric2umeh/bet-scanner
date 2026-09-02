@@ -487,7 +487,9 @@ def _apply_tip_list_filters(
     needle: str,
     hide_void: bool,
 ):
-    if result:
+    if result == "settled":
+        stmt = stmt.where(Tip.result.in_(("won", "lost", "void")))
+    elif result:
         stmt = stmt.where(Tip.result == result)
     elif hide_void:
         stmt = stmt.where(Tip.result != "void")
