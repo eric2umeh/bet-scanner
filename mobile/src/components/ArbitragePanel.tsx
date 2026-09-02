@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { fetchPublicAppConfig } from '../api/appConfig';
 import {
   formatSurebetPlan,
   scanSurebets,
@@ -38,6 +39,7 @@ type Props = {
 export function ArbitragePanel({ onFlash }: Props) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [opps, setOpps] = useState<ArbOpportunity[]>([]);
+  const [booksLabel, setBooksLabel] = useState('your books');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [statusBad, setStatusBad] = useState(false);
@@ -53,6 +55,9 @@ export function ArbitragePanel({ onFlash }: Props) {
     try {
       const s = await loadSettings();
       setSettings(s);
+      const cfg = await fetchPublicAppConfig().catch(() => null);
+      const names = cfg?.odds_bookmakers?.map((b) => bookLabel(b)).join(' + ') || 'SportyBet + 1xBet';
+      setBooksLabel(names);
       const data = await scanSurebets({ sample_stake_ngn: s.bankroll });
       setOpps(data.opportunities || []);
       flash(
@@ -129,8 +134,9 @@ export function ArbitragePanel({ onFlash }: Props) {
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>Surebet scanner</Text>
         <Text style={styles.heroText}>
-          Finds 1X2 arbitrage across SportyBet and Bet9ja. Set bankroll in Me → Settings, then find
-          surebets here — copy the stake plan and place all legs quickly before the edge moves.
+          Scans 1X2 across {booksLabel}. Tap Find surebets to sync fresh odds first. For more
+          edges, add books in ODDS_API_IO_BOOKMAKERS (e.g. Bet365, Pinnacle, Betway, Marathonbet
+          alongside SportyBet and 1xBet) — more books = more overlap.
         </Text>
       </View>
 
@@ -173,8 +179,8 @@ export function ArbitragePanel({ onFlash }: Props) {
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No surebets right now</Text>
           <Text style={styles.emptyText}>
-            True arbs are rare on two Nigerian books. Tap Find surebets or pull down closer to
-            kickoff — tiny edges may not be placeable in practice.
+            True arbs are rare — books move fast. Add 3+ bookmakers on odds-api.io for better
+            coverage. Sync odds on Today, then Find surebets here closer to kickoff.
           </Text>
         </View>
       ) : null}
