@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { pingHealth } from '../../src/api/client';
-import { fetchTodayMatches, syncFixtures } from '../../src/api/matches';
+import { fetchTodayMatches, fetchUpcomingMatches, syncFixtures } from '../../src/api/matches';
 import { syncOdds } from '../../src/api/odds';
 import { scanGoalMarkets } from '../../src/api/predictions';
 import { scanSafeBuilder } from '../../src/api/safe';
@@ -43,6 +43,17 @@ import type { Match, TipPick } from '../../src/types/api';
 type MarketFilter = 'all' | 'double_chance' | '1x2' | 'ou_2_5' | 'btts';
 
 const isWeb = Platform.OS === 'web';
+const UPCOMING_DAYS = 21;
+
+function mergeMatchLists(today: Match[], upcoming: Match[]): Match[] {
+  const byId = new Map<number, Match>();
+  for (const m of [...today, ...upcoming]) {
+    byId.set(m.id, m);
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
+  );
+}
 
 function kickoffLabel(iso?: string | null) {
   if (!iso) return '—';
@@ -137,19 +148,21 @@ export default function TodayScreen() {
           setStatus('Syncing SportyBet / Bet9ja odds…');
           await syncOdds();
         }
-        const [health, today] = await Promise.all([
+        const [health, today, upcoming] = await Promise.all([
           pingHealth().catch(() => null),
           fetchTodayMatches(),
+          fetchUpcomingMatches(UPCOMING_DAYS),
         ]);
-        setMatches(today);
+        const merged = mergeMatchLists(today, upcoming);
+        setMatches(merged);
         const { n, picks: all } = await loadScans(s);
-        setMatchCache(today, all);
+        setMatchCache(merged, all);
         setStatus(
-          today.length
-            ? `${today.length} match(es) · ${n} Safe tip(s)${withOdds ? ' · odds updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
+          merged.length
+            ? `${merged.length} match(es) · ${n} Safe tip(s)${withOdds ? ' · odds updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
             : withOdds
-              ? 'Odds synced — no matches today yet'
-              : 'No matches today — pull down to sync odds'
+              ? 'Odds synced — no upcoming matches yet'
+              : 'No upcoming matches — tap Sync fixtures'
         );
       } catch (e) {
         setStatus(e instanceof Error ? e.message : String(e));
@@ -189,16 +202,18 @@ export default function TodayScreen() {
       if (!settings) setSettings(s);
       const sync = await syncOdds();
       const today = await fetchTodayMatches();
-      setMatches(today);
+      const upcoming = await fetchUpcomingMatches(UPCOMING_DAYS);
+      const merged = mergeMatchLists(today, upcoming);
+      setMatches(merged);
       const { n, picks: all } = await loadScans(s);
-      setMatchCache(today, all);
-      const line = `${sync.message || 'Odds synced'} · ${today.length} match(es) today · ${n} tip(s).`;
+      setMatchCache(merged, all);
+      const line = `${sync.message || 'Odds synced'} · ${merged.length} match(es) · ${n} tip(s).`;
       setStatus(line);
       await modal.alert({
         title: 'Load real bets',
-        message: today.length
+        message: merged.length
           ? `${line}\n\nIf tips are still 0, odds may not fit Safe rules yet.`
-          : `${sync.message || 'Odds synced'}\n\n0 matches today — tap Sync fixtures first (match list is empty on the server).`,
+          : `${sync.message || 'Odds synced'}\n\n0 matches — tap Sync fixtures first (odds-api.io event list).`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -215,15 +230,17 @@ export default function TodayScreen() {
     try {
       const result = await syncFixtures();
       const today = await fetchTodayMatches();
-      setMatches(today);
+      const upcoming = await fetchUpcomingMatches(UPCOMING_DAYS);
+      const merged = mergeMatchLists(today, upcoming);
+      setMatches(merged);
       const s = settings || (await loadSettings());
       if (!settings) setSettings(s);
       const { n, picks: all } = await loadScans(s);
-      setMatchCache(today, all);
-      setStatus(`${result.message} · ${today.length} match(es) · ${n} tip(s)`);
+      setMatchCache(merged, all);
+      setStatus(`${result.message} · ${merged.length} match(es) · ${n} tip(s)`);
       await modal.alert({
         title: 'Fixtures synced',
-        message: `${result.message}\n${today.length} match(es) left today (future kickoffs only).`,
+        message: `${result.message}\n${merged.length} upcoming match(es) on Today (next ${UPCOMING_DAYS} days).`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -337,7 +354,7 @@ export default function TodayScreen() {
           </Pressable>
         </View>
         <Text style={styles.actionHint}>
-          Fixtures = match list from football calendars. Load real bets = SportyBet/Bet9ja odds only.
+          Sync fixtures = odds-api.io match list · Load real bets = SportyBet/Bet9ja odds pull.
         </Text>
 
         {busy && !matches.length ? (
@@ -357,8 +374,8 @@ export default function TodayScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No matches yet</Text>
             <Text style={styles.staleText}>
-              The server has no future kickoffs for today. Tap Sync fixtures, then Load real bets
-              for odds. Or run Morning update in Me.
+              The server has no upcoming matches. Tap Sync fixtures, then Load real bets. Enable
+              SportyBet (and Bet9ja if on your plan) at odds-api.io dashboard.
             </Text>
           </View>
         ) : null}
