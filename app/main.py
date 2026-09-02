@@ -121,17 +121,20 @@ def legacy_dashboard() -> FileResponse:
     return FileResponse(LEGACY_DASHBOARD)
 
 
-if expo_web_built():
-    # Browser tab URLs (/me, /tips, …) need index.html before StaticFiles 404s.
-    app.add_middleware(ExpoSpaMiddleware, expo_web_dir=EXPO_WEB_DIR)
-    app.mount(
-        "/",
-        StaticFiles(directory=str(EXPO_WEB_DIR), html=True),
-        name="expo-web",
-    )
-else:
+@app.get("/", include_in_schema=False)
+def root_page() -> FileResponse:
+    """Expo web when mobile/dist exists; otherwise legacy HTML at /."""
+    index = EXPO_WEB_DIR / "index.html"
+    if index.is_file():
+        return FileResponse(index, media_type="text/html")
+    return FileResponse(LEGACY_DASHBOARD)
 
-    @app.get("/", include_in_schema=False)
-    def dashboard_fallback() -> FileResponse:
-        """Expo web not built — run: ./scripts/build_web.sh (legacy HTML until then)."""
-        return FileResponse(LEGACY_DASHBOARD)
+
+# Always mount dist + SPA middleware so ./scripts/build_web.sh works without restarting uvicorn.
+EXPO_WEB_DIR.mkdir(parents=True, exist_ok=True)
+app.add_middleware(ExpoSpaMiddleware, expo_web_dir=EXPO_WEB_DIR)
+app.mount(
+    "/",
+    StaticFiles(directory=str(EXPO_WEB_DIR), html=True),
+    name="expo-web",
+)
