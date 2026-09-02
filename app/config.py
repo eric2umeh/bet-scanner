@@ -47,15 +47,16 @@ class Settings(BaseSettings):
     football_competitions: str = "PL,PD,SA,BL1,FL1"
     sync_days_ahead: int = 21
 
-    # --- Fixture provider: API-Football (api-sports) ---
+    # --- Fixture provider: API-Football (api-sports) — optional; off by default ---
     # Free key: https://dashboard.api-football.com/
+    api_football_enabled: bool = False
     api_football_key: str = ""
     # Empty = major leagues only; "all" = every fixture that day; or "39,140,135"
     api_football_league_ids: str = ""
 
     # Which fixture providers to run on POST /matches/sync
-    # Examples: "football-data,api-football" or just "api-football"
-    fixture_providers: str = "football-data,api-football"
+    # Recommended: odds-api-io (SportyBet/Bet9ja event list). Optional: football-data
+    fixture_providers: str = "odds-api-io"
 
     # --- Odds sync master switch ---
     # false = never call external odds APIs (saves credits while testing)
