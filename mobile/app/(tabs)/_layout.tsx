@@ -16,6 +16,11 @@ function TabBarIcon(props: {
   return <FontAwesome size={22} style={{ marginBottom: -2 }} {...props} />;
 }
 
+const webSubHeader = {
+  headerShown: true as const,
+  headerRight: () => <HelpHeaderButton />,
+};
+
 export default function TabLayout() {
   return (
     <Tabs
@@ -44,6 +49,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Today',
+          headerShown: !isWeb,
           tabBarIcon: ({ color }) => <TabBarIcon name="futbol-o" color={color} />,
         }}
       />
@@ -51,6 +57,7 @@ export default function TabLayout() {
         name="tips"
         options={{
           title: 'Tips',
+          ...(isWeb ? webSubHeader : null),
           tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
         }}
       />
@@ -58,6 +65,7 @@ export default function TabLayout() {
         name="arb"
         options={{
           title: 'Arb',
+          ...(isWeb ? webSubHeader : null),
           tabBarIcon: ({ color }) => <TabBarIcon name="balance-scale" color={color} />,
         }}
       />
@@ -65,6 +73,7 @@ export default function TabLayout() {
         name="tools"
         options={{
           title: 'Tools',
+          ...(isWeb ? webSubHeader : null),
           tabBarIcon: ({ color }) => <TabBarIcon name="th-large" color={color} />,
         }}
       />
@@ -72,6 +81,7 @@ export default function TabLayout() {
         name="me"
         options={{
           title: 'Me',
+          ...(isWeb ? webSubHeader : null),
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
         }}
       />
