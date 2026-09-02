@@ -1,4 +1,5 @@
 import { getJson, postJson } from './client';
+import { fetchPublicAppConfig } from './appConfig';
 
 export type ValuePick = {
   match_id: number;
@@ -79,33 +80,51 @@ export type LogScanResponse = {
   stake_plans?: string[];
 };
 
-const BOOKS = 'sportybet,bet9ja';
+let cachedBooks: string | null = null;
 
-export function scanValue(opts: { bankroll_ngn: number; unit_pct: number }) {
+async function scanBookmakers(): Promise<string> {
+  if (cachedBooks) return cachedBooks;
+  try {
+    const cfg = await fetchPublicAppConfig();
+    if (cfg.odds_bookmakers?.length) {
+      cachedBooks = cfg.odds_bookmakers.join(',');
+      return cachedBooks;
+    }
+  } catch {
+    /* fallback */
+  }
+  cachedBooks = 'sportybet,onexbet';
+  return cachedBooks;
+}
+
+export async function scanValue(opts: { bankroll_ngn: number; unit_pct: number }) {
+  const books = await scanBookmakers();
   const q = new URLSearchParams({
-    bookmakers: BOOKS,
+    bookmakers: books,
     bankroll_ngn: String(opts.bankroll_ngn),
     unit_pct: String(opts.unit_pct),
   });
   return getJson<ValueScanResponse>(`/value/scan?${q}`);
 }
 
-export function scanSurebets(opts: { sample_stake_ngn: number }) {
+export async function scanSurebets(opts: { sample_stake_ngn: number }) {
+  const books = await scanBookmakers();
   const q = new URLSearchParams({
-    bookmakers: BOOKS,
+    bookmakers: books,
     min_profit_pct: '0.01',
     sample_stake_ngn: String(opts.sample_stake_ngn),
   });
   return getJson<ArbScanResponse>(`/arbitrage/scan?${q}`);
 }
 
-export function logValueScan(opts: {
+export async function logValueScan(opts: {
   bankroll_ngn: number;
   unit_pct: number;
   notify_telegram?: boolean;
 }) {
+  const bookmakers = await scanBookmakers();
   return postJson<LogScanResponse>('/tips/log-value-scan', {
-    bookmakers: BOOKS,
+    bookmakers,
     bankroll_ngn: opts.bankroll_ngn,
     unit_pct: opts.unit_pct,
     log_tips: true,
@@ -113,12 +132,13 @@ export function logValueScan(opts: {
   });
 }
 
-export function logSurebetScan(opts: {
+export async function logSurebetScan(opts: {
   bankroll_ngn: number;
   notify_telegram?: boolean;
 }) {
+  const bookmakers = await scanBookmakers();
   return postJson<LogScanResponse>('/tips/log-arbitrage-scan', {
-    bookmakers: BOOKS,
+    bookmakers,
     bankroll_ngn: opts.bankroll_ngn,
     min_profit_pct: '0.01',
     log_tips: true,
