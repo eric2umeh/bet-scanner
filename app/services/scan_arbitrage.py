@@ -78,6 +78,7 @@ def scan_1x2_arbs(
 
     # Group by match_id → selection → list of (book, price, captured_at)
     by_match: dict[int, dict[str, list[dict]]] = {}
+    books_scanned: set[str] = set()
     for row in rows:
         book = str(row["bookmaker"]).lower()
         if allowed_bookmakers is not None and book not in allowed_bookmakers:
@@ -92,6 +93,8 @@ def scan_1x2_arbs(
         price = Decimal(str(row["price"]))
         if looks_like_palpable_error(price, min_odds=min_odds, max_odds=max_odds):
             continue
+
+        books_scanned.add(book)
 
         match_id = int(row["match_id"])
         selection = str(row["selection"]).lower()
@@ -181,6 +184,10 @@ def scan_1x2_arbs(
                 "profit_pct": profit_pct.quantize(Decimal("0.01")),
                 "implied_sum": plan.implied_sum,
                 "legs": scan_legs,
+                "books_used": sorted(
+                    {str(leg["bookmaker"]).lower() for leg in best_legs},
+                    key=str,
+                ),
                 "sample_total_stake_ngn": plan.total_stake,
                 "sample_profit_ngn": plan.profit,
                 "sample_legs": sample_legs,
@@ -193,19 +200,24 @@ def scan_1x2_arbs(
 
     opportunities.sort(key=lambda x: x["profit_pct"], reverse=True)
 
+    scanned_list = sorted(books_scanned)
+    if allowed_bookmakers:
+        filter_note = f" Filter: {', '.join(sorted(allowed_bookmakers))}."
+    elif scanned_list:
+        filter_note = f" Scanned {len(scanned_list)} book(s): {', '.join(scanned_list)}."
+    else:
+        filter_note = " No fresh 1X2 odds in DB — sync odds on Today first."
+
     return {
         "count": len(opportunities),
         "min_profit_pct": min_profit,
         "max_odds_age_minutes": max_age,
+        "books_scanned": scanned_list,
         "opportunities": opportunities,
         "message": (
             f"Found {len(opportunities)} 1X2 surebet(s) "
             f"with profit ≥ {min_profit}% and odds younger than {max_age} min."
-            + (
-                f" Books filter: {', '.join(sorted(allowed_bookmakers))}."
-                if allowed_bookmakers
-                else ""
-            )
+            + filter_note
         ),
     }
 
