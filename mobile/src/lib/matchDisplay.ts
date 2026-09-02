@@ -1,4 +1,4 @@
-/** Women's / ladies fixtures — show (W) and keep one-line titles short. */
+/** Women's / ladies fixtures — show "Women" in full and keep one-line titles short. */
 
 const WOMENS_RE =
   /\b(women|womens|woman|ladies|feminine|femmes|feminin)\b|\(w\)|\bw\b(?=\s|$)/i;
@@ -27,11 +27,11 @@ function shortenTeam(name: string, maxLen: number): string {
   return `${clean.slice(0, maxLen - 1)}…`;
 }
 
-/** One-line match title; appends (W) when fixture is women's football. */
+/** One-line match title; appends "Women" when fixture is women's football. */
 export function formatMatchTitle(home: string, away: string, maxEach = 14): string {
   const w = isWomensMatch(home, away);
   const h = shortenTeam(home, maxEach);
   const a = shortenTeam(away, maxEach);
   const base = `${h} vs ${a}`;
-  return w ? `${base} (W)` : base;
+  return w ? `${base} · Women` : base;
 }
