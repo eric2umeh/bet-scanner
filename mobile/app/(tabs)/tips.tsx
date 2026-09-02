@@ -234,7 +234,7 @@ export default function TipsScreen() {
     (page: number) => ({
       limit: pageSize,
       offset: page * pageSize,
-      result: tab === 'active' ? 'pending' : undefined,
+      result: tab === 'active' ? 'pending' : 'settled',
       market: marketFilter === 'all' ? undefined : marketFilter,
       q: debouncedQ || undefined,
       date_from: debouncedDate || undefined,
@@ -640,6 +640,7 @@ export default function TipsScreen() {
                         </Text>
                         {legSummary ? ` · ${legSummary}` : ''}
                         {' · '}stake ₦{stake ?? '—'}
+                        {loggedAt ? ` · logged ${formatLoggedAt(loggedAt)}` : ''}
                       </Text>
                       {!open ? (
                         <Text style={styles.collapsedHint}>
