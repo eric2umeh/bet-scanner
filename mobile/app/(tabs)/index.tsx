@@ -413,7 +413,8 @@ export default function TodayScreen() {
         ) : null}
 
         <Text style={styles.hint}>
-          Pull down or tap ↻ to sync odds & rescan · tick same-book legs → Log selected.
+          Pull down or tap ↻ to sync odds & rescan · tap a pick row to add it to your slip (green
+          button bottom-right).
         </Text>
 
         <View style={styles.actionRow}>
@@ -433,7 +434,8 @@ export default function TodayScreen() {
           </Pressable>
         </View>
         <Text style={styles.actionHint}>
-          Sync fixtures = odds-api.io events · Load real bets = fresh SportyBet / 1xBet odds.
+          Sync fixtures = download upcoming matches from odds-api.io (no prices yet). Load real bets
+          = fetch live SportyBet / 1xBet odds.
         </Text>
 
         {busy && !matches.length ? (
@@ -464,24 +466,27 @@ export default function TodayScreen() {
             const tips = picksByMatch[m.id] || [];
             const hasTip = tips.length > 0;
             return (
-              <Pressable
+              <View
                 key={m.id}
                 style={[styles.card, isWeb && styles.cardWeb, hasTip && styles.cardHasTip]}
-                onPress={() => router.push(`/match/${m.id}`)}
               >
-                <View style={styles.cardTop}>
-                  <Text style={styles.league} numberOfLines={1}>
-                    {m.competition_code || '—'}
+                <Pressable onPress={() => router.push(`/match/${m.id}`)}>
+                  <View style={styles.cardTop}>
+                    <Text style={styles.league} numberOfLines={1}>
+                      {m.competition_code || '—'}
+                    </Text>
+                    <Text style={styles.kickoff} numberOfLines={2}>
+                      {kickoffLabel(m.kickoff_at)}
+                    </Text>
+                  </View>
+                  <Text style={styles.match} numberOfLines={1}>
+                    {formatMatchTitle(m.home_team, m.away_team)}
                   </Text>
-                  <Text style={styles.kickoff} numberOfLines={2}>
-                    {kickoffLabel(m.kickoff_at)}
-                  </Text>
-                </View>
-                <Text style={styles.match} numberOfLines={1}>
-                  {formatMatchTitle(m.home_team, m.away_team)}
-                </Text>
+                </Pressable>
                 {!tips.length ? (
-                  <Text style={styles.noTip}>No tip — open for odds</Text>
+                  <Pressable onPress={() => router.push(`/match/${m.id}`)}>
+                    <Text style={styles.noTip}>No tip — open for odds</Text>
+                  </Pressable>
                 ) : (
                   tips.map((p) => {
                     const on = isTipSelected(p);
@@ -490,7 +495,10 @@ export default function TodayScreen() {
                       <Pressable
                         key={tipKey(p)}
                         style={[styles.tipRow, on && styles.tipRowOn, logged && styles.tipRowLogged]}
-                        onPress={() => !logged && toggleTip(p)}
+                        onPress={(e) => {
+                          e?.stopPropagation?.();
+                          if (!logged) toggleTip(p);
+                        }}
                         disabled={logged}
                       >
                         <View style={[styles.check, on && styles.checkOn, logged && styles.checkLogged]}>
@@ -521,7 +529,7 @@ export default function TodayScreen() {
                     );
                   })
                 )}
-              </Pressable>
+              </View>
             );
           })}
         </View>
