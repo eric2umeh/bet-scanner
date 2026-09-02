@@ -161,6 +161,21 @@ class OddsApiIoProvider:
                 best = fx
         return best
 
+    def fetch_pending_fixtures(self) -> list[FixtureMatch]:
+        """
+        Pending football events from odds-api.io (configured NG books).
+
+        Same list used before /odds/multi — keeps Today in sync with bookmaker coverage.
+        """
+        events = self._list_events()
+        out: list[FixtureMatch] = []
+        for event in events:
+            fx = _pending_event_to_fixture(event)
+            if fx is not None:
+                out.append(fx)
+        print(f"[odds-api-io] pending fixtures={len(out)}/{len(events)}")
+        return out
+
     def fetch_h2h_odds(self) -> list[OddQuote]:
         """
         Fetch future events, then odds via /odds/multi (quota-friendly).
@@ -276,17 +291,39 @@ class OddsApiIoProvider:
 
     def _get_multi_odds(self, event_ids: list[str]) -> list[dict]:
         """One request for up to 10 events (counts as 1 against free quota)."""
+        books = self.bookmakers or []
+        if not books:
+            return self._get_multi_odds_for_books(event_ids, [])
+
+        try:
+            return self._get_multi_odds_for_books(event_ids, books)
+        except OddsApiIoError as exc:
+            msg = str(exc).lower()
+            if len(books) <= 1:
+                raise
+            # Invalid or forbidden book in a pair — try each book alone (e.g. BetKing on plan).
+            merged: list[dict] = []
+            for book in books:
+                try:
+                    merged.extend(self._get_multi_odds_for_books(event_ids, [book]))
+                except OddsApiIoError as book_exc:
+                    print(f"[odds-api-io] skip book {book}: {book_exc}")
+            if merged:
+                return _dedupe_event_payloads(merged)
+            raise exc
+
+    def _get_multi_odds_for_books(self, event_ids: list[str], books: list[str]) -> list[dict]:
         params = {
             "apiKey": self.api_key,
             "eventIds": ",".join(event_ids),
-            "bookmakers": ",".join(self.bookmakers),
             "markets": ODDS_MARKETS,
         }
+        if books:
+            params["bookmakers"] = ",".join(books)
         data = self._get("/odds/multi", params)
         if isinstance(data, list):
             return data
         if isinstance(data, dict):
-            # Some gateways wrap a single event
             return [data]
         raise OddsApiIoError(f"Unexpected /odds/multi response: {type(data)}")
 
@@ -474,6 +511,41 @@ def _is_future_kickoff(kickoff: datetime, *, grace_seconds: int = 60) -> bool:
     if kickoff.tzinfo is None:
         kickoff = kickoff.replace(tzinfo=timezone.utc)
     return kickoff.timestamp() > now.timestamp() - grace_seconds
+
+
+def _dedupe_event_payloads(payloads: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    out: list[dict] = []
+    for payload in payloads:
+        if not isinstance(payload, dict):
+            continue
+        eid = str(payload.get("id") or "")
+        if not eid or eid in seen:
+            continue
+        seen.add(eid)
+        out.append(payload)
+    return out
+
+
+def _pending_event_to_fixture(event: dict) -> FixtureMatch | None:
+    """Map pending odds-api.io event → SCHEDULED FixtureMatch."""
+    event_id = event.get("id")
+    if event_id is None:
+        return None
+    league = event.get("league") or {}
+    if not isinstance(league, dict):
+        league = {}
+    code, name = _league_code(league.get("slug"), league.get("name"))
+    return FixtureMatch(
+        external_id=str(event_id),
+        provider="odds-api-io",
+        competition_code=code,
+        competition_name=name,
+        home_team=str(event.get("home") or "TBD"),
+        away_team=str(event.get("away") or "TBD"),
+        kickoff_at=_parse_dt(event.get("date")),
+        status="SCHEDULED",
+    )
 
 
 def _future_events_only(events: list[dict]) -> list[dict]:
