@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 
-import { fetchPublicAppConfig } from '../api/appConfig';
 import {
   formatSurebetPlan,
   scanSurebets,
@@ -39,7 +38,7 @@ type Props = {
 export function ArbitragePanel({ onFlash }: Props) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [opps, setOpps] = useState<ArbOpportunity[]>([]);
-  const [booksLabel, setBooksLabel] = useState('your books');
+  const [booksScanned, setBooksScanned] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [statusBad, setStatusBad] = useState(false);
@@ -55,10 +54,8 @@ export function ArbitragePanel({ onFlash }: Props) {
     try {
       const s = await loadSettings();
       setSettings(s);
-      const cfg = await fetchPublicAppConfig().catch(() => null);
-      const names = cfg?.odds_bookmakers?.map((b) => bookLabel(b)).join(' + ') || 'SportyBet + 1xBet';
-      setBooksLabel(names);
       const data = await scanSurebets({ sample_stake_ngn: s.bankroll });
+      setBooksScanned(data.books_scanned || []);
       setOpps(data.opportunities || []);
       flash(
         data.opportunities?.length
@@ -83,6 +80,7 @@ export function ArbitragePanel({ onFlash }: Props) {
           await syncOdds();
         }
         const data = await scanSurebets({ sample_stake_ngn: s.bankroll });
+        setBooksScanned(data.books_scanned || []);
         setOpps(data.opportunities || []);
         flash(
           data.opportunities?.length
@@ -115,6 +113,9 @@ export function ArbitragePanel({ onFlash }: Props) {
   const bestProfit = opps.length
     ? Math.max(...opps.map((o) => Number(o.profit_pct) || 0))
     : 0;
+  const scannedLabel = booksScanned.length
+    ? booksScanned.map((b) => bookLabel(b)).join(' · ')
+    : 'none yet — sync odds on Today';
 
   return (
     <ScrollView
@@ -134,9 +135,11 @@ export function ArbitragePanel({ onFlash }: Props) {
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>Surebet scanner</Text>
         <Text style={styles.heroText}>
-          Scans 1X2 across {booksLabel}. Tap Find surebets to sync fresh odds first. For more
-          edges, add books in ODDS_API_IO_BOOKMAKERS (e.g. Bet365, Pinnacle, Betway, Marathonbet
-          alongside SportyBet and 1xBet) — more books = more overlap.
+          Scans every bookmaker with fresh 1X2 odds in your database — best Home, Draw, and Away
+          price can come from different books. Sync odds on Today first, then Find surebets here.
+        </Text>
+        <Text style={styles.booksScanned}>
+          Books in scan: {scannedLabel}
         </Text>
       </View>
 
@@ -194,6 +197,11 @@ export function ArbitragePanel({ onFlash }: Props) {
 
 function ArbCard({ opp, onCopy }: { opp: ArbOpportunity; onCopy: () => void }) {
   const legs = opp.sample_legs?.length ? opp.sample_legs : opp.legs || [];
+  const booksUsed =
+    opp.books_used?.length
+      ? opp.books_used
+      : [...new Set(legs.map((l) => String(l.bookmaker).toLowerCase()))];
+
   return (
     <View style={styles.card}>
       <View style={styles.cardHead}>
@@ -205,6 +213,11 @@ function ArbCard({ opp, onCopy }: { opp: ArbOpportunity; onCopy: () => void }) {
             {opp.competition_code}
             {opp.kickoff_at ? ` · ${new Date(opp.kickoff_at).toLocaleString()}` : ''}
           </Text>
+          {booksUsed.length ? (
+            <Text style={styles.booksUsedLine}>
+              Place on: {booksUsed.map((b) => bookLabel(b)).join(' · ')}
+            </Text>
+          ) : null}
         </View>
         <View style={styles.profitBadge}>
           <Text style={styles.profitText}>{Number(opp.profit_pct).toFixed(2)}%</Text>
@@ -212,9 +225,11 @@ function ArbCard({ opp, onCopy }: { opp: ArbOpportunity; onCopy: () => void }) {
       </View>
       {legs.map((leg: ArbLeg, i: number) => (
         <View key={`${leg.bookmaker}-${leg.selection}-${i}`} style={styles.legRow}>
-          <Text style={styles.legSel}>{selLabel(leg.selection)}</Text>
+          <View style={styles.legMain}>
+            <Text style={styles.legSel}>{selLabel(leg.selection)}</Text>
+            <Text style={styles.legBookPill}>{bookLabel(leg.bookmaker)}</Text>
+          </View>
           <Text style={styles.legOdds}>@{leg.odds}</Text>
-          <Text style={styles.legBook}>{bookLabel(leg.bookmaker)}</Text>
           {leg.stake_ngn != null ? (
             <Text style={styles.legStake}>₦{Number(leg.stake_ngn).toLocaleString()}</Text>
           ) : null}
@@ -240,6 +255,13 @@ const styles = StyleSheet.create({
   },
   heroTitle: { color: colors.ink, fontWeight: '800', fontSize: 17 },
   heroText: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 6 },
+  booksScanned: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 10,
+    lineHeight: 17,
+  },
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   stat: {
     flex: 1,
@@ -297,6 +319,13 @@ const styles = StyleSheet.create({
   cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
   cardTitle: { color: colors.ink, fontWeight: '700', fontSize: 15 },
   cardMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  booksUsedLine: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 6,
+    lineHeight: 16,
+  },
   profitBadge: {
     backgroundColor: colors.accentDim,
     borderRadius: 8,
@@ -309,11 +338,22 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
-  legSel: { color: colors.ink, fontWeight: '600', fontSize: 13 },
+  legMain: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 120 },
+  legSel: { color: colors.ink, fontWeight: '700', fontSize: 13 },
+  legBookPill: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    backgroundColor: colors.accentDim,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
   legOdds: { color: colors.accent, fontWeight: '700', fontSize: 13 },
   legBook: { color: colors.muted, fontSize: 12 },
   legStake: { color: colors.ink, fontSize: 12, marginLeft: 'auto' },
