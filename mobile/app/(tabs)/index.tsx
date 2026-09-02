@@ -28,7 +28,7 @@ import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import { formatConfidencePct } from '../../src/lib/marketLean';
 import { setMatchCache } from '../../src/store/matchCache';
-import { isTipLogged, markTipsLogged, subscribeLoggedTips } from '../../src/store/loggedTips';
+import { isTipLogged, initLoggedTips, markTipsLogged, subscribeLoggedTips } from '../../src/store/loggedTips';
 import {
   clearSelection,
   getSelectedCount,
@@ -61,6 +61,17 @@ function kickoffLabel(iso?: string | null) {
   });
 }
 
+function loggedPickStyle(logged: boolean) {
+  if (!logged) return null;
+  return isWeb
+    ? ({
+        color: colors.muted,
+        textDecorationLine: 'line-through',
+        textDecorationStyle: 'solid',
+      } as const)
+    : styles.tipTitleLogged;
+}
+
 function dedupePicks(picks: TipPick[]): TipPick[] {
   const seen = new Set<string>();
   const out: TipPick[] = [];
@@ -87,10 +98,10 @@ export default function TodayScreen() {
   const [busy, setBusy] = useState(false);
   const [selectedN, setSelectedN] = useState(0);
   const [asMulti, setAsMulti] = useState(true);
-  const [, setLoggedRev] = useState(0);
+  const [loggedRev, setLoggedRev] = useState(0);
 
   useEffect(() => {
-    void initSelection();
+    void Promise.all([initSelection(), initLoggedTips()]);
   }, []);
 
   useEffect(() => subscribeSelection(() => setSelectedN(getSelectedCount())), []);
@@ -120,8 +131,9 @@ export default function TodayScreen() {
   }, [filteredPicks, filter]);
 
   const visibleMatches = useMemo(() => {
-    if (filter === 'all') return matches;
-    return matches.filter((m) => (picksByMatch[m.id] || []).length > 0);
+    const withTips = matches.filter((m) => (picksByMatch[m.id] || []).length > 0);
+    if (filter === 'all') return withTips;
+    return withTips;
   }, [matches, picksByMatch, filter]);
 
   const loadScans = useCallback(async (s: AppSettings, books: string[]) => {
@@ -491,6 +503,7 @@ export default function TodayScreen() {
                   tips.map((p) => {
                     const on = isTipSelected(p);
                     const logged = isTipLogged(p);
+                    void loggedRev;
                     return (
                       <Pressable
                         key={tipKey(p)}
@@ -506,7 +519,7 @@ export default function TodayScreen() {
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text
-                            style={[styles.tipTitle, logged && styles.tipTitleLogged]}
+                            style={[styles.tipTitle, loggedPickStyle(logged)]}
                             numberOfLines={2}
                           >
                             {marketLabel(p.market)} · {String(p.selection).toUpperCase()}
