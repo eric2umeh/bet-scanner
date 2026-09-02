@@ -293,17 +293,15 @@ export default function TipsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!needsSignIn) {
-        void statsQuery.refetch();
-      }
-      if (needsSignIn || tab !== 'active') return;
+      if (needsSignIn) return;
+      void statsQuery.refetch();
 
       let cancelled = false;
       (async () => {
         try {
           let data = await autoSettleTips({ refreshScores: false });
           if (cancelled) return;
-          if (await shouldRunScoreRefresh()) {
+          if (tab === 'active' && (await shouldRunScoreRefresh())) {
             data = await autoSettleTips({ refreshScores: true });
             await markScoreRefreshRan();
           }
@@ -312,7 +310,11 @@ export default function TipsScreen() {
             await invalidateTipsCache();
             await statsQuery.refetch();
             await loadPage(pageIndex);
-            if (data.message) setStatus(data.message);
+            setStatus(
+              changed > 0
+                ? `${data.message || 'Tips settled'} — check History for results.`
+                : data.message || ''
+            );
           }
         } catch {
           /* background settle — manual button still available */
@@ -394,6 +396,28 @@ export default function TipsScreen() {
     if (!ok) return;
     try {
       await deleteTip(tipId);
+      await reloadAll();
+    } catch (e) {
+      await modal.alert({
+        title: 'Delete failed',
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  async function onDeleteSlip(legs: TipOut[]) {
+    const label = `${legs.length}-leg multi · ${bookLabel(legs[0]?.bookmaker || '')}`;
+    const ok = await modal.confirm({
+      title: 'Remove multi',
+      message: `Delete ${label}? All ${legs.length} legs will be removed.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      for (const leg of legs) {
+        await deleteTip(leg.id);
+      }
       await reloadAll();
     } catch (e) {
       await modal.alert({
@@ -493,7 +517,9 @@ export default function TipsScreen() {
         </View>
 
         <Text style={styles.muted}>
-          Swipe a card left to delete. Use pagination below — default 10 per page (one API call per page).
+          {tab === 'active'
+            ? 'Active = bets still in play. When a match ends, tips auto-settle and move to History. Swipe left to delete (or use Delete on web).'
+            : 'History = settled tips (won, lost, or void). Swipe left to delete (or use Delete on web).'}
         </Text>
         {status ? <Text style={styles.status}>{status}</Text> : null}
 
@@ -622,7 +648,11 @@ export default function TipsScreen() {
                 .sort()[0];
 
               return (
-                <View key={slipId} style={{ marginTop: 12 }}>
+                <SwipeableRow
+                  key={slipId}
+                  style={{ marginTop: 12 }}
+                  onDelete={() => void onDeleteSlip(legs)}
+                >
                   <View style={styles.cardInner}>
                     <Pressable
                       accessibilityRole="button"
@@ -668,12 +698,20 @@ export default function TipsScreen() {
                             {tab === 'active' ? (
                               <SettleButtons tipId={leg.id} current={leg.result} compact />
                             ) : null}
+                            <Pressable
+                              style={styles.legDeleteBtn}
+                              onPress={() =>
+                                void onDelete(leg.id, `${leg.home_team} vs ${leg.away_team}`)
+                              }
+                            >
+                              <Text style={styles.legDeleteText}>Delete leg</Text>
+                            </Pressable>
                           </View>
                         ))}
                       </View>
                     ) : null}
                   </View>
-                </View>
+                </SwipeableRow>
               );
             })}
 
@@ -701,6 +739,12 @@ export default function TipsScreen() {
                     {' · '}stake ₦{t.stake_ngn ?? '—'}
                   </Text>
                   {tab === 'active' ? <SettleButtons tipId={t.id} current={t.result} /> : null}
+                  <Pressable
+                    style={[styles.cardDeleteBtn, Platform.OS !== 'web' && styles.cardDeleteBtnNative]}
+                    onPress={() => void onDelete(t.id, `${t.home_team} vs ${t.away_team}`)}
+                  >
+                    <Text style={styles.cardDeleteText}>Delete</Text>
+                  </Pressable>
                 </View>
               </SwipeableRow>
             ))}
@@ -861,6 +905,19 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   legResultPillCompact: { paddingHorizontal: 5, paddingVertical: 1 },
+  legDeleteBtn: { marginTop: 8, alignSelf: 'flex-start' },
+  legDeleteText: { color: colors.bad, fontSize: 12, fontWeight: '600' },
+  cardDeleteBtn: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.bad,
+  },
+  cardDeleteBtnNative: { display: 'none' },
+  cardDeleteText: { color: colors.bad, fontSize: 12, fontWeight: '700' },
   youthHint: { color: colors.warn, fontSize: 11, marginTop: 4, lineHeight: 15 },
   leanNote: {
     color: colors.muted,
