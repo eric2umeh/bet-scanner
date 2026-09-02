@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { pingHealth } from '../../src/api/client';
-import { fetchTodayMatches } from '../../src/api/matches';
+import { fetchTodayMatches, syncFixtures } from '../../src/api/matches';
 import { syncOdds } from '../../src/api/odds';
 import { scanGoalMarkets } from '../../src/api/predictions';
 import { scanSafeBuilder } from '../../src/api/safe';
@@ -181,6 +181,59 @@ export default function TodayScreen() {
   }, []);
 
 
+  async function onLoadRealBets() {
+    setBusy(true);
+    setStatus('Load real bets: syncing SportyBet / Bet9ja odds…');
+    try {
+      const s = settings || (await loadSettings());
+      if (!settings) setSettings(s);
+      const sync = await syncOdds();
+      const today = await fetchTodayMatches();
+      setMatches(today);
+      const { n, picks: all } = await loadScans(s);
+      setMatchCache(today, all);
+      const line = `${sync.message || 'Odds synced'} · ${today.length} match(es) today · ${n} tip(s).`;
+      setStatus(line);
+      await modal.alert({
+        title: 'Load real bets',
+        message: today.length
+          ? `${line}\n\nIf tips are still 0, odds may not fit Safe rules yet.`
+          : `${sync.message || 'Odds synced'}\n\n0 matches today — tap Sync fixtures first (match list is empty on the server).`,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus(msg);
+      await modal.alert({ title: 'Load real bets failed', message: msg });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSyncFixtures() {
+    setBusy(true);
+    setStatus('Syncing today\'s fixture list…');
+    try {
+      const result = await syncFixtures();
+      const today = await fetchTodayMatches();
+      setMatches(today);
+      const s = settings || (await loadSettings());
+      if (!settings) setSettings(s);
+      const { n, picks: all } = await loadScans(s);
+      setMatchCache(today, all);
+      setStatus(`${result.message} · ${today.length} match(es) · ${n} tip(s)`);
+      await modal.alert({
+        title: 'Fixtures synced',
+        message: `${result.message}\n${today.length} match(es) left today (future kickoffs only).`,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus(msg);
+      await modal.alert({ title: 'Sync fixtures failed', message: msg });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onLogSelected() {
     const tips = getSelectedTips();
     if (!tips.length) {
@@ -267,6 +320,26 @@ export default function TodayScreen() {
           Pull down or tap ↻ to sync odds & rescan · tick same-book legs → Log selected.
         </Text>
 
+        <View style={styles.actionRow}>
+          <Pressable
+            style={[styles.btn, styles.actionBtn, busy && styles.btnDisabled]}
+            onPress={() => void onLoadRealBets()}
+            disabled={busy}
+          >
+            <Text style={styles.btnText}>Load real bets</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.btnSecondary, styles.actionBtn, busy && styles.btnDisabled]}
+            onPress={() => void onSyncFixtures()}
+            disabled={busy}
+          >
+            <Text style={styles.btnSecondaryText}>Sync fixtures</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.actionHint}>
+          Fixtures = match list from football calendars. Load real bets = SportyBet/Bet9ja odds only.
+        </Text>
+
         {busy && !matches.length ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
         ) : null}
@@ -284,7 +357,8 @@ export default function TodayScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No matches yet</Text>
             <Text style={styles.staleText}>
-              Pull down to sync odds and load today&apos;s matches.
+              The server has no future kickoffs for today. Tap Sync fixtures, then Load real bets
+              for odds. Or run Morning update in Me.
             </Text>
           </View>
         ) : null}
@@ -419,6 +493,23 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 6,
     marginBottom: 4,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  actionBtn: {
+    flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  actionHint: {
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 8,
   },
   btn: {
     backgroundColor: colors.accent,
