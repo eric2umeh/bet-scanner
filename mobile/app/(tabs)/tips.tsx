@@ -43,6 +43,8 @@ import { webScrollBottom } from '../../src/theme/webScroll';
 type TipsTab = 'active' | 'history';
 type MarketFilter = 'all' | 'double_chance' | '1x2' | 'ou_2_5' | 'btts';
 
+const isWeb = Platform.OS === 'web';
+
 const SETTLE_OPTS: { value: string; label: string }[] = [
   { value: 'won', label: 'Won' },
   { value: 'lost', label: 'Lost' },
@@ -137,7 +139,7 @@ function loggedWhen(t: TipOut): string {
 }
 
 function WebDeleteButton({ onPress, label = 'Delete' }: { onPress: () => void; label?: string }) {
-  if (Platform.OS !== 'web') return null;
+  if (!isWeb) return null;
   return (
     <Pressable
       style={styles.webHeaderDelete}
@@ -146,6 +148,15 @@ function WebDeleteButton({ onPress, label = 'Delete' }: { onPress: () => void; l
       accessibilityLabel={label}
     >
       <Text style={styles.webHeaderDeleteText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function WebDeleteBar({ onPress, label = 'Delete tip' }: { onPress: () => void; label?: string }) {
+  if (!isWeb) return null;
+  return (
+    <Pressable style={styles.webDeleteBar} onPress={onPress} accessibilityRole="button">
+      <Text style={styles.webDeleteBarText}>{label}</Text>
     </Pressable>
   );
 }
@@ -665,7 +676,6 @@ export default function TipsScreen() {
                 <SwipeableRow
                   key={slipId}
                   style={{ marginTop: 12 }}
-                  showDeleteOnWeb={false}
                   onDelete={() => void onDeleteSlip(legs)}
                 >
                   <View style={styles.cardInner}>
@@ -731,6 +741,10 @@ export default function TipsScreen() {
                         ))}
                       </View>
                     ) : null}
+                    <WebDeleteBar
+                      label="Delete entire slip"
+                      onPress={() => void onDeleteSlip(legs)}
+                    />
                   </View>
                 </SwipeableRow>
               );
@@ -740,7 +754,6 @@ export default function TipsScreen() {
               <SwipeableRow
                 key={t.id}
                 style={{ marginTop: 12 }}
-                showDeleteOnWeb={false}
                 onDelete={() => onDelete(t.id, `${t.home_team} vs ${t.away_team}`)}
               >
                 <View style={styles.cardInner}>
@@ -766,6 +779,9 @@ export default function TipsScreen() {
                     {' · '}stake ₦{t.stake_ngn ?? '—'}
                   </Text>
                   {tab === 'active' ? <SettleButtons tipId={t.id} current={t.result} /> : null}
+                  <WebDeleteBar
+                    onPress={() => void onDelete(t.id, `${t.home_team} vs ${t.away_team}`)}
+                  />
                 </View>
               </SwipeableRow>
             ))}
@@ -911,6 +927,14 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   webHeaderDeleteText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  webDeleteBar: {
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.bad,
+    alignItems: 'center',
+  },
+  webDeleteBarText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   multiHeader: { cursor: 'pointer' as const },
   collapsedHint: { color: colors.muted, fontSize: 11, marginTop: 6 },
   pickBox: { marginTop: 8 },
