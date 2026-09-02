@@ -55,7 +55,7 @@ def build_decision_brief(
         settings,
         min_profit_pct=Decimal("0.01"),
         sample_stake_ngn=bankroll_ngn,
-        allowed_bookmakers={"sportybet", "bet9ja"},
+        allowed_bookmakers=None,
     )
 
     safe_picks = list(safe.get("picks") or [])[:5]
