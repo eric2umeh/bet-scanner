@@ -80,9 +80,11 @@ def sync_matches(
     """
     Pull fixtures from every provider listed in FIXTURE_PROVIDERS.
 
-    Current free providers:
-      - football-data  (big leagues calendar)
-      - api-football   (today + tomorrow)
+    Default:
+      - odds-api-io   → pending SportyBet/Bet9ja events
+    Optional:
+      - football-data → big leagues calendar
+      - api-football  → when API_FOOTBALL_ENABLED=true
     """
     try:
         result = sync_matches_for_today(db, settings)
