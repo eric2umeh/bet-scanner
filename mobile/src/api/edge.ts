@@ -1,5 +1,4 @@
 import { getJson, postJson } from './client';
-import { fetchPublicAppConfig } from './appConfig';
 
 export type ValuePick = {
   match_id: number;
@@ -56,6 +55,7 @@ export type ArbOpportunity = {
   profit_pct: number | string;
   implied_sum?: number | string;
   legs: ArbLeg[];
+  books_used?: string[];
   sample_total_stake_ngn: number | string;
   sample_profit_ngn: number | string;
   sample_legs: ArbLeg[];
@@ -66,6 +66,7 @@ export type ArbScanResponse = {
   count: number;
   min_profit_pct: number | string;
   max_odds_age_minutes: number;
+  books_scanned?: string[];
   opportunities: ArbOpportunity[];
   message: string;
 };
@@ -80,51 +81,29 @@ export type LogScanResponse = {
   stake_plans?: string[];
 };
 
-let cachedBooks: string | null = null;
-
-async function scanBookmakers(): Promise<string> {
-  if (cachedBooks) return cachedBooks;
-  try {
-    const cfg = await fetchPublicAppConfig();
-    if (cfg.odds_bookmakers?.length) {
-      cachedBooks = cfg.odds_bookmakers.join(',');
-      return cachedBooks;
-    }
-  } catch {
-    /* fallback */
-  }
-  cachedBooks = 'sportybet,onexbet';
-  return cachedBooks;
-}
-
-export async function scanValue(opts: { bankroll_ngn: number; unit_pct: number }) {
-  const books = await scanBookmakers();
+/** Scan all bookmakers with fresh 1X2 odds in the DB (no book filter). */
+export function scanSurebets(opts: { sample_stake_ngn: number }) {
   const q = new URLSearchParams({
-    bookmakers: books,
-    bankroll_ngn: String(opts.bankroll_ngn),
-    unit_pct: String(opts.unit_pct),
-  });
-  return getJson<ValueScanResponse>(`/value/scan?${q}`);
-}
-
-export async function scanSurebets(opts: { sample_stake_ngn: number }) {
-  const books = await scanBookmakers();
-  const q = new URLSearchParams({
-    bookmakers: books,
     min_profit_pct: '0.01',
     sample_stake_ngn: String(opts.sample_stake_ngn),
   });
   return getJson<ArbScanResponse>(`/arbitrage/scan?${q}`);
 }
 
-export async function logValueScan(opts: {
+export async function scanValue(opts: { bankroll_ngn: number; unit_pct: number }) {
+  const q = new URLSearchParams({
+    bankroll_ngn: String(opts.bankroll_ngn),
+    unit_pct: String(opts.unit_pct),
+  });
+  return getJson<ValueScanResponse>(`/value/scan?${q}`);
+}
+
+export function logValueScan(opts: {
   bankroll_ngn: number;
   unit_pct: number;
   notify_telegram?: boolean;
 }) {
-  const bookmakers = await scanBookmakers();
   return postJson<LogScanResponse>('/tips/log-value-scan', {
-    bookmakers,
     bankroll_ngn: opts.bankroll_ngn,
     unit_pct: opts.unit_pct,
     log_tips: true,
@@ -132,13 +111,12 @@ export async function logValueScan(opts: {
   });
 }
 
-export async function logSurebetScan(opts: {
+export function logSurebetScan(opts: {
   bankroll_ngn: number;
   notify_telegram?: boolean;
 }) {
-  const bookmakers = await scanBookmakers();
   return postJson<LogScanResponse>('/tips/log-arbitrage-scan', {
-    bookmakers,
+    bankmakers: '',
     bankroll_ngn: opts.bankroll_ngn,
     min_profit_pct: '0.01',
     log_tips: true,
@@ -152,9 +130,13 @@ export function formatSurebetPlan(opp: ArbOpportunity): string {
       `${l.bookmaker} ${l.selection} @${l.odds} → ₦${l.stake_ngn}` +
       (l.potential_return_ngn != null ? ` (ret ₦${l.potential_return_ngn})` : '')
   );
+  const books = opp.books_used?.length
+    ? `Books: ${opp.books_used.join(', ')}`
+    : '';
   return [
     `${opp.home_team} vs ${opp.away_team}`,
     `Profit ~${opp.profit_pct}% · sample ₦${opp.sample_profit_ngn} on ₦${opp.sample_total_stake_ngn}`,
+    books,
     ...legs,
     opp.warning ? `Note: ${opp.warning}` : '',
   ]
