@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Dimensions,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -32,12 +35,39 @@ type Props = {
   busy?: boolean;
 };
 
+type FabEdge = 'left' | 'right';
+
+type FabPos = {
+  edge: FabEdge;
+  bottom: number;
+};
+
+const FAB_SIZE = 56;
+const FAB_MARGIN = 16;
+const POS_KEY = 'bet_slip_fab_pos_v1';
+const DRAG_THRESHOLD = 10;
+const isWeb = Platform.OS === 'web';
+
+function defaultBottom(insetsBottom: number): number {
+  const tabClearance = isWeb ? WEB_TAB_BAR_HEIGHT + 12 : 72;
+  return Math.max(insetsBottom, 0) + tabClearance;
+}
+
 export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
   const insets = useSafeAreaInsets();
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [tips, setTips] = useState<TipPick[]>([]);
   const [combo, setCombo] = useState(0);
+  const [pos, setPos] = useState<FabPos>(() => ({
+    edge: 'right',
+    bottom: defaultBottom(insets.bottom),
+  }));
+  const dragY = useRef(0);
+  const moved = useRef(false);
+  const startPos = useRef<FabPos | null>(null);
+  const posRef = useRef(pos);
+  posRef.current = pos;
 
   useEffect(
     () =>
@@ -49,24 +79,89 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
     []
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(POS_KEY);
+        if (!raw || cancelled) return;
+        const saved = JSON.parse(raw) as FabPos;
+        if (saved?.edge && typeof saved.bottom === 'number') {
+          setPos({ edge: saved.edge, bottom: Math.max(defaultBottom(insets.bottom), saved.bottom) });
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [insets.bottom]);
+
+  const savePos = useCallback(async (next: FabPos) => {
+    setPos(next);
+    await AsyncStorage.setItem(POS_KEY, JSON.stringify(next));
+  }, []);
+
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > DRAG_THRESHOLD || Math.abs(g.dy) > DRAG_THRESHOLD,
+      onPanResponderGrant: () => {
+        moved.current = false;
+        startPos.current = { ...posRef.current };
+        dragY.current = 0;
+      },
+      onPanResponderMove: (_, g) => {
+        if (Math.abs(g.dx) > DRAG_THRESHOLD || Math.abs(g.dy) > DRAG_THRESHOLD) {
+          moved.current = true;
+        }
+        dragY.current = g.dy;
+        const base = startPos.current?.bottom ?? defaultBottom(insets.bottom);
+        const maxBottom =
+          Dimensions.get('window').height - FAB_SIZE - FAB_MARGIN - (isWeb ? WEB_TAB_BAR_HEIGHT : 0);
+        const minBottom = defaultBottom(insets.bottom);
+        setPos((p) => ({
+          ...p,
+          bottom: Math.min(maxBottom, Math.max(minBottom, base - g.dy)),
+        }));
+      },
+      onPanResponderRelease: (_, g) => {
+        const nextEdge: FabEdge = g.moveX > Dimensions.get('window').width / 2 ? 'right' : 'left';
+        const base = startPos.current?.bottom ?? defaultBottom(insets.bottom);
+        const maxBottom =
+          Dimensions.get('window').height - FAB_SIZE - FAB_MARGIN - (isWeb ? WEB_TAB_BAR_HEIGHT : 0);
+        const minBottom = defaultBottom(insets.bottom);
+        const nextBottom = Math.min(maxBottom, Math.max(minBottom, base - g.dy));
+        void savePos({ edge: nextEdge, bottom: nextBottom });
+        if (!moved.current) setOpen(true);
+        moved.current = false;
+        dragY.current = 0;
+      },
+    })
+  ).current;
+
   if (count === 0) return null;
 
-  const tabClearance = Platform.OS === 'web' ? WEB_TAB_BAR_HEIGHT + 12 : 72;
-  const fabBottom = Math.max(insets.bottom, 0) + tabClearance;
+  const fabSide = pos.edge === 'right' ? { right: FAB_MARGIN } : { left: FAB_MARGIN };
 
   return (
     <>
-      <Pressable
-        style={[styles.fab, { bottom: fabBottom }]}
-        onPress={() => setOpen(true)}
+      <View
+        style={[styles.fabHost, fabSide, { bottom: pos.bottom }]}
+        {...pan.panHandlers}
         accessibilityRole="button"
-        accessibilityLabel={`${count} tips selected`}
+        accessibilityLabel={`${count} tips selected. Drag to move.`}
       >
-        <View style={styles.fabBadge}>
-          <Text style={styles.fabBadgeText}>{count}</Text>
+        <View style={styles.fab}>
+          <View style={styles.fabBadge}>
+            <Text style={styles.fabBadgeText}>{count}</Text>
+          </View>
+          <Text style={styles.fabOdds}>{combo > 1 ? combo.toFixed(2) : '—'}</Text>
         </View>
-        <Text style={styles.fabOdds}>{combo > 1 ? combo.toFixed(2) : '—'}</Text>
-      </Pressable>
+        <Text style={styles.dragHint}>Tap · drag to edge</Text>
+      </View>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
@@ -140,13 +235,15 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
   );
 }
 
-const FAB_SIZE = 56;
-const isWeb = Platform.OS === 'web';
-
 const styles = StyleSheet.create({
+  fabHost: {
+    position: 'absolute',
+    zIndex: 99999,
+    alignItems: 'center',
+    // @ts-expect-error RN web
+    ...(isWeb ? { position: 'fixed' } : null),
+  },
   fab: {
-    position: isWeb ? ('fixed' as 'absolute') : 'absolute',
-    right: 16,
     width: FAB_SIZE,
     height: FAB_SIZE,
     borderRadius: FAB_SIZE / 2,
@@ -158,7 +255,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45,
     shadowRadius: 8,
-    zIndex: 9999,
   },
   fabBadge: {
     position: 'absolute',
@@ -174,6 +270,14 @@ const styles = StyleSheet.create({
   },
   fabBadgeText: { color: '#06241c', fontWeight: '800', fontSize: 12 },
   fabOdds: { color: '#06241c', fontWeight: '800', fontSize: 13 },
+  dragHint: {
+    marginTop: 4,
+    color: colors.muted,
+    fontSize: 9,
+    fontWeight: '600',
+    textAlign: 'center',
+    maxWidth: 72,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.55)',
