@@ -104,10 +104,12 @@ const styles = StyleSheet.create({
   },
   deleteText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   foreground: { backgroundColor: colors.card },
-  webRow: { flexDirection: 'row', alignItems: 'stretch' },
+  webRow: { flexDirection: 'row', alignItems: 'stretch', width: '100%' },
   webContent: { flex: 1, minWidth: 0 },
   webDeleteBtn: {
     width: DELETE_WIDTH,
+    flexShrink: 0,
+    alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.bad,
