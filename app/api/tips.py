@@ -352,7 +352,7 @@ def log_value_scan(
 
 @router.get("", response_model=TipListResponse)
 def list_tips_endpoint(
-    result: str | None = Query(default=None, description="pending|won|lost|void"),
+    result: str | None = Query(default=None, description="pending|won|lost|void|settled"),
     source: str | None = Query(
         default=None,
         description="safe_builder|manual|arbitrage|value",
