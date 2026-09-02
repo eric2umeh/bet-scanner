@@ -22,6 +22,7 @@ import httpx
 
 from app.config import Settings
 from app.providers.base import FixtureMatch, OddQuote
+from app.services.bookmakers import api_book_query_name, normalize_book_key
 from app.services.match_status import normalize_match_status
 from app.services.ng_market_filters import market_block_is_active, selection_price_active
 
@@ -240,6 +241,7 @@ class OddsApiIoProvider:
 
         per_book: list[list[dict]] = []
         for book in self.bookmakers:
+            api_book = api_book_query_name(book)
             data = self._get(
                 "/events",
                 {
@@ -247,7 +249,7 @@ class OddsApiIoProvider:
                     "sport": "football",
                     "status": status,
                     "limit": self.event_limit,
-                    "bookmaker": book,
+                    "bookmaker": api_book,
                 },
             )
             if not isinstance(data, list):
@@ -319,7 +321,7 @@ class OddsApiIoProvider:
             "markets": ODDS_MARKETS,
         }
         if books:
-            params["bookmakers"] = ",".join(books)
+            params["bookmakers"] = ",".join(api_book_query_name(b) for b in books)
         data = self._get("/odds/multi", params)
         if isinstance(data, list):
             return data
@@ -479,8 +481,8 @@ def _dec(raw) -> Decimal | None:
 
 
 def _normalize_book(name: str) -> str:
-    """SportyBet → sportybet (matches our arb / glossary style)."""
-    return name.strip().lower().replace(" ", "")
+    """SportyBet → sportybet; 1xBet → onexbet."""
+    return normalize_book_key(name)
 
 
 def _league_code(slug: str | None, name: str | None) -> tuple[str, str]:
