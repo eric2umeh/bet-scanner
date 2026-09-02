@@ -74,12 +74,12 @@ class OddsApiIoProvider:
         """
         Finished + cancelled football events (scores + status for auto-settle).
 
-        One request: GET /events?status=settled,cancelled
+        One request: GET /events?status=settled
         """
         params = {
             "apiKey": self.api_key,
             "sport": "football",
-            "status": "settled,cancelled",
+            "status": "settled",
             "from": _format_rfc3339(from_dt),
             "to": _format_rfc3339(to_dt),
             "limit": 5000,
