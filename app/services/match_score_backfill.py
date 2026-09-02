@@ -189,19 +189,20 @@ def _fetch_finished_fixtures(
         except Exception as exc:  # noqa: BLE001
             notes.append(f"odds-api.io: {exc}")
 
-    try:
-        provider = ApiFootballProvider(settings)
-        fixtures = provider.fetch_for_dates(sorted(dates), all_leagues=True)
-        finished = _finished_candidates(fixtures)
-        if finished:
-            if notes:
-                notes.append("Used API-Football after odds-api.io had no rows.")
-            return finished, "api-football", notes
-        notes.append("API-Football returned no finished fixtures for those dates.")
-    except ApiFootballError as exc:
-        notes.append(f"API-Football: {exc}")
-    except Exception as exc:  # noqa: BLE001
-        notes.append(f"API-Football: {exc}")
+    if settings.api_football_enabled:
+        try:
+            provider = ApiFootballProvider(settings)
+            fixtures = provider.fetch_for_dates(sorted(dates), all_leagues=True)
+            finished = _finished_candidates(fixtures)
+            if finished:
+                if notes:
+                    notes.append("Used API-Football after odds-api.io had no rows.")
+                return finished, "api-football", notes
+            notes.append("API-Football returned no finished fixtures for those dates.")
+        except ApiFootballError as exc:
+            notes.append(f"API-Football: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            notes.append(f"API-Football: {exc}")
 
     return [], "none", notes
 
