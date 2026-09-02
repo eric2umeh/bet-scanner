@@ -154,12 +154,26 @@ def run_daily_ops(
         telegram_info = send_telegram_message(settings, "\n".join(text_parts))
 
     ok = len(errors) == 0
-    summary = (
-        f"Daily ops {'OK' if ok else 'completed with errors'}: "
-        + ", ".join(
-            f"{s['step']}={'ok' if s.get('ok') else 'fail'}" for s in steps
+
+    def _step_title(step: str) -> str:
+        titles = {
+            "sync_fixtures": "Match list refreshed",
+            "sync_odds": "Odds updated",
+            "auto_settle": "Tips settled",
+            "brief": "Brief ready",
+        }
+        return titles.get(step, step.replace("_", " ").title())
+
+    if ok:
+        summary = "Morning update complete — " + ", ".join(
+            _step_title(s["step"]) for s in steps
         )
-    )
+    else:
+        failed = [s["step"] for s in steps if not s.get("ok")]
+        summary = (
+            "Morning update finished with issues"
+            + (f" ({', '.join(failed)})" if failed else "")
+        )
 
     return {
         "ok": ok,
