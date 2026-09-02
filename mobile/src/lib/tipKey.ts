@@ -22,5 +22,6 @@ export function bookLabel(book: string): string {
   const b = String(book || '').toLowerCase();
   if (b === 'sportybet') return 'SportyBet';
   if (b === 'bet9ja') return 'Bet9ja';
+  if (b === 'onexbet' || b === '1xbet') return '1xBet';
   return book || '—';
 }
