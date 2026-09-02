@@ -13,8 +13,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { pingHealth } from '../../src/api/client';
-import { fetchTodayMatches, fetchUpcomingMatches, syncFixtures } from '../../src/api/matches';
+import { ApiError, pingHealth } from '../../src/api/client';
+import { fetchBettableMatches, syncFixtures } from '../../src/api/matches';
+import { fetchPublicAppConfig } from '../../src/api/appConfig';
 import { syncOdds } from '../../src/api/odds';
 import { scanGoalMarkets } from '../../src/api/predictions';
 import { scanSafeBuilder } from '../../src/api/safe';
@@ -44,16 +45,6 @@ type MarketFilter = 'all' | 'double_chance' | '1x2' | 'ou_2_5' | 'btts';
 
 const isWeb = Platform.OS === 'web';
 const UPCOMING_DAYS = 21;
-
-function mergeMatchLists(today: Match[], upcoming: Match[]): Match[] {
-  const byId = new Map<number, Match>();
-  for (const m of [...today, ...upcoming]) {
-    byId.set(m.id, m);
-  }
-  return Array.from(byId.values()).sort(
-    (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
-  );
-}
 
 function kickoffLabel(iso?: string | null) {
   if (!iso) return '—';
@@ -111,31 +102,51 @@ export default function TodayScreen() {
     return matches.filter((m) => (picksByMatch[m.id] || []).length > 0);
   }, [matches, picksByMatch, filter]);
 
-  const loadScans = useCallback(async (s: AppSettings) => {
+  const loadScans = useCallback(async (s: AppSettings, books: string[]) => {
     const q = {
       pick_market: s.pickMarket,
       bankroll_ngn: s.bankroll,
       unit_pct: s.unitPct,
     };
-    const [sporty, bet9ja, predS, predB] = await Promise.all([
-      scanSafeBuilder({ bookmaker: 'sportybet', ...q }),
-      scanSafeBuilder({ bookmaker: 'bet9ja', ...q }).catch(() => ({ picks: [] as TipPick[] })),
-      scanGoalMarkets({ bookmaker: 'sportybet', bankroll_ngn: s.bankroll, unit_pct: s.unitPct }).catch(
+    const safeCalls = books.map((bookmaker) =>
+      scanSafeBuilder({ bookmaker, ...q }).catch(() => ({ picks: [] as TipPick[] }))
+    );
+    const goalCalls = books.map((bookmaker) =>
+      scanGoalMarkets({ bookmaker, bankroll_ngn: s.bankroll, unit_pct: s.unitPct }).catch(
         () => ({ picks: [] as TipPick[] })
-      ),
-      scanGoalMarkets({ bookmaker: 'bet9ja', bankroll_ngn: s.bankroll, unit_pct: s.unitPct }).catch(
-        () => ({ picks: [] as TipPick[] })
-      ),
-    ]);
-    const all = dedupePicks([
-      ...(sporty.picks || []),
-      ...(bet9ja.picks || []),
-      ...(predS.picks || []),
-      ...(predB.picks || []),
-    ]);
+      )
+    );
+    const results = await Promise.all([...safeCalls, ...goalCalls]);
+    const all = dedupePicks(results.flatMap((r) => r.picks || []));
     setPicks(all);
     return { n: all.length, picks: all };
   }, []);
+
+  const loadMatchList = useCallback(async (books: string[]) => {
+    const bettable = await fetchBettableMatches(UPCOMING_DAYS, books.join(','));
+    return bettable;
+  }, []);
+
+  function enrichMatchesFromPicks(list: Match[], tipList: TipPick[]): Match[] {
+    const byId = new Map(list.map((m) => [m.id, m]));
+    for (const p of tipList) {
+      if (!p.match_id || byId.has(p.match_id)) continue;
+      byId.set(p.match_id, {
+        id: p.match_id,
+        competition_code: p.competition_code || 'UNK',
+        competition_name: p.competition_code || 'Unknown',
+        home_team: p.home_team || 'Home',
+        away_team: p.away_team || 'Away',
+        kickoff_at: p.kickoff_at || new Date().toISOString(),
+        status: 'SCHEDULED',
+        home_score: null,
+        away_score: null,
+      });
+    }
+    return Array.from(byId.values()).sort(
+      (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
+    );
+  }
 
   const refresh = useCallback(
     async (opts?: { withOdds?: boolean }) => {
@@ -145,24 +156,27 @@ export default function TodayScreen() {
         const s = settings || (await loadSettings());
         if (!settings) setSettings(s);
         if (withOdds) {
-          setStatus('Syncing SportyBet / Bet9ja odds…');
+          setStatus('Syncing odds from your books…');
           await syncOdds();
         }
-        const [health, today, upcoming] = await Promise.all([
+        const cfg = await fetchPublicAppConfig();
+        const books = cfg.odds_bookmakers?.length
+          ? cfg.odds_bookmakers
+          : ['sportybet', 'onexbet'];
+        const [health, bettable] = await Promise.all([
           pingHealth().catch(() => null),
-          fetchTodayMatches(),
-          fetchUpcomingMatches(UPCOMING_DAYS),
+          loadMatchList(books),
         ]);
-        const merged = mergeMatchLists(today, upcoming);
+        const { n, picks: all } = await loadScans(s, books);
+        const merged = enrichMatchesFromPicks(bettable, all);
         setMatches(merged);
-        const { n, picks: all } = await loadScans(s);
         setMatchCache(merged, all);
         setStatus(
           merged.length
-            ? `${merged.length} match(es) · ${n} Safe tip(s)${withOdds ? ' · odds updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
+            ? `${merged.length} match(es) with odds · ${n} Safe tip(s)${withOdds ? ' · odds updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
             : withOdds
-              ? 'Odds synced — no upcoming matches yet'
-              : 'No upcoming matches — tap Sync fixtures'
+              ? 'Odds synced — no bettable matches (try Sync fixtures first)'
+              : 'No matches with odds — Sync fixtures, then Load real bets'
         );
       } catch (e) {
         setStatus(e instanceof Error ? e.message : String(e));
@@ -170,7 +184,7 @@ export default function TodayScreen() {
         setBusy(false);
       }
     },
-    [loadScans, settings]
+    [loadScans, loadMatchList, settings]
   );
 
   const onSyncOdds = useCallback(() => {
@@ -196,16 +210,19 @@ export default function TodayScreen() {
 
   async function onLoadRealBets() {
     setBusy(true);
-    setStatus('Load real bets: syncing SportyBet / Bet9ja odds…');
+    setStatus('Load real bets: syncing odds from your books…');
     try {
       const s = settings || (await loadSettings());
       if (!settings) setSettings(s);
+      const cfg = await fetchPublicAppConfig();
+      const books = cfg.odds_bookmakers?.length
+        ? cfg.odds_bookmakers
+        : ['sportybet', 'onexbet'];
       const sync = await syncOdds();
-      const today = await fetchTodayMatches();
-      const upcoming = await fetchUpcomingMatches(UPCOMING_DAYS);
-      const merged = mergeMatchLists(today, upcoming);
+      const { n, picks: all } = await loadScans(s, books);
+      const bettable = await loadMatchList(books);
+      const merged = enrichMatchesFromPicks(bettable, all);
       setMatches(merged);
-      const { n, picks: all } = await loadScans(s);
       setMatchCache(merged, all);
       const line = `${sync.message || 'Odds synced'} · ${merged.length} match(es) · ${n} tip(s).`;
       setStatus(line);
@@ -213,10 +230,15 @@ export default function TodayScreen() {
         title: 'Load real bets',
         message: merged.length
           ? `${line}\n\nIf tips are still 0, odds may not fit Safe rules yet.`
-          : `${sync.message || 'Odds synced'}\n\n0 matches — tap Sync fixtures first (odds-api.io event list).`,
+          : `${sync.message || 'Odds synced'}\n\n0 matches with tips yet — tap Sync fixtures, then try again.`,
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg =
+        e instanceof ApiError && e.status === 401
+          ? `${e.message}\n\nAdd your app access key in Me → Settings (same as APP_API_KEY on the server).`
+          : e instanceof Error
+            ? e.message
+            : String(e);
       setStatus(msg);
       await modal.alert({ title: 'Load real bets failed', message: msg });
     } finally {
@@ -226,21 +248,24 @@ export default function TodayScreen() {
 
   async function onSyncFixtures() {
     setBusy(true);
-    setStatus('Syncing today\'s fixture list…');
+    setStatus("Syncing match list from odds-api.io…");
     try {
       const result = await syncFixtures();
-      const today = await fetchTodayMatches();
-      const upcoming = await fetchUpcomingMatches(UPCOMING_DAYS);
-      const merged = mergeMatchLists(today, upcoming);
-      setMatches(merged);
       const s = settings || (await loadSettings());
       if (!settings) setSettings(s);
-      const { n, picks: all } = await loadScans(s);
+      const cfg = await fetchPublicAppConfig();
+      const books = cfg.odds_bookmakers?.length
+        ? cfg.odds_bookmakers
+        : ['sportybet', 'onexbet'];
+      const bettable = await loadMatchList(books);
+      const { n, picks: all } = await loadScans(s, books);
+      const merged = enrichMatchesFromPicks(bettable, all);
+      setMatches(merged);
       setMatchCache(merged, all);
       setStatus(`${result.message} · ${merged.length} match(es) · ${n} tip(s)`);
       await modal.alert({
         title: 'Fixtures synced',
-        message: `${result.message}\n${merged.length} upcoming match(es) on Today (next ${UPCOMING_DAYS} days).`,
+        message: `${result.message}\n${merged.length} match(es) with odds on Today. Tap Load real bets if odds are stale.`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -354,7 +379,7 @@ export default function TodayScreen() {
           </Pressable>
         </View>
         <Text style={styles.actionHint}>
-          Sync fixtures = odds-api.io match list · Load real bets = SportyBet/Bet9ja odds pull.
+          Sync fixtures = odds-api.io events · Load real bets = fresh SportyBet / 1xBet odds.
         </Text>
 
         {busy && !matches.length ? (
@@ -374,8 +399,8 @@ export default function TodayScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No matches yet</Text>
             <Text style={styles.staleText}>
-              The server has no upcoming matches. Tap Sync fixtures, then Load real bets. Enable
-              SportyBet (and Bet9ja if on your plan) at odds-api.io dashboard.
+              No matches with fresh odds. Sync fixtures → Load real bets. Set SportyBet + 1xBet
+              in root .env (ODDS_API_IO_BOOKMAKERS) and on your odds-api.io dashboard.
             </Text>
           </View>
         ) : null}
