@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { bookLabel, marketLabel } from '../lib/tipKey';
 import { formatMatchTitle } from '../lib/matchDisplay';
+import { WEB_TAB_BAR_HEIGHT } from '../theme/layout';
 import {
   clearSelection,
   combinedSelectionOdds,
@@ -49,10 +51,13 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
 
   if (count === 0) return null;
 
+  const tabClearance = Platform.OS === 'web' ? WEB_TAB_BAR_HEIGHT + 12 : 72;
+  const fabBottom = Math.max(insets.bottom, 0) + tabClearance;
+
   return (
     <>
       <Pressable
-        style={[styles.fab, { bottom: Math.max(insets.bottom, 12) + 8 }]}
+        style={[styles.fab, { bottom: fabBottom }]}
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={`${count} tips selected`}
@@ -136,10 +141,11 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
 }
 
 const FAB_SIZE = 56;
+const isWeb = Platform.OS === 'web';
 
 const styles = StyleSheet.create({
   fab: {
-    position: 'absolute',
+    position: isWeb ? ('fixed' as 'absolute') : 'absolute',
     right: 16,
     width: FAB_SIZE,
     height: FAB_SIZE,
@@ -147,12 +153,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 8,
+    elevation: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    zIndex: 50,
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    zIndex: 9999,
   },
   fabBadge: {
     position: 'absolute',
