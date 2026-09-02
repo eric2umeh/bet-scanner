@@ -10,15 +10,16 @@ Try these in /docs:
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import Match
+from app.models import Match, Odd
 from app.providers.api_football import ApiFootballError
 from app.schemas.match import MatchOut, SyncResult
+from app.services.bookmakers import configured_odds_books, normalize_book_key
 from app.services.football_data import FootballDataError
 from app.services.sync_matches import sync_matches_for_today
 
@@ -67,6 +68,58 @@ def list_upcoming_matches(
     stmt = (
         select(Match)
         .where(Match.kickoff_at >= now, Match.kickoff_at < end)
+        .order_by(Match.kickoff_at.asc())
+    )
+    return list(db.scalars(stmt))
+
+
+@router.get("/bettable", response_model=list[MatchOut])
+def list_bettable_matches(
+    days: int = 21,
+    bookmakers: str | None = Query(
+        None,
+        description="Comma-separated book keys (default: ODDS_API_IO_BOOKMAKERS)",
+    ),
+    max_age_minutes: int | None = Query(
+        None,
+        description="Ignore odds older than this (default: ARB_MAX_ODDS_AGE_MINUTES)",
+    ),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> list[Match]:
+    """
+    Matches that have fresh odds on your NG books — use for the Today tab.
+
+    Only rows linked in the `odds` table count (odds-api.io sync). Calendar
+    fixtures without a recent odds pull will not appear here.
+    """
+    days = max(1, min(days, 60))
+    if bookmakers:
+        books = [normalize_book_key(b) for b in bookmakers.split(",") if b.strip()]
+    else:
+        books = configured_odds_books(settings)
+    if not books:
+        books = ["sportybet"]
+
+    max_age = (
+        max_age_minutes
+        if max_age_minutes is not None
+        else settings.arb_max_odds_age_minutes
+    )
+    now = datetime.now(ZoneInfo("UTC"))
+    end = now + timedelta(days=days)
+    cutoff = now - timedelta(minutes=max_age)
+
+    stmt = (
+        select(Match)
+        .join(Odd, Odd.match_id == Match.id)
+        .where(
+            Match.kickoff_at >= now,
+            Match.kickoff_at < end,
+            Odd.bookmaker.in_(books),
+            Odd.captured_at >= cutoff,
+        )
+        .distinct()
         .order_by(Match.kickoff_at.asc())
     )
     return list(db.scalars(stmt))
