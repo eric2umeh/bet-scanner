@@ -231,14 +231,14 @@ def log_arbitrage_scan(
     Scan SportyBet/Bet9ja surebets with your ₦ bankroll stake split,
     optionally save each as a tip and ping Telegram.
     """
-    allowed = {b.strip().lower() for b in body.bookmakers.split(",") if b.strip()}
+    allowed = {b.strip().lower() for b in body.bookmakers.split(",") if b.strip()} if body.bookmakers.strip() else None
     scan = scan_1x2_arbs(
         db,
         settings,
         min_profit_pct=body.min_profit_pct,
         max_age_minutes=body.max_odds_age_minutes,
         sample_stake_ngn=body.bankroll_ngn,
-        allowed_bookmakers=allowed or None,
+        allowed_bookmakers=allowed,
     )
     opps = scan.get("opportunities") or []
     plans = [format_stake_plan_text(o) for o in opps]

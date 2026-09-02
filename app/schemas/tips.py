@@ -141,9 +141,12 @@ class LogPredictionsScanResponse(BaseModel):
 
 
 class LogArbScanRequest(BaseModel):
-    """Phase 4.5 — scan NG surebets, optional log + Telegram alert."""
+    """Phase 4.5 — scan surebets, optional log + Telegram alert."""
 
-    bookmakers: str = "sportybet,bet9ja"
+    bookmakers: str = Field(
+        default="",
+        description="Optional comma list; empty = all synced bookmakers",
+    )
     bankroll_ngn: Decimal = Field(default=Decimal("10000"), gt=0)
     min_profit_pct: Decimal = Field(default=Decimal("0.01"), ge=0)
     max_odds_age_minutes: int | None = Field(default=None, ge=1, le=24 * 60)
