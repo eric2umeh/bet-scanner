@@ -44,7 +44,9 @@ services:
       - key: ODDS_API_IO_EVENT_LIMIT
         value: "12"
       - key: FIXTURE_PROVIDERS
-        value: football-data,api-football
+        value: odds-api-io
+      - key: API_FOOTBALL_ENABLED
+        value: "false"
       - key: TELEGRAM_ENABLED
         value: "false"
       - key: TELEGRAM_BOT_TOKEN
