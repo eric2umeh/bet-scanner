@@ -46,6 +46,27 @@ function stepLabel(step: string): string {
   return step.replace(/_/g, ' ');
 }
 
+function stepDetail(step: string, message?: string | null): string {
+  if (!message) return '';
+  const m = message.trim();
+  if (step === 'sync_fixtures') {
+    const n = m.match(/(\d+)\s+match/i);
+    return n ? `${n[1]} matches updated` : m.replace(/^Upserted\s+/i, '');
+  }
+  if (step === 'auto_settle') {
+    if (/no tips settled/i.test(m)) return 'No tips ready to settle yet';
+    if (/error 400/i.test(m)) return 'Score lookup failed — will retry tomorrow';
+    const n = m.match(/(\d+)\s+tip/i);
+    return n ? `${n[1]} tip(s) settled` : m.split('.')[0];
+  }
+  if (step === 'brief' || step === 'build_brief') {
+    const safe = m.match(/(\d+)\s+safe/i);
+    if (safe) return `${safe[1]} safe pick(s) in today’s brief`;
+    return m.split('.')[0];
+  }
+  return m.length > 80 ? `${m.slice(0, 77)}…` : m;
+}
+
 export default function MeScreen() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [bankroll, setBankroll] = useState('50000');
@@ -400,9 +421,9 @@ export default function MeScreen() {
       <View style={styles.card}>
         <Text style={styles.section}>Daily update</Text>
         <Text style={styles.hint}>
-          Refreshes the match list from football calendars, settles finished tips when scores are
-          known, and writes a short decision brief below. For fresh SportyBet / Bet9ja prices,
-          pull down on the Today tab (uses odds-api.io quota).
+          Run once each morning (or before you bet): refreshes upcoming matches, settles yesterday’s
+          tips when scores are in, and writes a short AI brief of today’s best picks. For live
+          SportyBet / 1xBet prices, use Load real bets on the Today tab.
         </Text>
         <Pressable
           style={[styles.btn, opsBusy && styles.btnDisabled]}
@@ -417,17 +438,19 @@ export default function MeScreen() {
         </Pressable>
         {opsResult ? (
           <View style={styles.opsBox}>
-            <Text style={styles.opsSummary}>{opsResult.summary}</Text>
+            <Text style={styles.opsSummary}>
+              {opsResult.ok ? 'Morning update complete' : 'Morning update finished with issues'}
+            </Text>
             {(opsResult.steps || []).map((s) => (
               <Text key={s.step} style={styles.opsStep}>
                 {s.ok ? '✓' : '✗'} {stepLabel(s.step)}
-                {s.message ? ` — ${s.message}` : ''}
+                {stepDetail(s.step, s.message) ? ` — ${stepDetail(s.step, s.message)}` : ''}
               </Text>
             ))}
             {opsResult.learning?.hit_rate_pct != null ? (
               <Text style={styles.muted}>
-                Tip hit rate {opsResult.learning.hit_rate_pct}% · tipsters ranked{' '}
-                {opsResult.tipsters_ranked ?? 0}
+                Safe hit rate {opsResult.learning.hit_rate_pct}% (
+                {opsResult.learning.won ?? 0}/{opsResult.learning.settled ?? 0} settled)
               </Text>
             ) : null}
             {opsResult.brief?.summary ? (
