@@ -34,7 +34,9 @@ import { invalidateTipsCache } from '../../src/query/invalidate';
 import { markScoreRefreshRan, shouldRunScoreRefresh } from '../../src/store/autoSettle';
 import { queryKeys } from '../../src/query/client';
 import { bookLabel, marketLabel } from '../../src/lib/tipKey';
+import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { formatConfidencePct, youthMatchHint } from '../../src/lib/marketLean';
+import { subscribeTipsList } from '../../src/store/tipsEvents';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
@@ -131,8 +133,12 @@ function matchWhen(t: TipOut, compact = false): string {
 }
 
 function loggedWhen(t: TipOut): string {
-  if (!t.created_at) return '';
-  return new Date(t.created_at).toLocaleString(undefined, {
+  return formatLoggedAt(t.created_at);
+}
+
+function formatLoggedAt(iso?: string | null): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -213,6 +219,7 @@ export default function TipsScreen() {
   const [searchQ, setSearchQ] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('all');
+  const [bookFilter, setBookFilter] = useState<string>('all');
 
   const debouncedQ = useDebouncedValue(searchQ, 450);
   const debouncedDate = useDebouncedValue(
@@ -318,12 +325,32 @@ export default function TipsScreen() {
     }, [needsSignIn, tab, statsQuery, loadPage, pageIndex])
   );
 
+  useEffect(() => {
+    if (needsSignIn) return;
+    return subscribeTipsList(() => {
+      void loadPage(pageIndex);
+    });
+  }, [needsSignIn, loadPage, pageIndex]);
+
+  const availableBooks = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of tips) {
+      if (t.bookmaker) set.add(String(t.bookmaker).toLowerCase());
+    }
+    return [...set].sort();
+  }, [tips]);
+
+  const displayTips = useMemo(() => {
+    if (bookFilter === 'all') return tips;
+    return tips.filter((t) => String(t.bookmaker).toLowerCase() === bookFilter);
+  }, [tips, bookFilter]);
+
   const busy = listBusy;
 
   const { singles, multis } = useMemo(() => {
     const singles: TipOut[] = [];
     const multis: Record<string, TipOut[]> = {};
-    for (const t of tips) {
+    for (const t of displayTips) {
       if (t.slip_id) {
         (multis[t.slip_id] || (multis[t.slip_id] = [])).push(t);
       } else {
@@ -334,7 +361,7 @@ export default function TipsScreen() {
       legs.sort((a, b) => a.id - b.id);
     }
     return { singles, multis };
-  }, [tips]);
+  }, [displayTips]);
 
   async function reloadAll() {
     await invalidateTipsCache();
@@ -536,6 +563,17 @@ export default function TipsScreen() {
                   </Text>
                 </Pressable>
               ))}
+              {availableBooks.map((b) => (
+                <Pressable
+                  key={b}
+                  style={[styles.chip, bookFilter === b && styles.chipOn]}
+                  onPress={() => setBookFilter(bookFilter === b ? 'all' : b)}
+                >
+                  <Text style={[styles.chipText, bookFilter === b && styles.chipTextOn]}>
+                    {bookLabel(b)}
+                  </Text>
+                </Pressable>
+              ))}
             </ScrollView>
 
             <Pressable
@@ -578,6 +616,10 @@ export default function TipsScreen() {
               const stake = stakeOf(legs);
               const open = !!expanded[slipId];
               const legSummary = slipLegSummary(legs);
+              const loggedAt = legs
+                .map((l) => l.created_at)
+                .filter(Boolean)
+                .sort()[0];
 
               return (
                 <View key={slipId} style={{ marginTop: 12 }}>
@@ -601,9 +643,9 @@ export default function TipsScreen() {
                       </Text>
                       {!open ? (
                         <Text style={styles.collapsedHint}>
-                          Tap to {open ? 'hide' : 'show'} {legs.length} leg
-                          {legs.length === 1 ? '' : 's'}
+                          Tap to show {legs.length} leg{legs.length === 1 ? '' : 's'}
                           {legSummary ? ` (${legSummary})` : ''}
+                          {loggedAt ? ` · logged ${formatLoggedAt(loggedAt)}` : ''}
                         </Text>
                       ) : null}
                     </Pressable>
@@ -614,9 +656,9 @@ export default function TipsScreen() {
                             <View style={styles.legHeader}>
                               <Text
                                 style={[styles.legTeams, styles.legTeamsFlex]}
-                                numberOfLines={2}
+                                numberOfLines={1}
                               >
-                                {leg.home_team} vs {leg.away_team}
+                                {formatMatchTitle(leg.home_team, leg.away_team)}
                               </Text>
                               <LegResultBadge result={leg.result} compact />
                             </View>
@@ -641,8 +683,8 @@ export default function TipsScreen() {
                 onDelete={() => onDelete(t.id, `${t.home_team} vs ${t.away_team}`)}
               >
                 <View style={styles.cardInner}>
-                  <Text style={styles.cardTitle}>
-                    {t.home_team} vs {t.away_team}
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {formatMatchTitle(t.home_team, t.away_team)}
                   </Text>
                   <Text style={styles.when}>
                     {matchWhen(t)}
