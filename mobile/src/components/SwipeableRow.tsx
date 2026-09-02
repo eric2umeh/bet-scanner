@@ -18,12 +18,13 @@ type Props = {
   children: ReactNode;
   onDelete: () => void;
   style?: ViewStyle;
-  /** Web has no swipe — show delete on the card instead. */
-  showDeleteOnWeb?: boolean;
 };
 
-/** Slide left to reveal delete — works on native + web. */
-export function SwipeableRow({ children, onDelete, style, showDeleteOnWeb = true }: Props) {
+/** Slide left to reveal delete on native. On web, no swipe — use in-card delete buttons. */
+export function SwipeableRow({ children, onDelete, style }: Props) {
+  if (Platform.OS === 'web') {
+    return <View style={[styles.wrap, style]}>{children}</View>;
+  }
   const translateX = useRef(new Animated.Value(0)).current;
   const open = useRef(false);
 
@@ -54,34 +55,23 @@ export function SwipeableRow({ children, onDelete, style, showDeleteOnWeb = true
 
   return (
     <View style={[styles.wrap, style]}>
-      {Platform.OS === 'web' && showDeleteOnWeb ? (
-        <View style={styles.webRow}>
-          <View style={styles.webContent}>{children}</View>
-          <Pressable style={styles.webDeleteBtn} onPress={onDelete} accessibilityLabel="Delete">
-            <Text style={styles.deleteText}>Delete</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <>
-          <View style={styles.deleteRail}>
-            <Pressable
-              style={styles.deleteBtn}
-              onPress={() => {
-                close();
-                onDelete();
-              }}
-            >
-              <Text style={styles.deleteText}>Delete</Text>
-            </Pressable>
-          </View>
-          <Animated.View
-            style={[styles.foreground, { transform: [{ translateX }] }]}
-            {...pan.panHandlers}
-          >
-            {children}
-          </Animated.View>
-        </>
-      )}
+      <View style={styles.deleteRail}>
+        <Pressable
+          style={styles.deleteBtn}
+          onPress={() => {
+            close();
+            onDelete();
+          }}
+        >
+          <Text style={styles.deleteText}>Delete</Text>
+        </Pressable>
+      </View>
+      <Animated.View
+        style={[styles.foreground, { transform: [{ translateX }] }]}
+        {...pan.panHandlers}
+      >
+        {children}
+      </Animated.View>
     </View>
   );
 }
@@ -104,16 +94,4 @@ const styles = StyleSheet.create({
   },
   deleteText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   foreground: { backgroundColor: colors.card },
-  webRow: { flexDirection: 'row', alignItems: 'stretch', width: '100%' },
-  webContent: { flex: 1, minWidth: 0 },
-  webDeleteBtn: {
-    width: DELETE_WIDTH,
-    flexShrink: 0,
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.bad,
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
-  },
 });
