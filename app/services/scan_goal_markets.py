@@ -131,11 +131,14 @@ def scan_goal_market_picks(
                     max_odds=max_odds,
                 )
                 if pick:
-                    picks.append(
-                        _pack_pick(
-                            mid, match, book, pick, stake, bankroll_ngn=bankroll_ngn
+                    conf = float(pick.get("confidence_pct") or 0)
+                    min_lean = float(getattr(settings, "goal_lean_min_confidence", 62.0))
+                    if conf >= min_lean:
+                        picks.append(
+                            _pack_pick(
+                                mid, match, book, pick, stake, bankroll_ngn=bankroll_ngn
+                            )
                         )
-                    )
             if "btts" in wanted and "btts" in mkts:
                 pick = _lean_two_way(
                     mkts["btts"],
@@ -146,11 +149,14 @@ def scan_goal_market_picks(
                     max_odds=max_odds,
                 )
                 if pick:
-                    picks.append(
-                        _pack_pick(
-                            mid, match, book, pick, stake, bankroll_ngn=bankroll_ngn
+                    conf = float(pick.get("confidence_pct") or 0)
+                    min_lean = float(getattr(settings, "goal_lean_min_confidence", 62.0))
+                    if conf >= min_lean:
+                        picks.append(
+                            _pack_pick(
+                                mid, match, book, pick, stake, bankroll_ngn=bankroll_ngn
+                            )
                         )
-                    )
 
     return {
         "count": len(picks),

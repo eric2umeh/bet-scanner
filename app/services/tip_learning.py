@@ -236,7 +236,12 @@ def score_pick(pick: dict, model: LearningModel) -> dict:
     }
 
 
-def enrich_picks_with_learning(picks: list[dict], model: LearningModel) -> list[dict]:
+def enrich_picks_with_learning(
+    picks: list[dict],
+    model: LearningModel,
+    *,
+    hide_weak: bool = False,
+) -> list[dict]:
     enriched = []
     for p in picks:
         meta = score_pick(p, model)
@@ -246,6 +251,22 @@ def enrich_picks_with_learning(picks: list[dict], model: LearningModel) -> list[
             stake = Decimal(str(row["suggested_stake_ngn"]))
             row["suggested_stake_ngn"] = (stake * Decimal("0.75")).quantize(Decimal("1"))
             row["learning_note"] += " Stake cut to 75% of normal unit."
+        if hide_weak and meta["confidence_label"] == "weak" and model.settled >= MIN_SAMPLE_STRONG:
+            continue
+        # Prefer clearer underdogs when history is thin (safer DC default).
+        dog = row.get("dog_odds")
+        try:
+            dog_f = float(dog) if dog is not None else None
+        except (TypeError, ValueError):
+            dog_f = None
+        if (
+            hide_weak
+            and row.get("market") == "double_chance"
+            and dog_f is not None
+            and dog_f < 8.0
+            and model.settled < MIN_SAMPLE_STRONG
+        ):
+            continue
         enriched.append(row)
 
     enriched.sort(

@@ -224,7 +224,11 @@ def scan_safe_picks(
 
     # Rank using your won/lost history (statistical learning)
     learning = build_learning_model(db)
-    picks = enrich_picks_with_learning(picks, learning)
+    picks = enrich_picks_with_learning(
+        picks,
+        learning,
+        hide_weak=bool(getattr(settings, "safe_hide_weak_picks", True)),
+    )
     learn_dict = learning_to_dict(learning)
 
     style = "double chance (1X/X2)" if mode == "double_chance" else "1X2 favourite"
