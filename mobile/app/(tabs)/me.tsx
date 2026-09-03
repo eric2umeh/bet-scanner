@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ComponentProps } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -11,10 +11,11 @@ import {
   View,
   Platform,
 } from 'react-native';
-
+import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import { API_URL, pingHealth, setCachedAccessKey } from '../../src/api/client';
-import { runDailyOps, type DailyOpsResponse } from '../../src/api/ops';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+
+import { setCachedAccessKey } from '../../src/api/client';
 import { MIN_PASSWORD_LENGTH } from '../../src/lib/password';
 import { loadAccessKey, saveAccessKey } from '../../src/store/accessKey';
 import {
@@ -24,6 +25,7 @@ import {
   signOut,
   signUp,
   subscribeSession,
+  updatePassword,
 } from '../../src/store/session';
 import {
   loadSettings,
@@ -35,39 +37,14 @@ import { PasswordInput } from '../../src/components/PasswordInput';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
-/** API step keys → plain labels for the Me screen. */
-function stepLabel(step: string): string {
-  const key = (step || '').toLowerCase();
-  if (key === 'sync_fixtures') return 'Refresh match list';
-  if (key === 'sync_odds') return 'Refresh bookmaker odds';
-  if (key === 'auto_settle') return 'Settle finished tips';
-  if (key === 'build_brief' || key === 'brief') return 'Write decision brief';
-  if (key === 'telegram') return 'Send Telegram message';
-  return step.replace(/_/g, ' ');
-}
+const SUPPORT_EMAIL = 'eric2umeh@gmail.com';
+const DEVELOPER_EMAILS = new Set(['eric2umeh@gmail.com']);
 
-function stepDetail(step: string, message?: string | null): string {
-  if (!message) return '';
-  const m = message.trim();
-  if (step === 'sync_fixtures') {
-    const n = m.match(/(\d+)\s+match/i);
-    return n ? `${n[1]} matches updated` : m.replace(/^Upserted\s+/i, '');
-  }
-  if (step === 'auto_settle') {
-    if (/no tips settled/i.test(m)) return 'No tips ready to settle yet';
-    if (/error 400/i.test(m)) return 'Score lookup failed — will retry tomorrow';
-    const n = m.match(/(\d+)\s+tip/i);
-    return n ? `${n[1]} tip(s) settled` : m.split('.')[0];
-  }
-  if (step === 'brief' || step === 'build_brief') {
-    const safe = m.match(/(\d+)\s+safe/i);
-    if (safe) return `${safe[1]} safe pick(s) in today’s brief`;
-    return m.split('.')[0];
-  }
-  return m.length > 80 ? `${m.slice(0, 77)}…` : m;
-}
+type Section = 'home' | 'details' | 'password' | 'settings';
 
-export default function MeScreen() {
+export default function AccountScreen() {
+  const router = useRouter();
+  const [section, setSection] = useState<Section>('home');
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [bankroll, setBankroll] = useState('50000');
   const [unitPct, setUnitPct] = useState('1');
@@ -75,23 +52,25 @@ export default function MeScreen() {
   const [accessKey, setAccessKey] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
-
-  const [opsBusy, setOpsBusy] = useState(false);
-  const [opsResult, setOpsResult] = useState<DailyOpsResponse | null>(null);
-  const [healthLine, setHealthLine] = useState<string | null>(null);
   const [pulling, setPulling] = useState(false);
-  /** On-screen status — Alert.alert is a no-op on Expo web. */
   const [status, setStatus] = useState<string | null>(null);
   const [statusBad, setStatusBad] = useState(false);
+
+  const showDeveloperTools = useMemo(() => {
+    if (__DEV__) return true;
+    const em = (sessionEmail || '').trim().toLowerCase();
+    return Boolean(em && DEVELOPER_EMAILS.has(em));
+  }, [sessionEmail]);
 
   function flash(msg: string, bad = false) {
     setStatus(msg);
     setStatusBad(bad);
   }
 
-  const loadMe = useCallback(async (announce: boolean) => {
+  const loadMe = useCallback(async () => {
     const [s, key] = await Promise.all([loadSettings(), loadAccessKey()]);
     setSettings(s);
     setBankroll(String(s.bankroll));
@@ -99,24 +78,10 @@ export default function MeScreen() {
     setPickMarket(s.pickMarket);
     setAccessKey(key);
     setCachedAccessKey(key || null);
-    try {
-      const h = await pingHealth();
-      setHealthLine(`Server OK${h.version ? ` · v${h.version}` : ''}`);
-      if (announce) {
-        setStatus('Reloaded · server reachable.');
-        setStatusBad(false);
-      }
-    } catch {
-      setHealthLine('Cannot reach server');
-      if (announce) {
-        setStatus('Cannot reach the Bet Scanner server right now.');
-        setStatusBad(true);
-      }
-    }
   }, []);
 
   useEffect(() => {
-    void loadMe(false);
+    void loadMe();
   }, [loadMe]);
 
   useEffect(() => {
@@ -127,7 +92,7 @@ export default function MeScreen() {
   async function onPullRefresh() {
     setPulling(true);
     try {
-      await loadMe(true);
+      await loadMe();
     } finally {
       setPulling(false);
     }
@@ -141,64 +106,29 @@ export default function MeScreen() {
     };
   }
 
-  async function onSave() {
+  async function onSaveSettings() {
     const next = parsedSettings();
     await saveSettings(next);
-    await saveAccessKey(accessKey);
-    setCachedAccessKey(accessKey.trim() || null);
+    if (showDeveloperTools) {
+      await saveAccessKey(accessKey);
+      setCachedAccessKey(accessKey.trim() || null);
+    }
     setSettings(next);
-    flash(
-      accessKey.trim()
-        ? `Saved · unit stake ≈ ₦${unitStakeNgn(next)} · access key on`
-        : `Saved · unit stake ≈ ₦${unitStakeNgn(next)}`
-    );
-  }
-
-  function supabaseSetupHint(): string {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const host = window.location?.host || '';
-      if (host.includes('onrender.com')) {
-        return (
-          'Login is off in this web build. Render → Environment: add SUPABASE_URL and ' +
-          'SUPABASE_ANON_KEY (same values as mobile/.env), then Manual Deploy. ' +
-          'Or use Expo Go on your phone (mobile/.env + restart Metro).'
-        );
-      }
-      return (
-        'Login is off in this web build. From repo root run ./scripts/build_web.sh ' +
-        '(uses mobile/.env), then hard-refresh. Or use Expo Go on your phone.'
-      );
-    }
-    return (
-      'Stop Expo (Ctrl+C), then from mobile/ run: npx expo start --tunnel. ' +
-      'Confirm the terminal shows env: export EXPO_PUBLIC_SUPABASE_URL … ' +
-      'Keys go in mobile/.env only — not the root .env.'
-    );
-  }
-
-  function trySignIn() {
-    if (!isSupabaseConfigured()) {
-      flash(supabaseSetupHint(), true);
-      return;
-    }
-    void onSignIn();
-  }
-
-  function trySignUp() {
-    if (!isSupabaseConfigured()) {
-      flash(supabaseSetupHint(), true);
-      return;
-    }
-    void onSignUp();
+    flash(`Saved · unit stake ≈ ₦${unitStakeNgn(next)}`);
   }
 
   async function onSignIn() {
+    if (!isSupabaseConfigured()) {
+      flash('Sign in is not configured in this build.', true);
+      return;
+    }
     flash('Signing in…');
     setAuthBusy(true);
     try {
       await signIn(email, password);
-      flash(`Signed in as ${getSessionEmail() || email}. Your tips stay with this account.`);
+      flash(`Signed in as ${getSessionEmail() || email}.`);
       setPassword('');
+      setSection('home');
     } catch (e) {
       flash(e instanceof Error ? e.message : String(e), true);
     } finally {
@@ -207,16 +137,21 @@ export default function MeScreen() {
   }
 
   async function onSignUp() {
+    if (!isSupabaseConfigured()) {
+      flash('Sign up is not configured in this build.', true);
+      return;
+    }
     flash('Creating account…');
     setAuthBusy(true);
     try {
       const session = await signUp(email, password);
-      if (!session) {
-        flash('Account created. Check your email to confirm, then sign in.');
-      } else {
-        flash(`Signed up as ${getSessionEmail() || email}.`);
-      }
+      flash(
+        session
+          ? `Signed up as ${getSessionEmail() || email}.`
+          : 'Account created. Check your email to confirm, then sign in.'
+      );
       setPassword('');
+      setSection('home');
     } catch (e) {
       flash(e instanceof Error ? e.message : String(e), true);
     } finally {
@@ -225,11 +160,11 @@ export default function MeScreen() {
   }
 
   async function onSignOut() {
-    flash('Signing out…');
     setAuthBusy(true);
     try {
       await signOut();
       flash('Signed out.');
+      setSection('home');
     } catch (e) {
       flash(e instanceof Error ? e.message : String(e), true);
     } finally {
@@ -237,32 +172,45 @@ export default function MeScreen() {
     }
   }
 
-  async function onMorning() {
-    const s = parsedSettings();
-    await saveSettings(s);
-    setSettings(s);
-    setOpsBusy(true);
-    flash(
-      'Morning update: match list, settle tips, brief… (1–3 min if the server is waking up).'
-    );
+  async function onChangePassword() {
+    setAuthBusy(true);
     try {
-      const data = await runDailyOps({
-        bankroll_ngn: s.bankroll,
-        unit_pct: s.unitPct,
-        pick_market: s.pickMarket,
-        sync_odds: false,
-        sync_fixtures: true,
-        auto_settle: true,
-        build_brief: true,
-        prefer_llm: true,
-      });
-      setOpsResult(data);
-      flash(data.message || data.summary || 'Morning update finished.');
+      await updatePassword(newPassword);
+      setNewPassword('');
+      flash('Password updated.');
+      setSection('home');
     } catch (e) {
       flash(e instanceof Error ? e.message : String(e), true);
     } finally {
-      setOpsBusy(false);
+      setAuthBusy(false);
     }
+  }
+
+  function MenuRow({
+    icon,
+    title,
+    subtitle,
+    onPress,
+    danger,
+  }: {
+    icon: ComponentProps<typeof FontAwesome>['name'];
+    title: string;
+    subtitle?: string;
+    onPress: () => void;
+    danger?: boolean;
+  }) {
+    return (
+      <Pressable style={styles.menuRow} onPress={onPress}>
+        <View style={[styles.menuIcon, danger && styles.menuIconDanger]}>
+          <FontAwesome name={icon} size={16} color={danger ? colors.bad : colors.accent} />
+        </View>
+        <View style={styles.menuText}>
+          <Text style={[styles.menuTitle, danger && { color: colors.bad }]}>{title}</Text>
+          {subtitle ? <Text style={styles.menuSub}>{subtitle}</Text> : null}
+        </View>
+        <FontAwesome name="chevron-right" size={12} color={colors.muted} />
+      </Pressable>
+    );
   }
 
   return (
@@ -274,197 +222,221 @@ export default function MeScreen() {
       ]}
       keyboardShouldPersistTaps="handled"
       refreshControl={
-        <RefreshControl
-          refreshing={pulling}
-          onRefresh={onPullRefresh}
-          tintColor={colors.accent}
-        />
+        <RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={colors.accent} />
       }
     >
-      <Text style={styles.muted}>
-        API · {API_URL}
-        {healthLine ? ` · ${healthLine}` : ''}
-      </Text>
       {status ? (
         <View style={[styles.statusBox, statusBad && styles.statusBad]}>
-          {(opsBusy || authBusy) && (
+          {authBusy ? (
             <ActivityIndicator color={statusBad ? colors.bad : colors.accent} style={{ marginRight: 8 }} />
-          )}
+          ) : null}
           <Text style={[styles.statusText, statusBad && styles.statusTextBad]}>{status}</Text>
         </View>
       ) : null}
 
-      <View style={styles.card}>
-        <Text style={styles.section}>Account</Text>
-        {sessionEmail ? (
-          <>
-            <Text style={styles.muted}>Signed in as {sessionEmail}</Text>
-            <Text style={styles.hint}>
-              Tips you log are saved under this account.
-            </Text>
-            <Pressable
-              style={[styles.btnSecondary, authBusy && styles.btnDisabled]}
-              disabled={authBusy}
-              onPress={onSignOut}
-            >
-              <Text style={styles.btnSecondaryText}>Sign out</Text>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <Text style={styles.hint}>
-              Email login for your tips. Different from the app access key in Settings below.
-            </Text>
-            {!isSupabaseConfigured() ? (
-              <Text style={[styles.hint, { color: colors.bad }]}>
-                Sign in is unavailable in this build — tap Sign in for setup steps.
-              </Text>
-            ) : null}
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoCorrect={false}
-              placeholder="you@email.com"
-              placeholderTextColor={colors.muted}
-            />
-            <Text style={styles.label}>Password (min {MIN_PASSWORD_LENGTH} characters)</Text>
-            <PasswordInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder={`at least ${MIN_PASSWORD_LENGTH} characters`}
-              placeholderTextColor={colors.muted}
-            />
-            <View style={styles.row}>
-              <Pressable
-                style={[
-                  styles.btn,
-                  styles.btnFlex,
-                  (authBusy || !isSupabaseConfigured()) && styles.btnDisabled,
-                ]}
-                disabled={authBusy}
-                onPress={trySignIn}
-              >
-                <Text style={styles.btnText}>Sign in</Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.btnSecondary,
-                  styles.btnFlex,
-                  (authBusy || !isSupabaseConfigured()) && styles.btnDisabled,
-                ]}
-                disabled={authBusy}
-                onPress={trySignUp}
-              >
-                <Text style={styles.btnSecondaryText}>Sign up</Text>
-              </Pressable>
-            </View>
-          </>
-        )}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.section}>Settings</Text>
-        <Text style={styles.label}>Bankroll ₦</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="numeric"
-          value={bankroll}
-          onChangeText={setBankroll}
-          placeholderTextColor={colors.muted}
-        />
-        <Text style={styles.label}>Unit %</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="decimal-pad"
-          value={unitPct}
-          onChangeText={setUnitPct}
-          placeholderTextColor={colors.muted}
-        />
-        <Text style={styles.label}>Safe pick style</Text>
-        <View style={styles.row}>
-          {(['double_chance', '1x2'] as const).map((m) => (
-            <Pressable
-              key={m}
-              style={[styles.chip, pickMarket === m && styles.chipOn]}
-              onPress={() => setPickMarket(m)}
-            >
-              <Text style={[styles.chipText, pickMarket === m && styles.chipTextOn]}>
-                {m === 'double_chance' ? 'Double chance' : '1X2 fav'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        {settings ? (
-          <Text style={styles.muted}>Suggested unit ≈ ₦{unitStakeNgn(settings)}</Text>
-        ) : null}
-        <Text style={styles.label}>App access key</Text>
-        <PasswordInput
-          value={accessKey}
-          onChangeText={setAccessKey}
-          placeholder="Paste access key"
-          placeholderTextColor={colors.muted}
-        />
-        <Pressable style={styles.btn} onPress={onSave}>
-          <Text style={styles.btnText}>Save settings</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.section}>Daily update</Text>
-        <Text style={styles.hint}>
-          Morning update: fixtures, settle tips, brief. Fresh prices: ↻ on Today.
-        </Text>
-        <Pressable
-          style={[styles.btn, opsBusy && styles.btnDisabled]}
-          disabled={opsBusy}
-          onPress={() => onMorning()}
-        >
-          {opsBusy ? (
-            <ActivityIndicator color="#06241c" />
-          ) : (
-            <Text style={styles.btnText}>Run morning update</Text>
-          )}
-        </Pressable>
-        {opsResult ? (
-          <View style={styles.opsBox}>
-            <Text style={styles.opsSummary}>
-              {opsResult.ok ? 'Morning update complete' : 'Morning update finished with issues'}
-            </Text>
-            {(opsResult.steps || []).map((s) => (
-              <Text key={s.step} style={styles.opsStep}>
-                {s.ok ? '✓' : '✗'} {stepLabel(s.step)}
-                {stepDetail(s.step, s.message) ? ` — ${stepDetail(s.step, s.message)}` : ''}
-              </Text>
-            ))}
-            {opsResult.learning?.hit_rate_pct != null ? (
-              <Text style={styles.muted}>
-                Safe hit rate {opsResult.learning.hit_rate_pct}% (
-                {opsResult.learning.won ?? 0}/{opsResult.learning.settled ?? 0} settled)
-              </Text>
-            ) : null}
-            {opsResult.brief?.summary ? (
-              <Text style={styles.brief}>{opsResult.brief.summary}</Text>
-            ) : null}
+      {section === 'home' ? (
+        <>
+          <View style={styles.card}>
+            <Text style={styles.section}>Account</Text>
+            {sessionEmail ? (
+              <Text style={styles.muted}>Signed in as {sessionEmail}</Text>
+            ) : (
+              <>
+                <Text style={styles.hint}>Sign in to keep tips synced to your email.</Text>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoCorrect={false}
+                  placeholder="you@email.com"
+                  placeholderTextColor={colors.muted}
+                />
+                <Text style={styles.label}>Password (min {MIN_PASSWORD_LENGTH})</Text>
+                <PasswordInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder={`at least ${MIN_PASSWORD_LENGTH} characters`}
+                  placeholderTextColor={colors.muted}
+                />
+                <View style={styles.row}>
+                  <Pressable
+                    style={[styles.btn, styles.btnFlex, authBusy && styles.btnDisabled]}
+                    disabled={authBusy}
+                    onPress={() => void onSignIn()}
+                  >
+                    <Text style={styles.btnText}>Sign in</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.btnSecondary, styles.btnFlex, authBusy && styles.btnDisabled]}
+                    disabled={authBusy}
+                    onPress={() => void onSignUp()}
+                  >
+                    <Text style={styles.btnSecondaryText}>Sign up</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
           </View>
-        ) : null}
-      </View>
 
-      <View style={styles.card}>
-        <Text style={styles.section}>About</Text>
-        <Text style={styles.hint}>
-          Version {Constants.expoConfig?.version ?? '1.0.0'} · package com.betscanner.app
-        </Text>
-        <Pressable
-          style={styles.btnSecondary}
-          onPress={() => void Linking.openURL(`${API_URL}/privacy`)}
-        >
-          <Text style={styles.btnSecondaryText}>Privacy policy</Text>
-        </Pressable>
-      </View>
+          <View style={styles.card}>
+            {sessionEmail ? (
+              <MenuRow
+                icon="id-card"
+                title="Account details"
+                subtitle={sessionEmail}
+                onPress={() => setSection('details')}
+              />
+            ) : null}
+            {sessionEmail ? (
+              <MenuRow
+                icon="lock"
+                title="Change password"
+                onPress={() => setSection('password')}
+              />
+            ) : null}
+            <MenuRow
+              icon="sliders"
+              title="Settings"
+              subtitle="Bankroll, unit %, Safe pick style"
+              onPress={() => setSection('settings')}
+            />
+            <MenuRow
+              icon="envelope"
+              title="Contact / Support"
+              subtitle={SUPPORT_EMAIL}
+              onPress={() =>
+                void Linking.openURL(
+                  `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Bet Scanner support')}`
+                )
+              }
+            />
+            <MenuRow
+              icon="question-circle"
+              title="FAQ"
+              subtitle="Help & how-to"
+              onPress={() => router.push('/help')}
+            />
+            <MenuRow
+              icon="info-circle"
+              title="About"
+              subtitle={`v${Constants.expoConfig?.version ?? '1.0.0'} · com.betscanner.app`}
+              onPress={() => void Linking.openURL('https://bet-scanner-znvg.onrender.com/privacy')}
+            />
+            <MenuRow
+              icon="shield"
+              title="Privacy policy"
+              onPress={() => void Linking.openURL('https://bet-scanner-znvg.onrender.com/privacy')}
+            />
+          </View>
+
+          {sessionEmail ? (
+            <Pressable
+              style={[styles.signOutBtn, authBusy && styles.btnDisabled]}
+              disabled={authBusy}
+              onPress={() => void onSignOut()}
+            >
+              <Text style={styles.signOutText}>Sign out</Text>
+            </Pressable>
+          ) : null}
+        </>
+      ) : null}
+
+      {section === 'details' ? (
+        <View style={styles.card}>
+          <Pressable onPress={() => setSection('home')} style={styles.backLink}>
+            <Text style={styles.backLinkText}>← Account</Text>
+          </Pressable>
+          <Text style={styles.section}>Account details</Text>
+          <Text style={styles.label}>Email</Text>
+          <Text style={styles.muted}>{sessionEmail}</Text>
+          <Text style={styles.hint}>Tips you log are saved under this account.</Text>
+        </View>
+      ) : null}
+
+      {section === 'password' ? (
+        <View style={styles.card}>
+          <Pressable onPress={() => setSection('home')} style={styles.backLink}>
+            <Text style={styles.backLinkText}>← Account</Text>
+          </Pressable>
+          <Text style={styles.section}>Change password</Text>
+          <Text style={styles.label}>New password (min {MIN_PASSWORD_LENGTH})</Text>
+          <PasswordInput
+            value={newPassword}
+            onChangeText={setNewPassword}
+            placeholder={`at least ${MIN_PASSWORD_LENGTH} characters`}
+            placeholderTextColor={colors.muted}
+          />
+          <Pressable
+            style={[styles.btn, authBusy && styles.btnDisabled]}
+            disabled={authBusy}
+            onPress={() => void onChangePassword()}
+          >
+            <Text style={styles.btnText}>Update password</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {section === 'settings' ? (
+        <View style={styles.card}>
+          <Pressable onPress={() => setSection('home')} style={styles.backLink}>
+            <Text style={styles.backLinkText}>← Account</Text>
+          </Pressable>
+          <Text style={styles.section}>Settings</Text>
+          <Text style={styles.label}>Bankroll ₦</Text>
+          <TextInput
+            style={styles.input}
+            keyboardType="numeric"
+            value={bankroll}
+            onChangeText={setBankroll}
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Unit %</Text>
+          <TextInput
+            style={styles.input}
+            keyboardType="decimal-pad"
+            value={unitPct}
+            onChangeText={setUnitPct}
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Safe pick style</Text>
+          <View style={styles.row}>
+            {(['double_chance', '1x2'] as const).map((m) => (
+              <Pressable
+                key={m}
+                style={[styles.chip, pickMarket === m && styles.chipOn]}
+                onPress={() => setPickMarket(m)}
+              >
+                <Text style={[styles.chipText, pickMarket === m && styles.chipTextOn]}>
+                  {m === 'double_chance' ? 'Double chance' : '1X2 fav'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          {settings ? (
+            <Text style={styles.muted}>Suggested unit ≈ ₦{unitStakeNgn(settings)}</Text>
+          ) : null}
+          {showDeveloperTools ? (
+            <>
+              <Text style={styles.label}>App access key (developer)</Text>
+              <Text style={styles.hint}>
+                Only visible to the developer account. Matches APP_API_KEY on the server.
+              </Text>
+              <PasswordInput
+                value={accessKey}
+                onChangeText={setAccessKey}
+                placeholder="Paste access key"
+                placeholderTextColor={colors.muted}
+              />
+            </>
+          ) : null}
+          <Pressable style={styles.btn} onPress={() => void onSaveSettings()}>
+            <Text style={styles.btnText}>Save settings</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -475,7 +447,7 @@ const styles = StyleSheet.create({
   muted: { color: colors.muted, marginTop: 6, fontSize: 13, lineHeight: 18 },
   hint: { color: colors.muted, fontSize: 13, lineHeight: 18, marginBottom: 4 },
   statusBox: {
-    marginTop: 12,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.accentDim,
@@ -489,77 +461,91 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 107, 107, 0.12)',
     borderColor: colors.bad,
   },
-  statusText: { flex: 1, color: colors.accent, fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  statusTextBad: { color: colors.bad },
+  statusText: { color: colors.ink, fontSize: 13, flex: 1 },
+  statusTextBad: { color: '#ffb4b4' },
   card: {
-    marginTop: 16,
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 14,
     padding: 14,
-    gap: 8,
+    marginBottom: 12,
   },
-  section: { color: colors.ink, fontSize: 17, fontWeight: '700', marginBottom: 2 },
-  label: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 6 },
+  section: { color: colors.ink, fontWeight: '800', fontSize: 16, marginBottom: 8 },
+  label: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 10, marginBottom: 4 },
   input: {
-    backgroundColor: colors.bg,
+    backgroundColor: colors.surface,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 10,
+    color: colors.ink,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: colors.ink,
+    fontSize: 14,
   },
-  textarea: { minHeight: 120, paddingTop: 10 },
-  row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  chipOn: { borderColor: colors.accent, backgroundColor: colors.accentDim },
-  chipText: { color: colors.muted, fontWeight: '600', fontSize: 13 },
-  chipTextOn: { color: colors.accent },
+  row: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  btnFlex: { flex: 1 },
   btn: {
-    marginTop: 8,
     backgroundColor: colors.accent,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
+    marginTop: 12,
   },
-  btnFlex: { flex: 1, minWidth: 120 },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#06241c', fontWeight: '700' },
   btnSecondary: {
-    marginTop: 8,
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
     borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
+    marginTop: 12,
   },
-  btnSecondaryText: { color: colors.ink, fontWeight: '600' },
-  opsBox: { marginTop: 8, gap: 4 },
-  opsSummary: { color: colors.ink, fontWeight: '600', fontSize: 14, lineHeight: 20 },
-  opsStep: { color: colors.muted, fontSize: 12, lineHeight: 17 },
-  brief: {
-    marginTop: 8,
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-    backgroundColor: colors.bg,
+  btnDisabled: { opacity: 0.55 },
+  btnText: { color: '#06241c', fontWeight: '800', fontSize: 14 },
+  btnSecondaryText: { color: colors.ink, fontWeight: '700', fontSize: 14 },
+  chip: {
+    flex: 1,
+    paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: 10,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
   },
+  chipOn: { borderColor: colors.accent, backgroundColor: colors.accentDim },
+  chipText: { color: colors.muted, fontWeight: '600', fontSize: 13 },
+  chipTextOn: { color: colors.accent },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  menuIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: colors.accentDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuIconDanger: { backgroundColor: 'rgba(239, 107, 107, 0.12)' },
+  menuText: { flex: 1, minWidth: 0 },
+  menuTitle: { color: colors.ink, fontWeight: '700', fontSize: 14 },
+  menuSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  signOutBtn: {
+    marginTop: 8,
+    marginBottom: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.bad,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  signOutText: { color: colors.bad, fontWeight: '800', fontSize: 15 },
+  backLink: { marginBottom: 8 },
+  backLinkText: { color: colors.accent, fontWeight: '700', fontSize: 14 },
 });
