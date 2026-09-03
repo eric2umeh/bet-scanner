@@ -78,8 +78,8 @@ class Settings(BaseSettings):
     # Docs: https://docs.odds-api.io/quickstart
     odds_api_io_key: str = ""
     odds_api_io_bookmakers: str = "SportyBet,Bet9ja"
-    # Keep low: each event ≈ 1 /odds call (free tier ~100 req/hr)
-    odds_api_io_event_limit: int = 15
+    # Free tier ~100 req/hr; /odds/multi batches 10 events per request
+    odds_api_io_event_limit: int = 40
 
     # BetRelay (optional / often paid) — https://betrelay.com.ng/api-docs
     betrelay_api_key: str = ""
@@ -102,12 +102,16 @@ class Settings(BaseSettings):
     # Default unit = this % of bankroll (1% of ₦50k = ₦500)
     bankroll_unit_pct: float = 1.0
     # Underdog odds thresholds (home/away only)
-    safe_dog_high: float = 6.0          # >6 → candidate for Safe Builder DC
-    safe_dog_flex: float = 10.0         # >10 + pick_market=1x2 → flex multi tag
+    safe_dog_high: float = 8.0          # >8 → clearer favourite (stricter = fewer, safer DC)
+    safe_dog_flex: float = 12.0         # >12 + pick_market=1x2 → flex multi tag
     # Favourite max odds for flex-multi profile (1x2 mode only)
-    safe_fav_max_flex: float = 1.50
+    safe_fav_max_flex: float = 1.40
     # Default market style: double_chance | 1x2 (user can override per scan)
     safe_pick_market: str = "double_chance"
+    # Hide historically weak Safe picks from scans when enough history exists
+    safe_hide_weak_picks: bool = True
+    # Goal-market lean must clear this display score (not a win %). Higher = fewer O/U/BTTS tips.
+    goal_lean_min_confidence: float = 62.0
 
     # --- Phase 4: Telegram alerts (optional) ---
     telegram_enabled: bool = False
