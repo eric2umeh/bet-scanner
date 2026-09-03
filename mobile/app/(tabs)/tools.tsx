@@ -17,20 +17,26 @@ export default function ToolsHubScreen() {
       ]}
     >
       <Text style={styles.lead}>
-        Extra scanners and utilities. Arbitrage has its own tab — these tools help with value
-        bets, tipster codes, and price checks.
+        Extra scanners and utilities. Arbitrage has its own tab — these tools help with the morning
+        routine, value bets, tipster codes, and price checks.
       </Text>
 
       <ToolHubCard
+        icon="sun-o"
+        title="Daily update"
+        description="Refresh matches, settle finished tips, and build today’s decision brief."
+        onPress={() => router.push('/tools/morning')}
+      />
+      <ToolHubCard
         icon="line-chart"
         title="Value picks"
-        description="Find +EV prices vs fair odds across SportyBet and Bet9ja. Log to Tips when ready."
+        description="Find +EV prices vs fair odds across SportyBet and MelBet. Log to Tips when ready."
         onPress={() => router.push('/tools/value')}
       />
       <ToolHubCard
         icon="exchange"
         title="Compare slip"
-        description="Paste a slip in plain text — see SportyBet vs Bet9ja prices per leg."
+        description="Paste a slip in plain text — see book prices per leg."
         onPress={() => router.push('/tools/slip')}
       />
       <ToolHubCard
@@ -44,8 +50,8 @@ export default function ToolsHubScreen() {
       <View style={styles.note}>
         <Text style={styles.noteTitle}>Quick tip</Text>
         <Text style={styles.noteText}>
-          For surebets, use the Arb tab. For daily Safe picks, stay on Today. Morning routine and
-          bankroll live under Me.
+          For surebets, use the Arb tab. For daily Safe picks, stay on Today. Bankroll and sign-in
+          live under Account.
         </Text>
       </View>
     </ScrollView>
