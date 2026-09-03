@@ -13,6 +13,7 @@ export default function ToolsLayout() {
         headerRight: () => <HelpHeaderButton />,
       }}
     >
+      <Stack.Screen name="morning" options={{ title: 'Daily update' }} />
       <Stack.Screen name="value" options={{ title: 'Value picks' }} />
       <Stack.Screen name="slip" options={{ title: 'Compare slip' }} />
       <Stack.Screen name="tipsters" options={{ title: 'Tipsters' }} />
