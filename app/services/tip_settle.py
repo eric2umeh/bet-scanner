@@ -3,8 +3,9 @@ Settle tips from match scores (Phase 4 + 10B).
 
 1X2: home / draw / away
 double_chance: 1X (Home or Draw), X2 (Away or Draw), 12 (Home or Away)
-ou_2_5: over / under (total goals vs 2.5)
+ou_0_5 / ou_1_5 / ou_2_5: over / under vs that line
 btts: yes / no (both teams scored)
+tt_2_5: home_over / away_over (team scores 3+)
 """
 
 from __future__ import annotations
@@ -41,11 +42,22 @@ def selection_won(
             return home_score != away_score
         return None
 
-    if market in ("ou_2_5", "ou25", "over_under_2_5", "totals_2_5"):
-        if selection in ("over", "o", "over_2_5"):
-            return total > 2.5
-        if selection in ("under", "u", "under_2_5"):
-            return total < 2.5
+    ou_lines = {
+        "ou_0_5": 0.5,
+        "ou05": 0.5,
+        "ou_1_5": 1.5,
+        "ou15": 1.5,
+        "ou_2_5": 2.5,
+        "ou25": 2.5,
+        "over_under_2_5": 2.5,
+        "totals_2_5": 2.5,
+    }
+    if market in ou_lines:
+        line = ou_lines[market]
+        if selection in ("over", "o") or selection.startswith("over"):
+            return total > line
+        if selection in ("under", "u") or selection.startswith("under"):
+            return total < line
         return None
 
     if market in ("btts", "both_teams_to_score", "gg"):
@@ -54,6 +66,18 @@ def selection_won(
             return both
         if selection in ("no", "n", "ng"):
             return not both
+        return None
+
+    if market in ("tt_2_5", "team_total_2_5", "team_goals_3"):
+        # Over 2.5 team goals = that side scores 3+.
+        if selection in ("home_over", "home", "1"):
+            return home_score > 2.5
+        if selection in ("away_over", "away", "2"):
+            return away_score > 2.5
+        if selection in ("home_under",):
+            return home_score < 2.5
+        if selection in ("away_under",):
+            return away_score < 2.5
         return None
 
     return None
