@@ -105,4 +105,20 @@ export async function signOut() {
   applySession(null);
 }
 
+export async function updatePassword(newPassword: string) {
+  const sb = getSupabase();
+  if (!sb) throw new Error('Password change is not configured (missing Supabase).');
+  if (!cachedAccessToken) throw new Error('Sign in first to change your password.');
+  const pwd = assertPassword(newPassword);
+  try {
+    const { error } = await withTimeout(
+      sb.auth.updateUser({ password: pwd }),
+      'Change password'
+    );
+    if (error) throw error;
+  } catch (e) {
+    throw new Error(formatAuthError(e, 'change_password'));
+  }
+}
+
 export { isSupabaseConfigured };
