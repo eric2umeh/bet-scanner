@@ -43,7 +43,7 @@ LEAGUE_CODE_HINTS = (
 )
 
 # One /odds call returns all of these (no extra request cost)
-ODDS_MARKETS = "ML,Totals,Both Teams To Score,Double Chance"
+ODDS_MARKETS = "ML,Totals,Both Teams To Score,Double Chance,Team Totals"
 MULTI_BATCH = 10
 
 
@@ -454,30 +454,48 @@ def _quotes_for_market(*, market_name: str, odds_rows: list, base: dict) -> list
         return out
 
     if key in {"totals", "goals over/under", "over/under"}:
-        # Prefer the main 2.5 line (most used NG market)
-        row_25 = None
+        # Keep common recreational lines: 0.5 / 1.5 / 2.5 (higher hit-rate focus on 0.5 & 1.5).
+        wanted_lines = {0.5: "ou_0_5", 1.5: "ou_1_5", 2.5: "ou_2_5"}
+        found: dict[float, dict] = {}
         for row in odds_rows:
             line = row.get("max")
             if line is None:
                 line = row.get("hdp")
             try:
-                if line is not None and abs(float(line) - 2.5) < 0.01:
-                    row_25 = row
-                    break
+                line_f = float(line) if line is not None else None
             except (TypeError, ValueError):
                 continue
-        if row_25 is None and odds_rows:
-            # Fallback: first totals row if books only offer one line
-            row_25 = odds_rows[0]
-            line = row_25.get("max", row_25.get("hdp"))
+            if line_f is None:
+                continue
+            for target, _market in wanted_lines.items():
+                if abs(line_f - target) < 0.01 and target not in found:
+                    found[target] = row
+        for target, market_key in wanted_lines.items():
+            row = found.get(target)
+            if not row:
+                continue
+            add(market_key, "over", row.get("over"))
+            add(market_key, "under", row.get("under"))
+        return out
+
+    if key in {"team totals", "team total", "teamtotals"}:
+        # Team over 2.5 goals ≈ that side scores 3+.
+        for row in odds_rows:
+            line = row.get("max")
+            if line is None:
+                line = row.get("hdp")
             try:
-                if line is not None and abs(float(line) - 2.5) > 0.01:
-                    return out
+                if line is None or abs(float(line) - 2.5) > 0.01:
+                    continue
             except (TypeError, ValueError):
-                return out
-        if row_25:
-            add("ou_2_5", "over", row_25.get("over"))
-            add("ou_2_5", "under", row_25.get("under"))
+                continue
+            side = str(row.get("team") or row.get("side") or row.get("name") or "").lower()
+            if side in {"home", "1", "h"}:
+                add("tt_2_5", "home_over", row.get("over"))
+                add("tt_2_5", "home_under", row.get("under"))
+            elif side in {"away", "2", "a"}:
+                add("tt_2_5", "away_over", row.get("over"))
+                add("tt_2_5", "away_under", row.get("under"))
         return out
 
     return out
