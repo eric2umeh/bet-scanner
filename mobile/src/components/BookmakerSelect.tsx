@@ -13,7 +13,10 @@ type Props = {
 
 export function BookmakerSelect({ books, value, onChange, style }: Props) {
   const [open, setOpen] = useState(false);
-  const options = [{ key: 'all', label: 'All' }, ...books.map((b) => ({ key: b, label: bookLabel(b) }))];
+  const options = [
+    { key: 'all', label: 'All bookmaker' },
+    ...books.map((b) => ({ key: b, label: bookLabel(b) })),
+  ];
   const current = options.find((o) => o.key === value) || options[0];
 
   return (
@@ -45,9 +48,7 @@ export function BookmakerSelect({ books, value, onChange, style }: Props) {
                     setOpen(false);
                   }}
                 >
-                  <Text style={[styles.optionText, on && styles.optionTextOn]}>
-                    {o.key === 'all' ? 'All books' : o.label}
-                  </Text>
+                  <Text style={[styles.optionText, on && styles.optionTextOn]}>{o.label}</Text>
                 </Pressable>
               );
             })}
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 8,
-    maxWidth: 88,
+    maxWidth: 118,
     flexShrink: 0,
   },
   triggerText: { color: colors.ink, fontSize: 12, fontWeight: '600', flexShrink: 1 },
