@@ -98,6 +98,12 @@ def privacy_policy() -> FileResponse:
     return FileResponse(STATIC_DIR / "privacy.html", media_type="text/html")
 
 
+@app.get("/delete-account", include_in_schema=False)
+def delete_account_info() -> FileResponse:
+    """Public account-deletion instructions for Google Play Data safety."""
+    return FileResponse(STATIC_DIR / "delete-account.html", media_type="text/html")
+
+
 @app.get("/health")
 def health() -> dict[str, str | bool]:
     """Lightweight liveness check for Render / load balancers."""
