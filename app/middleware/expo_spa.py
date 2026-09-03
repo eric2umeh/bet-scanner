@@ -24,6 +24,7 @@ _SKIP_PREFIXES = (
     "/health",
     "/legacy",
     "/privacy",
+    "/delete-account",
     "/auth",
     "/matches",
     "/odds",
