@@ -8,10 +8,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
-import { ApiError, pingHealth } from '../../src/api/client';
+import { pingHealth } from '../../src/api/client';
 import { fetchBettableMatches, syncFixtures } from '../../src/api/matches';
 import { fetchPublicAppConfig } from '../../src/api/appConfig';
 import { syncOdds } from '../../src/api/odds';
@@ -20,7 +21,10 @@ import { scanSafeBuilder } from '../../src/api/safe';
 import { logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
+import { BookmakerSelect } from '../../src/components/BookmakerSelect';
+import { DatePickerField } from '../../src/components/DatePickerField';
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
+import { PaginationBar } from '../../src/components/PaginationBar';
 import { SyncHeaderButton } from '../../src/components/SyncHeaderButton';
 import { BetSlipFab } from '../../src/components/BetSlipFab';
 import { useAppModal } from '../../src/components/modal';
@@ -48,6 +52,7 @@ type MarketFilter = 'all' | 'double_chance' | '1x2' | 'ou_2_5' | 'btts';
 
 const isWeb = Platform.OS === 'web';
 const UPCOMING_DAYS = 21;
+const PAGE_SIZE_DEFAULT = 10;
 
 function kickoffLabel(iso?: string | null) {
   if (!iso) return '—';
@@ -59,6 +64,16 @@ function kickoffLabel(iso?: string | null) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function matchDayIso(iso?: string | null) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function loggedPickStyle(logged: boolean) {
@@ -94,6 +109,11 @@ export default function TodayScreen() {
   const [picks, setPicks] = useState<TipPick[]>([]);
   const [filter, setFilter] = useState<MarketFilter>('all');
   const [bookFilter, setBookFilter] = useState<string>('all');
+  const [searchQ, setSearchQ] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
+  const [configuredBooks, setConfiguredBooks] = useState<string[]>(['sportybet', 'onexbet']);
   const [status, setStatus] = useState('Pull down to refresh odds & Safe picks');
   const [busy, setBusy] = useState(false);
   const [selectedN, setSelectedN] = useState(0);
@@ -108,12 +128,12 @@ export default function TodayScreen() {
   useEffect(() => subscribeLoggedTips(() => setLoggedRev((n) => n + 1)), []);
 
   const availableBooks = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(configuredBooks.map((b) => b.toLowerCase()));
     for (const p of picks) {
       if (p.bookmaker) set.add(String(p.bookmaker).toLowerCase());
     }
     return [...set].sort();
-  }, [picks]);
+  }, [picks, configuredBooks]);
 
   const filteredPicks = useMemo(() => {
     if (bookFilter === 'all') return picks;
@@ -131,10 +151,37 @@ export default function TodayScreen() {
   }, [filteredPicks, filter]);
 
   const visibleMatches = useMemo(() => {
-    const withTips = matches.filter((m) => (picksByMatch[m.id] || []).length > 0);
-    if (filter === 'all') return withTips;
+    const q = searchQ.trim().toLowerCase();
+    let withTips = matches.filter((m) => (picksByMatch[m.id] || []).length > 0);
+    if (dateFilter) {
+      withTips = withTips.filter((m) => matchDayIso(m.kickoff_at) === dateFilter);
+    }
+    if (q) {
+      withTips = withTips.filter((m) => {
+        const hay = `${m.home_team} ${m.away_team} ${m.competition_code || ''}`.toLowerCase();
+        return hay.includes(q);
+      });
+    }
     return withTips;
-  }, [matches, picksByMatch, filter]);
+  }, [matches, picksByMatch, searchQ, dateFilter]);
+
+  const totalPages = visibleMatches.length
+    ? Math.max(1, Math.ceil(visibleMatches.length / pageSize))
+    : 0;
+  const pagedMatches = useMemo(() => {
+    const start = pageIndex * pageSize;
+    return visibleMatches.slice(start, start + pageSize);
+  }, [visibleMatches, pageIndex, pageSize]);
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [searchQ, dateFilter, bookFilter, filter, pageSize]);
+
+  useEffect(() => {
+    if (totalPages > 0 && pageIndex > totalPages - 1) {
+      setPageIndex(Math.max(0, totalPages - 1));
+    }
+  }, [totalPages, pageIndex]);
 
   const loadScans = useCallback(async (s: AppSettings, books: string[]) => {
     const q = {
@@ -190,13 +237,15 @@ export default function TodayScreen() {
         const s = settings || (await loadSettings());
         if (!settings) setSettings(s);
         if (withOdds) {
-          setStatus('Syncing odds from your books…');
+          setStatus('Updating matches & prices…');
+          await syncFixtures().catch(() => null);
           await syncOdds();
         }
         const cfg = await fetchPublicAppConfig();
         const books = cfg.odds_bookmakers?.length
           ? cfg.odds_bookmakers
           : ['sportybet', 'onexbet'];
+        setConfiguredBooks(books);
         const [health, bettable] = await Promise.all([
           pingHealth().catch(() => null),
           loadMatchList(books),
@@ -208,10 +257,10 @@ export default function TodayScreen() {
         pruneSelection(new Set(merged.map((m) => m.id)));
         setStatus(
           merged.length
-            ? `${merged.length} match(es) with odds · ${n} Safe tip(s)${withOdds ? ' · odds updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
+            ? `${merged.length} match${merged.length === 1 ? '' : 'es'} · ${n} tip${n === 1 ? '' : 's'}${withOdds ? ' · updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
             : withOdds
-              ? 'Odds synced — no bettable matches (try Sync fixtures first)'
-              : 'No matches with odds — Sync fixtures, then Load real bets'
+              ? 'Updated — no matches with tips yet. Try again closer to kickoff.'
+              : 'No matches yet — pull down or tap ↻ to refresh.'
         );
       } catch (e) {
         setStatus(e instanceof Error ? e.message : String(e));
@@ -241,77 +290,6 @@ export default function TodayScreen() {
   useEffect(() => {
     void refresh({ withOdds: false });
   }, []);
-
-
-  async function onLoadRealBets() {
-    setBusy(true);
-    setStatus('Load real bets: syncing odds from your books…');
-    try {
-      const s = settings || (await loadSettings());
-      if (!settings) setSettings(s);
-      const cfg = await fetchPublicAppConfig();
-      const books = cfg.odds_bookmakers?.length
-        ? cfg.odds_bookmakers
-        : ['sportybet', 'onexbet'];
-      const sync = await syncOdds();
-      const { n, picks: all } = await loadScans(s, books);
-      const bettable = await loadMatchList(books);
-      const merged = enrichMatchesFromPicks(bettable, all);
-      setMatches(merged);
-      setMatchCache(merged, all);
-      pruneSelection(new Set(merged.map((m) => m.id)));
-      const line = `${sync.message || 'Odds synced'} · ${merged.length} match(es) · ${n} tip(s).`;
-      setStatus(line);
-      await modal.alert({
-        title: 'Load real bets',
-        message: merged.length
-          ? `${line}\n\nIf tips are still 0, odds may not fit Safe rules yet.`
-          : `${sync.message || 'Odds synced'}\n\n0 matches with tips yet — tap Sync fixtures, then try again.`,
-      });
-    } catch (e) {
-      const msg =
-        e instanceof ApiError && e.status === 401
-          ? `${e.message}\n\nAdd your app access key in Me → Settings (same as APP_API_KEY on the server).`
-          : e instanceof Error
-            ? e.message
-            : String(e);
-      setStatus(msg);
-      await modal.alert({ title: 'Load real bets failed', message: msg });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onSyncFixtures() {
-    setBusy(true);
-    setStatus("Syncing match list from odds-api.io…");
-    try {
-      const result = await syncFixtures();
-      const s = settings || (await loadSettings());
-      if (!settings) setSettings(s);
-      const cfg = await fetchPublicAppConfig();
-      const books = cfg.odds_bookmakers?.length
-        ? cfg.odds_bookmakers
-        : ['sportybet', 'onexbet'];
-      const bettable = await loadMatchList(books);
-      const { n, picks: all } = await loadScans(s, books);
-      const merged = enrichMatchesFromPicks(bettable, all);
-      setMatches(merged);
-      setMatchCache(merged, all);
-      pruneSelection(new Set(merged.map((m) => m.id)));
-      setStatus(`${result.message} · ${merged.length} match(es) · ${n} tip(s)`);
-      await modal.alert({
-        title: 'Fixtures synced',
-        message: `${result.message}\n${merged.length} match(es) with odds on Today. Tap Load real bets if odds are stale.`,
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setStatus(msg);
-      await modal.alert({ title: 'Sync fixtures failed', message: msg });
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function onLogSelected() {
     const tips = getSelectedTips();
@@ -400,54 +378,22 @@ export default function TodayScreen() {
           ))}
         </ScrollView>
 
-        {availableBooks.length > 1 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
-            <Pressable
-              style={[styles.chip, bookFilter === 'all' && styles.chipOn]}
-              onPress={() => setBookFilter('all')}
-            >
-              <Text style={[styles.chipText, bookFilter === 'all' && styles.chipTextOn]}>
-                All books
-              </Text>
-            </Pressable>
-            {availableBooks.map((b) => (
-              <Pressable
-                key={b}
-                style={[styles.chip, bookFilter === b && styles.chipOn]}
-                onPress={() => setBookFilter(b)}
-              >
-                <Text style={[styles.chipText, bookFilter === b && styles.chipTextOn]}>
-                  {bookLabel(b)}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : null}
+        <View style={styles.filterTools}>
+          <TextInput
+            style={styles.searchInput}
+            value={searchQ}
+            onChangeText={setSearchQ}
+            placeholder="Search teams…"
+            placeholderTextColor={colors.muted}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <DatePickerField value={dateFilter} onChange={setDateFilter} placeholder="Pick date" />
+          <BookmakerSelect books={availableBooks} value={bookFilter} onChange={setBookFilter} />
+        </View>
 
         <Text style={styles.hint}>
-          Pull down or tap ↻ to sync odds & rescan · tap a pick row to add it to your slip (green
-          button bottom-right).
-        </Text>
-
-        <View style={styles.actionRow}>
-          <Pressable
-            style={[styles.btn, styles.actionBtn, busy && styles.btnDisabled]}
-            onPress={() => void onLoadRealBets()}
-            disabled={busy}
-          >
-            <Text style={styles.btnText}>Load real bets</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.btnSecondary, styles.actionBtn, busy && styles.btnDisabled]}
-            onPress={() => void onSyncFixtures()}
-            disabled={busy}
-          >
-            <Text style={styles.btnSecondaryText}>Sync fixtures</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.actionHint}>
-          Sync fixtures = download upcoming matches from odds-api.io (no prices yet). Load real bets
-          = fetch live SportyBet / 1xBet odds.
+          Pull down or tap ↻ to update matches & prices · tap a pick to add it to your slip.
         </Text>
 
         {busy && !matches.length ? (
@@ -458,7 +404,7 @@ export default function TodayScreen() {
           <View style={styles.staleBanner}>
             <Text style={styles.emptyTitle}>No Safe tips yet</Text>
             <Text style={styles.staleText}>
-              Pull down to sync SportyBet/1xBet odds and rescan Safe picks.
+              Pull down or tap ↻ to refresh prices. Tips appear when a clear favourite shows up.
             </Text>
           </View>
         ) : null}
@@ -467,14 +413,28 @@ export default function TodayScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No matches yet</Text>
             <Text style={styles.staleText}>
-              No matches with fresh odds. Sync fixtures → Load real bets. Set SportyBet + 1xBet
-              in root .env (ODDS_API_IO_BOOKMAKERS) and on your odds-api.io dashboard.
+              Pull down or tap ↻ to load today’s games and prices. If it’s still empty, try again
+              closer to kickoff, or clear your search/date filters.
             </Text>
           </View>
         ) : null}
 
+        {visibleMatches.length > 0 ? (
+          <PaginationBar
+            page={pageIndex + 1}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            disabled={busy}
+            onPageChange={(p) => setPageIndex(p - 1)}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPageIndex(0);
+            }}
+          />
+        ) : null}
+
         <View style={[styles.matchGrid, isWeb && styles.matchGridWeb]}>
-          {visibleMatches.map((m) => {
+          {pagedMatches.map((m) => {
             const tips = picksByMatch[m.id] || [];
             const hasTip = tips.length > 0;
             return (
@@ -546,6 +506,20 @@ export default function TodayScreen() {
             );
           })}
         </View>
+
+        {visibleMatches.length > 0 ? (
+          <PaginationBar
+            page={pageIndex + 1}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            disabled={busy}
+            onPageChange={(p) => setPageIndex(p - 1)}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPageIndex(0);
+            }}
+          />
+        ) : null}
       </ScrollView>
 
       <BetSlipFab
@@ -595,22 +569,26 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 4,
   },
-  actionRow: {
+  filterTools: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginTop: 8,
     marginBottom: 4,
+    alignItems: 'center',
   },
-  actionBtn: {
-    flex: 1,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  actionHint: {
-    color: colors.muted,
-    fontSize: 11,
-    lineHeight: 16,
-    marginBottom: 8,
+  searchInput: {
+    flexGrow: 1,
+    flexBasis: 140,
+    minWidth: 120,
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 10,
+    color: colors.ink,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
   },
   btn: {
     backgroundColor: colors.accent,
