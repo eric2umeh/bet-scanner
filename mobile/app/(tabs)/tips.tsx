@@ -260,7 +260,7 @@ export default function TipsScreen() {
   const debouncedQ = useDebouncedValue(searchQ, 450);
   const debouncedDate = useDebouncedValue(dateFilter, 200);
 
-  const listKey = `${tab}|${marketFilter}|${debouncedQ}|${debouncedDate}|${pageSize}`;
+  const listKey = `${tab}|${marketFilter}|${bookFilter}|${debouncedQ}|${debouncedDate}|${pageSize}`;
   const prevListKey = useRef(listKey);
 
   const fetchParams = useCallback(
@@ -269,11 +269,12 @@ export default function TipsScreen() {
       offset: page * pageSize,
       result: tab === 'active' ? 'pending' : 'settled',
       market: marketFilter === 'all' ? undefined : marketFilter,
+      bookmaker: bookFilter === 'all' ? undefined : bookFilter,
       q: debouncedQ || undefined,
       date_from: debouncedDate || undefined,
       date_to: debouncedDate || undefined,
     }),
-    [pageSize, tab, marketFilter, debouncedQ, debouncedDate]
+    [pageSize, tab, marketFilter, bookFilter, debouncedQ, debouncedDate]
   );
 
   const statsQuery = useQuery({
@@ -369,12 +370,8 @@ export default function TipsScreen() {
     for (const t of tips) {
       if (t.bookmaker) set.add(String(t.bookmaker).toLowerCase());
     }
+    if (bookFilter !== 'all') set.add(bookFilter);
     return [...set].sort();
-  }, [tips]);
-
-  const displayTips = useMemo(() => {
-    if (bookFilter === 'all') return tips;
-    return tips.filter((t) => String(t.bookmaker).toLowerCase() === bookFilter);
   }, [tips, bookFilter]);
 
   const busy = listBusy;
@@ -382,7 +379,7 @@ export default function TipsScreen() {
   const { singles, multis } = useMemo(() => {
     const singles: TipOut[] = [];
     const multis: Record<string, TipOut[]> = {};
-    for (const t of displayTips) {
+    for (const t of tips) {
       if (t.slip_id) {
         (multis[t.slip_id] || (multis[t.slip_id] = [])).push(t);
       } else {
@@ -393,7 +390,7 @@ export default function TipsScreen() {
       legs.sort((a, b) => a.id - b.id);
     }
     return { singles, multis };
-  }, [displayTips]);
+  }, [tips]);
 
   async function reloadAll() {
     await invalidateTipsCache();
