@@ -38,14 +38,9 @@ type Props = {
 export function ArbitragePanel({ onFlash }: Props) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [opps, setOpps] = useState<ArbOpportunity[]>([]);
-  const [booksScanned, setBooksScanned] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const [statusBad, setStatusBad] = useState(false);
 
   function flash(msg: string, bad = false) {
-    setStatus(msg);
-    setStatusBad(bad);
     onFlash?.(msg, bad);
   }
 
@@ -55,7 +50,6 @@ export function ArbitragePanel({ onFlash }: Props) {
       const s = await loadSettings();
       setSettings(s);
       const data = await scanSurebets({ sample_stake_ngn: s.bankroll });
-      setBooksScanned(data.books_scanned || []);
       setOpps(data.opportunities || []);
       flash(
         data.opportunities?.length
@@ -80,7 +74,6 @@ export function ArbitragePanel({ onFlash }: Props) {
           await syncOdds();
         }
         const data = await scanSurebets({ sample_stake_ngn: s.bankroll });
-        setBooksScanned(data.books_scanned || []);
         setOpps(data.opportunities || []);
         flash(
           data.opportunities?.length
@@ -113,9 +106,6 @@ export function ArbitragePanel({ onFlash }: Props) {
   const bestProfit = opps.length
     ? Math.max(...opps.map((o) => Number(o.profit_pct) || 0))
     : 0;
-  const scannedLabel = booksScanned.length
-    ? booksScanned.map((b) => bookLabel(b)).join(' · ')
-    : 'none yet — sync odds on Today';
 
   return (
     <ScrollView
@@ -132,10 +122,7 @@ export function ArbitragePanel({ onFlash }: Props) {
         />
       }
     >
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Surebet scanner</Text>
-        <Text style={styles.booksScanned}>Books in scan: {scannedLabel}</Text>
-      </View>
+      <Text style={styles.heroTitle}>Surebet scanner</Text>
 
       <View style={styles.statsRow}>
         <View style={styles.stat}>
@@ -154,19 +141,16 @@ export function ArbitragePanel({ onFlash }: Props) {
         </View>
       </View>
 
-      {status ? (
-        <View style={[styles.statusBox, statusBad && styles.statusBad]}>
-          {busy ? <ActivityIndicator color={colors.accent} style={{ marginRight: 8 }} /> : null}
-          <Text style={[styles.statusText, statusBad && styles.statusTextBad]}>{status}</Text>
-        </View>
-      ) : null}
-
       <Pressable
         style={[styles.btnPrimary, busy && styles.disabled]}
         disabled={busy}
         onPress={() => void findSurebets(true)}
       >
-        <Text style={styles.btnPrimaryText}>{busy ? 'Working…' : 'Find surebets'}</Text>
+        {busy ? (
+          <ActivityIndicator color="#06241c" />
+        ) : (
+          <Text style={styles.btnPrimaryText}>Find surebets</Text>
+        )}
       </Pressable>
       <Text style={styles.hint}>Pull down or tap Find surebets. Tap a card to copy stakes.</Text>
 
@@ -234,22 +218,11 @@ function ArbCard({ opp, onCopy }: { opp: ArbOpportunity; onCopy: () => void }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, paddingBottom: 40 },
-  hero: {
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-  },
-  heroTitle: { color: colors.ink, fontWeight: '800', fontSize: 17 },
-  heroText: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 6 },
-  booksScanned: {
-    color: colors.accent,
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 10,
-    lineHeight: 17,
+  heroTitle: {
+    color: colors.ink,
+    fontWeight: '800',
+    fontSize: 15,
+    marginBottom: 10,
   },
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   stat: {
@@ -258,31 +231,21 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 12,
-    padding: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
     alignItems: 'center',
   },
-  statVal: { color: colors.ink, fontWeight: '800', fontSize: 16 },
+  statVal: { color: colors.ink, fontWeight: '800', fontSize: 15 },
   statGood: { color: colors.accent },
   statLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
-  statusBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.accentDim,
-    borderColor: colors.accent,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-  },
-  statusBad: { backgroundColor: 'rgba(180,60,60,0.12)', borderColor: '#b43c3c' },
-  statusText: { color: colors.ink, fontSize: 13, flex: 1 },
-  statusTextBad: { color: '#ffb4b4' },
   btnPrimary: {
     backgroundColor: colors.accent,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
     marginBottom: 8,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   btnPrimaryText: { color: '#06241c', fontWeight: '800', fontSize: 15 },
   hint: { color: colors.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 },
