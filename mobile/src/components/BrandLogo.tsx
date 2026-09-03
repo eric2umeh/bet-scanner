@@ -18,6 +18,8 @@ type Props = {
   showWordmark?: boolean;
   /** Stack wordmark under the mark */
   stacked?: boolean;
+  /** Replaces default tagline under the wordmark */
+  tagline?: string | null;
   style?: ViewStyle;
 };
 
@@ -25,7 +27,13 @@ type Props = {
  * Vector radar + ball mark — matches app icon (#0b1014 shell, #2dd4a8 accent).
  * Use anywhere in the UI; PNG assets in assets/images/ are for OS icon + splash.
  */
-export function BrandLogo({ size = 'md', showWordmark = false, stacked = false, style }: Props) {
+export function BrandLogo({
+  size = 'md',
+  showWordmark = false,
+  stacked = false,
+  tagline = 'Odds · tips · edge',
+  style,
+}: Props) {
   const dim = SIZES[size];
   const mark = <LogoMark size={dim} />;
 
@@ -38,9 +46,7 @@ export function BrandLogo({ size = 'md', showWordmark = false, stacked = false, 
       {mark}
       <View style={stacked ? styles.textStack : styles.textInline}>
         <Text style={[styles.wordmark, sizeWordmark(size)]}>Bet Scanner</Text>
-        {!stacked ? (
-          <Text style={styles.tagline}>Odds · tips · edge</Text>
-        ) : null}
+        {!stacked && tagline ? <Text style={styles.tagline}>{tagline}</Text> : null}
       </View>
     </View>
   );
