@@ -370,7 +370,7 @@ export default function TodayScreen() {
       >
         <View style={[styles.topbar, isWeb && styles.topbarWeb]}>
           <View style={styles.hero}>
-            <BrandLogo size="md" showWordmark />
+            <BrandLogo size="md" showWordmark tagline={status} />
             {isWeb ? (
               <View style={styles.headerActions}>
                 <SyncHeaderButton onPress={onSyncOdds} disabled={busy} busy={busy} />
@@ -378,7 +378,6 @@ export default function TodayScreen() {
               </View>
             ) : null}
           </View>
-          <Text style={styles.statusLine}>{status}</Text>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
@@ -478,12 +477,17 @@ export default function TodayScreen() {
                     return (
                       <Pressable
                         key={tipKey(p)}
-                        style={[styles.tipRow, on && styles.tipRowOn, logged && styles.tipRowLogged]}
+                        style={[
+                          styles.tipRow,
+                          on && styles.tipRowOn,
+                          logged && styles.tipRowLogged,
+                          busy && styles.tipRowBusy,
+                        ]}
                         onPress={(e) => {
                           e?.stopPropagation?.();
-                          if (!logged) toggleTip(p);
+                          if (!logged && !busy) toggleTip(p);
                         }}
-                        disabled={logged}
+                        disabled={logged || busy}
                       >
                         <View style={[styles.check, on && styles.checkOn, logged && styles.checkLogged]}>
                           {logged ? <Text style={styles.checkMark}>✓</Text> : on ? <Text style={styles.checkMark}>✓</Text> : null}
@@ -700,6 +704,7 @@ const styles = StyleSheet.create({
   },
   tipRowOn: { backgroundColor: colors.accentDim, borderRadius: 10, paddingHorizontal: 8, paddingBottom: 8 },
   tipRowLogged: { opacity: 0.72 },
+  tipRowBusy: { opacity: 0.45 },
   check: {
     width: 22,
     height: 22,
