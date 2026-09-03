@@ -41,6 +41,7 @@ module.exports = {
     icon: './assets/images/icon.png',
     scheme: 'betscanner',
     userInterfaceStyle: 'dark',
+    backgroundColor: '#0b1014',
     runtimeVersion: {
       policy: 'appVersion',
     },
