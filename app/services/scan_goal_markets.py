@@ -222,11 +222,11 @@ def _keep_ou_pick(pick: dict, market: str) -> bool:
     """
     Bias toward higher historical hit-rate styles.
 
-    - ou_0_5: only Over (Under 0.5 = clean sheet 0-0, rare / low hit for "safe")
-    - ou_1_5 / ou_2_5: keep Over or Under when that side is shorter
+    - ou_0_5 / ou_1_5: only Over (prefer goals; skip Under 0.5 / Under 1.5)
+    - ou_2_5: keep Over or Under when that side is shorter
     """
     sel = str(pick.get("selection") or "").lower()
-    if market == "ou_0_5":
+    if market in ("ou_0_5", "ou_1_5"):
         return sel == "over"
     return sel in {"over", "under"}
 
