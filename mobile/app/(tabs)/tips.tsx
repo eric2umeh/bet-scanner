@@ -587,12 +587,12 @@ export default function TipsScreen() {
                 style={styles.searchInput}
                 value={searchQ}
                 onChangeText={setSearchQ}
-                placeholder="Search…"
+                placeholder="Search teams"
                 placeholderTextColor={colors.muted}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <DatePickerField value={dateFilter} onChange={setDateFilter} placeholder="Pick date" />
+              <DatePickerField value={dateFilter} onChange={setDateFilter} placeholder="Date" />
               {availableBooks.length > 0 ? (
                 <BookmakerSelect
                   books={availableBooks}
@@ -639,20 +639,6 @@ export default function TipsScreen() {
                 <Text style={styles.emptyTitle}>No tips match</Text>
                 <Text style={styles.muted}>Log from Today or change filters.</Text>
               </View>
-            ) : null}
-
-            {totalCount > 0 ? (
-              <PaginationBar
-                page={currentPage}
-                totalPages={totalPages}
-                pageSize={pageSize}
-                disabled={busy}
-                onPageChange={(p) => setPageIndex(p - 1)}
-                onPageSizeChange={(size) => {
-                  setPageSize(size);
-                  setPageIndex(0);
-                }}
-              />
             ) : null}
 
             {Object.entries(multis).map(([slipId, legs]) => {
@@ -824,7 +810,7 @@ const styles = StyleSheet.create({
   filterTools: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
-    gap: 8,
+    gap: 6,
     marginTop: 12,
     alignItems: 'center',
   },
@@ -836,7 +822,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    minWidth: 0,
+    minWidth: 120,
     backgroundColor: colors.surface,
     borderColor: colors.line,
     borderWidth: 1,
