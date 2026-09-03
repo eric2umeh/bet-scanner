@@ -134,13 +134,7 @@ export function ArbitragePanel({ onFlash }: Props) {
     >
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>Surebet scanner</Text>
-        <Text style={styles.heroText}>
-          Scans every bookmaker with fresh 1X2 odds in your database — best Home, Draw, and Away
-          price can come from different books. Sync odds on Today first, then Find surebets here.
-        </Text>
-        <Text style={styles.booksScanned}>
-          Books in scan: {scannedLabel}
-        </Text>
+        <Text style={styles.booksScanned}>Books in scan: {scannedLabel}</Text>
       </View>
 
       <View style={styles.statsRow}>
@@ -174,17 +168,12 @@ export function ArbitragePanel({ onFlash }: Props) {
       >
         <Text style={styles.btnPrimaryText}>{busy ? 'Working…' : 'Find surebets'}</Text>
       </Pressable>
-      <Text style={styles.hint}>
-        Syncs odds + scans in one step. Pull down to repeat. Tap a card to copy the stake plan.
-      </Text>
+      <Text style={styles.hint}>Pull down or tap Find surebets. Tap a card to copy stakes.</Text>
 
       {!opps.length && !busy ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No surebets right now</Text>
-          <Text style={styles.emptyText}>
-            True arbs are rare — books move fast. Add 3+ bookmakers on odds-api.io for better
-            coverage. Sync odds on Today, then Find surebets here closer to kickoff.
-          </Text>
+          <Text style={styles.emptyText}>Try again closer to kickoff after refreshing Today.</Text>
         </View>
       ) : null}
 
