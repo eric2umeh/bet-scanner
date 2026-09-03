@@ -113,12 +113,15 @@ def sync_odds(db: Session, settings: Settings) -> dict:
         db.commit()
         inserted += len(batch)
 
-    message = (
-        f"Inserted {inserted} odd snapshot(s) across {len(match_ids)} match(es) "
-        f"[{', '.join(notes)}]."
-    )
+    if inserted:
+        message = (
+            f"Updated prices for {len(match_ids)} match"
+            f"{'es' if len(match_ids) != 1 else ''}."
+        )
+    else:
+        message = "No live prices found. Pull to refresh again in a few minutes."
     if errors:
-        message += " Partial errors: " + "; ".join(errors)
+        message += " Some books failed — check your bookmaker pair on odds-api.io."
 
     return {
         "inserted": inserted,

@@ -51,15 +51,20 @@ def sync_matches_for_today(db: Session, settings: Settings) -> dict:
 
     db.commit()
 
-    message = f"Upserted {upserted} match row(s) [{', '.join(provider_notes)}]."
+    if upserted:
+        message = f"Updated {upserted} upcoming match{'es' if upserted != 1 else ''}."
+    else:
+        message = "No upcoming matches found right now. Try again closer to kickoff."
     if errors:
-        message += " Errors: " + "; ".join(errors)
+        message += " Some sources failed — pull to refresh and retry."
 
     return {
         "competitions": settings.competition_codes,
         "providers": enabled,
         "upserted": upserted,
         "message": message,
+        "provider_notes": provider_notes,
+        "errors": errors,
     }
 
 
