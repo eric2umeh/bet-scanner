@@ -1,5 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider, type Theme } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -21,6 +21,19 @@ export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
+};
+
+const AppNavTheme: Theme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: colors.accent,
+    background: colors.bg,
+    card: colors.bg,
+    text: colors.ink,
+    border: colors.line,
+    notification: colors.accent,
+  },
 };
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -99,17 +112,29 @@ export default function RootLayout() {
   return (
     <AppQueryProvider>
       <ModalProvider>
-        <ThemeProvider value={DarkTheme}>
+        <ThemeProvider value={AppNavTheme}>
           <StatusBar style="light" />
           <WebMobileFrame>
             <ConnectionBanner />
             <OnboardingGate ready={gateReady} />
-            <Stack>
+            <Stack
+              screenOptions={{
+                contentStyle: { backgroundColor: colors.bg },
+                headerStyle: { backgroundColor: colors.bg },
+                headerTintColor: colors.ink,
+                headerShadowVisible: false,
+                headerTitleStyle: { color: colors.ink, fontWeight: '700' },
+              }}
+            >
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
               <Stack.Screen
                 name="match/[id]"
-                options={{ headerShown: false, animation: 'slide_from_right' }}
+                options={{
+                  title: 'Match',
+                  headerBackTitle: 'Back',
+                  animation: 'slide_from_right',
+                }}
               />
               <Stack.Screen name="help" options={{ headerShown: false, presentation: 'modal' }} />
               <Stack.Screen name="tools" options={{ headerShown: false }} />
