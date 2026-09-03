@@ -24,6 +24,8 @@ import {
   type TipOut,
 } from '../../src/api/tips';
 import { isAuthError } from '../../src/api/client';
+import { BookmakerSelect } from '../../src/components/BookmakerSelect';
+import { DatePickerField } from '../../src/components/DatePickerField';
 import { PaginationBar } from '../../src/components/PaginationBar';
 import { SignInRequiredBanner } from '../../src/components/SignInRequiredBanner';
 import { SwipeableRow } from '../../src/components/SwipeableRow';
@@ -59,8 +61,6 @@ const MARKET_CHIPS: { id: MarketFilter; label: string }[] = [
   { id: 'ou_2_5', label: 'O/U' },
   { id: 'btts', label: 'BTTS' },
 ];
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function resultColor(result: string) {
   const r = (result || '').toLowerCase();
@@ -247,10 +247,7 @@ export default function TipsScreen() {
   const [bookFilter, setBookFilter] = useState<string>('all');
 
   const debouncedQ = useDebouncedValue(searchQ, 450);
-  const debouncedDate = useDebouncedValue(
-    DATE_RE.test(dateFilter.trim()) ? dateFilter.trim() : '',
-    300
-  );
+  const debouncedDate = useDebouncedValue(dateFilter, 200);
 
   const listKey = `${tab}|${marketFilter}|${debouncedQ}|${debouncedDate}|${pageSize}`;
   const prevListKey = useRef(listKey);
@@ -595,13 +592,11 @@ export default function TipsScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <TextInput
-                style={styles.dateInput}
-                value={dateFilter}
-                onChangeText={setDateFilter}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.muted}
-                autoCapitalize="none"
+              <DatePickerField value={dateFilter} onChange={setDateFilter} placeholder="Pick date" />
+              <BookmakerSelect
+                books={availableBooks}
+                value={bookFilter}
+                onChange={setBookFilter}
               />
               {MARKET_CHIPS.map((c) => (
                 <Pressable
@@ -611,17 +606,6 @@ export default function TipsScreen() {
                 >
                   <Text style={[styles.chipText, marketFilter === c.id && styles.chipTextOn]}>
                     {c.label}
-                  </Text>
-                </Pressable>
-              ))}
-              {availableBooks.map((b) => (
-                <Pressable
-                  key={b}
-                  style={[styles.chip, bookFilter === b && styles.chipOn]}
-                  onPress={() => setBookFilter(bookFilter === b ? 'all' : b)}
-                >
-                  <Text style={[styles.chipText, bookFilter === b && styles.chipTextOn]}>
-                    {bookLabel(b)}
                   </Text>
                 </Pressable>
               ))}
