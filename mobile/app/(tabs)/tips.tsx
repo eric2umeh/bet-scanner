@@ -292,10 +292,7 @@ export default function TipsScreen() {
         const data = await fetchTipsPage(fetchParams(page));
         setTips(data.items ?? []);
         setTotalCount(data.total ?? 0);
-        const pages = Math.max(1, Math.ceil((data.total ?? 0) / pageSize) || 1);
-        setStatus(
-          `${tab === 'active' ? 'Active' : 'History'} · ${data.total ?? 0} total · page ${page + 1} of ${pages}`
-        );
+        setStatus('');
       } catch (e) {
         if (!isAuthError(e)) {
           setStatus(e instanceof Error ? e.message : String(e));
@@ -304,7 +301,7 @@ export default function TipsScreen() {
         setListBusy(false);
       }
     },
-    [needsSignIn, fetchParams, tab, pageSize]
+    [needsSignIn, fetchParams, pageSize]
   );
 
   useEffect(() => {
@@ -549,9 +546,6 @@ export default function TipsScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.muted}>
-          {tab === 'active' ? 'Open bets still in play.' : 'Settled tips (won, lost, or void).'}
-        </Text>
         {status ? <Text style={styles.status}>{status}</Text> : null}
 
         {needsSignIn ? <SignInRequiredBanner /> : null}
@@ -575,9 +569,6 @@ export default function TipsScreen() {
               <Text style={styles.statLabel}>Pending</Text>
             </View>
           </View>
-        ) : null}
-        {!needsSignIn && stats && (stats.won ?? 0) + (stats.lost ?? 0) >= 5 ? (
-          <Text style={styles.leanNote}>Hit rate updates as tips settle. Prefer Safe DC on Today.</Text>
         ) : null}
 
         {!needsSignIn ? (
@@ -805,7 +796,7 @@ const styles = StyleSheet.create({
   tabText: { color: colors.muted, fontWeight: '600', fontSize: 14 },
   tabTextOn: { color: colors.accent },
   muted: { color: colors.muted, marginTop: 6, fontSize: 13, lineHeight: 18 },
-  status: { color: colors.ink, marginTop: 8, fontSize: 13 },
+  status: { color: colors.ink, marginTop: 6, fontSize: 12 },
   filters: { marginTop: 8 },
   filterTools: {
     flexDirection: 'row',
@@ -844,18 +835,19 @@ const styles = StyleSheet.create({
   chipOn: { borderColor: colors.accent, backgroundColor: colors.accentDim },
   chipText: { color: colors.muted, fontWeight: '600', fontSize: 12 },
   chipTextOn: { color: colors.accent },
-  stats: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  stats: { flexDirection: 'row', gap: 6, marginTop: 8 },
   stat: {
     flex: 1,
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 10,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
     alignItems: 'center',
   },
-  statVal: { color: colors.ink, fontWeight: '700', fontSize: 15 },
-  statLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
+  statVal: { color: colors.ink, fontWeight: '800', fontSize: 14 },
+  statLabel: { color: colors.muted, fontSize: 10, marginTop: 1 },
   row: { flexDirection: 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' },
   btn: {
     backgroundColor: colors.accent,
@@ -945,13 +937,6 @@ const styles = StyleSheet.create({
   legDeleteBtn: { marginTop: 8, alignSelf: 'flex-start' },
   legDeleteText: { color: colors.bad, fontSize: 12, fontWeight: '600' },
   youthHint: { color: colors.warn, fontSize: 11, marginTop: 4, lineHeight: 15 },
-  leanNote: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 10,
-    paddingHorizontal: 2,
-  },
   expandBox: { marginTop: 8 },
   settleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   settleBtn: {
