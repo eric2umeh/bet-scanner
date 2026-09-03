@@ -873,6 +873,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 14,
     padding: 12,
+    // Native: open right edge into the swipe-delete peek strip.
+    ...(isWeb
+      ? null
+      : {
+          borderTopRightRadius: 0,
+          borderBottomRightRadius: 0,
+          borderRightWidth: 0,
+        }),
   },
   cardTitle: { color: colors.ink, fontWeight: '700', fontSize: 15 },
   cardHeadRow: {
