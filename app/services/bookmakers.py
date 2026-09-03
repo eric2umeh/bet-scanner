@@ -6,10 +6,16 @@ from app.config import Settings
 
 
 def normalize_book_key(name: str) -> str:
-    """Internal DB key (sportybet, onexbet, bet9ja)."""
+    """Internal DB key (sportybet, onexbet, bet9ja, …)."""
     n = (name or "").strip().lower().replace(" ", "")
     if n in {"1xbet", "onexbet", "1xbit"}:
         return "onexbet"
+    if n in {"melbet", "mel.bet"}:
+        return "melbet"
+    if n in {"betwinner", "bet-winner"}:
+        return "betwinner"
+    if n in {"megapari", "mega-pari"}:
+        return "megapari"
     return n
 
 
@@ -22,6 +28,20 @@ def api_book_query_name(name: str) -> str:
         return "SportyBet"
     if n == "bet9ja":
         return "Bet9ja"
+    if n == "melbet":
+        return "MelBet"
+    if n == "betwinner":
+        return "BetWinner"
+    if n == "megapari":
+        return "MegaPari"
+    if n == "betano":
+        return "Betano"
+    if n == "ivibet":
+        return "Ivibet"
+    if n == "rabona":
+        return "Rabona"
+    if n == "stake":
+        return "Stake"
     return (name or "").strip()
 
 
