@@ -80,7 +80,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="me"
         options={{
-          title: 'Me',
+          title: 'Account',
           ...(isWeb ? webSubHeader : null),
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
         }}
