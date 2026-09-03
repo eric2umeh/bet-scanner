@@ -4,6 +4,7 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import * as SystemUI from 'expo-system-ui';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
@@ -25,6 +26,7 @@ export const unstable_settings = {
 
 const AppNavTheme: Theme = {
   ...DarkTheme,
+  dark: true,
   colors: {
     ...DarkTheme.colors,
     primary: colors.accent,
@@ -83,6 +85,7 @@ export default function RootLayout() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      await SystemUI.setBackgroundColorAsync(colors.bg).catch(() => {});
       const key = await loadAccessKey();
       await initSession();
       if (cancelled) return;
@@ -113,32 +116,42 @@ export default function RootLayout() {
     <AppQueryProvider>
       <ModalProvider>
         <ThemeProvider value={AppNavTheme}>
-          <StatusBar style="light" />
+          <StatusBar style="light" backgroundColor={colors.bg} />
           <WebMobileFrame>
-            <ConnectionBanner />
-            <OnboardingGate ready={gateReady} />
-            <Stack
-              screenOptions={{
-                contentStyle: { backgroundColor: colors.bg },
-                headerStyle: { backgroundColor: colors.bg },
-                headerTintColor: colors.ink,
-                headerShadowVisible: false,
-                headerTitleStyle: { color: colors.ink, fontWeight: '700' },
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
-              <Stack.Screen
-                name="match/[id]"
-                options={{
-                  title: 'Match',
-                  headerBackTitle: 'Back',
+            <View style={{ flex: 1, backgroundColor: colors.bg }}>
+              <ConnectionBanner />
+              <OnboardingGate ready={gateReady} />
+              <Stack
+                screenOptions={{
+                  contentStyle: { backgroundColor: colors.bg },
+                  headerStyle: { backgroundColor: colors.bg },
+                  headerTintColor: colors.ink,
+                  headerShadowVisible: false,
+                  headerTitleStyle: { color: colors.ink, fontWeight: '700' },
                   animation: 'slide_from_right',
                 }}
-              />
-              <Stack.Screen name="help" options={{ headerShown: false, presentation: 'modal' }} />
-              <Stack.Screen name="tools" options={{ headerShown: false }} />
-            </Stack>
+              >
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="onboarding"
+                  options={{ headerShown: false, animation: 'fade' }}
+                />
+                <Stack.Screen
+                  name="match/[id]"
+                  options={{
+                    title: 'Match',
+                    headerBackTitle: 'Back',
+                    contentStyle: { backgroundColor: colors.bg },
+                    animation: 'slide_from_right',
+                  }}
+                />
+                <Stack.Screen
+                  name="help"
+                  options={{ headerShown: false, presentation: 'modal' }}
+                />
+                <Stack.Screen name="tools" options={{ headerShown: false }} />
+              </Stack>
+            </View>
           </WebMobileFrame>
         </ThemeProvider>
       </ModalProvider>
