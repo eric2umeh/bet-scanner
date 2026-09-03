@@ -31,7 +31,7 @@ export default function TabLayout() {
         headerTintColor: colors.ink,
         headerShadowVisible: false,
         headerRight: () => <HelpHeaderButton />,
-        sceneStyle: isWeb ? { backgroundColor: colors.bg } : undefined,
+        sceneStyle: { backgroundColor: colors.bg },
         tabBarStyle: isWeb
           ? { display: 'none' }
           : {
@@ -64,7 +64,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="arb"
         options={{
-          title: 'Arb',
+          title: 'Surebets',
+          tabBarLabel: 'Surebets',
           ...(isWeb ? webSubHeader : null),
           tabBarIcon: ({ color }) => <TabBarIcon name="balance-scale" color={color} />,
         }}
