@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -33,7 +33,15 @@ import { colors } from '../../src/theme/colors';
 import type { Match, TipPick } from '../../src/types/api';
 
 type Panel = 'tips' | 'odds' | 'summary';
-type OddsFilter = 'all' | '1x2' | 'double_chance' | 'ou_2_5' | 'btts';
+type OddsFilter =
+  | 'all'
+  | '1x2'
+  | 'double_chance'
+  | 'ou_0_5'
+  | 'ou_1_5'
+  | 'ou_2_5'
+  | 'btts'
+  | 'tt_2_5';
 
 function kickoffLabel(iso?: string | null) {
   if (!iso) return '—';
@@ -70,7 +78,7 @@ function makeOddsPick(
 }
 
 export default function MatchDetailScreen() {
-  const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const matchId = Number(id);
@@ -94,6 +102,13 @@ export default function MatchDetailScreen() {
     loadSettings().then((s) => setStakeFallback(unitStakeNgn(s)));
   }, [matchId]);
 
+  useLayoutEffect(() => {
+    const title = match
+      ? `${match.home_team} vs ${match.away_team}`.slice(0, 28)
+      : 'Match';
+    navigation.setOptions({ title });
+  }, [navigation, match]);
+
   const loadOdds = useCallback(async () => {
     if (!Number.isFinite(matchId)) return;
     setLoadingOdds(true);
@@ -101,7 +116,9 @@ export default function MatchDetailScreen() {
     try {
       const [s, b] = await Promise.all([
         fetchLatestOdds({ bookmaker: 'sportybet', match_id: matchId }),
-        fetchLatestOdds({ bookmaker: 'bet9ja', match_id: matchId }).catch(() => []),
+        fetchLatestOdds({ bookmaker: 'melbet', match_id: matchId }).catch(() =>
+          fetchLatestOdds({ bookmaker: 'bet9ja', match_id: matchId }).catch(() => [])
+        ),
       ]);
       setSporty(Array.isArray(s) ? s : []);
       setBet9ja(Array.isArray(b) ? b : []);
@@ -135,6 +152,20 @@ export default function MatchDetailScreen() {
         labels: ['1X', 'X2', '12'],
       },
       {
+        id: 'ou_0_5' as const,
+        title: 'O/U 0.5',
+        market: 'ou_0_5',
+        keys: ['over', 'under'],
+        labels: ['Over', 'Under'],
+      },
+      {
+        id: 'ou_1_5' as const,
+        title: 'O/U 1.5',
+        market: 'ou_1_5',
+        keys: ['over', 'under'],
+        labels: ['Over', 'Under'],
+      },
+      {
         id: 'ou_2_5' as const,
         title: 'O/U 2.5',
         market: 'ou_2_5',
@@ -147,6 +178,13 @@ export default function MatchDetailScreen() {
         market: 'btts',
         keys: ['yes', 'no'],
         labels: ['Yes', 'No'],
+      },
+      {
+        id: 'tt_2_5' as const,
+        title: 'Team 3+',
+        market: 'tt_2_5',
+        keys: ['home_over', 'away_over'],
+        labels: ['Home 3+', 'Away 3+'],
       },
     ];
 
@@ -194,7 +232,7 @@ export default function MatchDetailScreen() {
         marketWinsSb > marketWinsB9
           ? 'SportyBet lean'
           : marketWinsB9 > marketWinsSb
-            ? 'Bet9ja lean'
+            ? 'MelBet lean'
             : 'Even';
 
       blocks.push({
@@ -214,9 +252,6 @@ export default function MatchDetailScreen() {
   if (!Number.isFinite(matchId) || !match) {
     return (
       <View style={styles.screen}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>← Back</Text>
-        </Pressable>
         <Text style={styles.title}>Match not in cache</Text>
         <Text style={styles.muted}>Go to Today, pull down to refresh odds, then open again.</Text>
       </View>
@@ -241,9 +276,6 @@ export default function MatchDetailScreen() {
           />
         }
       >
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={styles.backText}>← Back</Text>
-        </Pressable>
         <Text style={styles.league}>
           {match.competition_name || match.competition_code} · {match.status}
         </Text>
@@ -346,7 +378,7 @@ export default function MatchDetailScreen() {
                   </View>
                   <View style={styles.stat}>
                     <Text style={styles.statVal}>{oddsBlocks.winsB9}</Text>
-                    <Text style={styles.statLabel}>Bet9ja best</Text>
+                    <Text style={styles.statLabel}>MelBet best</Text>
                   </View>
                   <View style={styles.stat}>
                     <Text style={styles.statVal}>{oddsBlocks.ties}</Text>
@@ -359,8 +391,11 @@ export default function MatchDetailScreen() {
                       ['all', 'All'],
                       ['1x2', '1X2'],
                       ['double_chance', 'DC'],
-                      ['ou_2_5', 'O/U'],
+                      ['ou_0_5', '0.5'],
+                      ['ou_1_5', '1.5'],
+                      ['ou_2_5', '2.5'],
                       ['btts', 'BTTS'],
+                      ['tt_2_5', 'Team 3+'],
                     ] as const
                   ).map(([id, label]) => (
                     <Pressable
@@ -400,7 +435,7 @@ export default function MatchDetailScreen() {
                       ))}
                     </View>
                     <View style={styles.oddsRow}>
-                      <Text style={styles.oddsCell}>B9</Text>
+                      <Text style={styles.oddsCell}>Mel</Text>
                       {block.cells.map((c, i) => (
                         <View key={`b-${i}`} style={styles.oddsCell}>
                           <Text style={c.tie ? styles.tie : c.bestB ? styles.best : styles.price}>
@@ -415,8 +450,8 @@ export default function MatchDetailScreen() {
                         const c = block.cells[i];
                         if (c.a == null && c.b == null) return null;
                         const book =
-                          c.tie || (c.bestA && !c.bestB) || c.b == null ? 'sportybet' : 'bet9ja';
-                        const price = book === 'bet9ja' ? c.b : c.a;
+                          c.tie || (c.bestA && !c.bestB) || c.b == null ? 'sportybet' : 'melbet';
+                        const price = book === 'melbet' ? c.b : c.a;
                         if (price == null) return null;
                         const sel =
                           block.marketKey === 'double_chance' ? k.toUpperCase() : k;
@@ -484,8 +519,6 @@ export default function MatchDetailScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16 },
-  back: { marginBottom: 8, alignSelf: 'flex-start' },
-  backText: { color: colors.accent, fontWeight: '700', fontSize: 15 },
   league: { color: colors.muted, fontSize: 12, fontWeight: '600' },
   title: { color: colors.ink, fontSize: 22, fontWeight: '700', marginTop: 4 },
   muted: { color: colors.muted, marginTop: 6, fontSize: 13, lineHeight: 18 },
