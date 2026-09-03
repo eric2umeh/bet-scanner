@@ -64,7 +64,8 @@ class OddsApiIoProvider:
         self.settings = settings
         self.api_key = key
         self.bookmakers = settings.odds_api_io_bookmakers_list
-        self.event_limit = max(1, min(settings.odds_api_io_event_limit, 40))
+        # Cap 100: keeps free-tier /odds/multi usage reasonable (~10 batches).
+        self.event_limit = max(1, min(settings.odds_api_io_event_limit, 100))
 
     def fetch_settled_fixtures(
         self,
@@ -215,10 +216,18 @@ class OddsApiIoProvider:
 
     def _list_events(self) -> list[dict]:
         """
-        List pending football events per NG book, keep kickoff > now,
-        then round-robin merge with hard cap = event_limit.
+        List pending football events per configured book, keep kickoff > now,
+        prefer the next few days, then round-robin merge with hard cap = event_limit.
         """
         status = "pending"
+        now = datetime.now(timezone.utc)
+        # Prefer near-term fixtures so the daily card isn't filled with far-away games.
+        days_ahead = max(1, min(int(getattr(self.settings, "sync_days_ahead", 7) or 7), 14))
+        window_to = now + timedelta(days=days_ahead)
+        range_params = {
+            "from": _format_rfc3339(now - timedelta(minutes=5)),
+            "to": _format_rfc3339(window_to),
+        }
 
         if not self.bookmakers:
             data = self._get(
@@ -228,6 +237,7 @@ class OddsApiIoProvider:
                     "sport": "football",
                     "status": status,
                     "limit": self.event_limit,
+                    **range_params,
                 },
             )
             if not isinstance(data, list):
@@ -239,6 +249,7 @@ class OddsApiIoProvider:
             )
             return future[: self.event_limit]
 
+        # Ask each book for up to event_limit events, then merge uniquely.
         per_book: list[list[dict]] = []
         for book in self.bookmakers:
             api_book = api_book_query_name(book)
@@ -250,6 +261,7 @@ class OddsApiIoProvider:
                     "status": status,
                     "limit": self.event_limit,
                     "bookmaker": api_book,
+                    **range_params,
                 },
             )
             if not isinstance(data, list):
