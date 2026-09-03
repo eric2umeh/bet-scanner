@@ -486,6 +486,7 @@ def _apply_tip_list_filters(
     date_to: date | None,
     needle: str,
     hide_void: bool,
+    bookmaker: str | None = None,
 ):
     if result == "settled":
         stmt = stmt.where(Tip.result.in_(("won", "lost", "void")))
@@ -506,6 +507,9 @@ def _apply_tip_list_filters(
     if date_to is not None:
         end = datetime.combine(date_to, datetime.max.time(), tzinfo=timezone.utc)
         stmt = stmt.where(Tip.created_at <= end)
+    book = _norm_book(bookmaker) if bookmaker else ""
+    if book and book not in {"all", "unknown"}:
+        stmt = stmt.where(func.lower(Tip.bookmaker) == book)
     if needle:
         like = f"%{needle}%"
         stmt = stmt.where(
@@ -518,6 +522,30 @@ def _apply_tip_list_filters(
             )
         )
     return stmt
+
+
+def _group_tips_into_cards(tips: list) -> list[list]:
+    """
+    One UI card per accumulator slip (all legs) or per single tip.
+    Preserves first-seen order from the sorted tip list.
+    """
+    entries: list[list] = []
+    slip_pos: dict[str, int] = {}
+    for tip in tips:
+        sid = str(getattr(tip, "slip_id", None) or "").strip()
+        if sid:
+            idx = slip_pos.get(sid)
+            if idx is None:
+                slip_pos[sid] = len(entries)
+                entries.append([tip])
+            else:
+                entries[idx].append(tip)
+        else:
+            entries.append([tip])
+    for group in entries:
+        if len(group) > 1:
+            group.sort(key=lambda t: int(getattr(t, "id", 0) or 0))
+    return entries
 
 
 def list_tips(
@@ -533,10 +561,14 @@ def list_tips(
     date_to: date | None = None,
     hide_void: bool = False,
     owner_id: str | None = None,
+    bookmaker: str | None = None,
 ) -> dict:
     """
-    Paginated tip list — one SQL page + count (efficient pagination UI).
-    Returns { items, has_more, total, limit, offset }.
+    Paginated tip list by UI cards (multi slip = 1, single = 1).
+
+    `limit`/`offset`/`total` count cards, not raw tip rows — so 10/page shows
+    up to 10 list items even when some are multi-leg slips.
+    Returns { items, has_more, total, limit, offset } with flattened tip rows.
     """
     page_size = max(1, min(int(limit), 50))
     off = max(0, int(offset))
@@ -553,21 +585,21 @@ def list_tips(
         date_to=date_to,
         needle=needle,
         hide_void=hide_void,
+        bookmaker=bookmaker,
     )
-
-    count_stmt = select(func.count()).select_from(base.subquery())
-    total = int(db.scalar(count_stmt) or 0)
 
     stmt = (
         base.options(joinedload(Tip.match))
         .order_by(Tip.created_at.desc(), Tip.id.desc())
-        .offset(off)
-        .limit(page_size)
     )
-    items = [tip_to_dict(t) for t in db.scalars(stmt).unique().all()]
+    rows = list(db.scalars(stmt).unique().all())
+    cards = _group_tips_into_cards(rows)
+    total = len(cards)
+    page_cards = cards[off : off + page_size]
+    items = [tip_to_dict(t) for group in page_cards for t in group]
     return {
         "items": items,
-        "has_more": off + len(items) < total,
+        "has_more": off + page_size < total,
         "total": total,
         "limit": page_size,
         "offset": off,
