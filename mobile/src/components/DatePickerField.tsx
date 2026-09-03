@@ -38,17 +38,15 @@ function formatLabel(iso: string) {
   const d = parseIso(iso);
   if (!d) return iso;
   return d.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
     day: 'numeric',
-    year: 'numeric',
+    month: 'short',
   });
 }
 
 export function DatePickerField({
   value,
   onChange,
-  placeholder = 'Pick a date',
+  placeholder = 'Date',
   style,
 }: Props) {
   const selected = parseIso(value);
@@ -87,20 +85,27 @@ export function DatePickerField({
     setOpen(false);
   }
 
-  // Web: native date input is the most effortless calendar UX
+  // Web: native date input; show "Date" instead of browser dd/mm/yyyy when empty
   if (Platform.OS === 'web') {
     return (
       <View style={[styles.webWrap, style]}>
-        {createElement('input', {
-          type: 'date',
-          value: value || '',
-          onChange: (e: { target: { value: string } }) => onChange(e.target.value || ''),
-          style: webInputStyle,
-          'aria-label': placeholder,
-        })}
+        <View style={styles.webField}>
+          {!value ? <Text style={styles.webPlaceholder}>{placeholder}</Text> : null}
+          {createElement('input', {
+            type: 'date',
+            value: value || '',
+            onChange: (e: { target: { value: string } }) => onChange(e.target.value || ''),
+            style: {
+              ...webInputStyle,
+              color: value ? colors.ink : 'transparent',
+            },
+            'aria-label': placeholder,
+            title: placeholder,
+          })}
+        </View>
         {value ? (
           <Pressable onPress={() => onChange('')} hitSlop={8} accessibilityLabel="Clear date">
-            <Text style={styles.clearText}>Clear</Text>
+            <Text style={styles.clearText}>×</Text>
           </Pressable>
         ) : null}
       </View>
@@ -201,32 +206,59 @@ export function DatePickerField({
 }
 
 const webInputStyle = {
-  backgroundColor: colors.card,
-  border: `1px solid ${colors.line}`,
+  position: 'absolute' as const,
+  inset: 0,
+  width: '100%',
+  height: '100%',
+  backgroundColor: 'transparent',
+  border: 'none',
   borderRadius: 10,
   color: colors.ink,
-  padding: '8px 10px',
-  fontSize: 13,
-  minWidth: 140,
+  padding: '0 8px',
+  fontSize: 12,
   fontFamily: 'inherit',
-} as const;
+  boxSizing: 'border-box' as const,
+};
 
 const styles = StyleSheet.create({
   webWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
+    flexShrink: 0,
+  },
+  webField: {
+    width: 78,
+    height: 36,
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 10,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    // @ts-expect-error RN web
+    position: 'relative',
+  },
+  webPlaceholder: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    // @ts-expect-error RN web
+    pointerEvents: 'none',
   },
   trigger: {
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical: 8,
-    minWidth: 140,
+    width: 64,
+    flexShrink: 0,
+    alignItems: 'center',
   },
-  triggerText: { color: colors.ink, fontSize: 13, fontWeight: '600' },
+  triggerText: { color: colors.ink, fontSize: 12, fontWeight: '600' },
   placeholder: { color: colors.muted, fontWeight: '500' },
   backdrop: {
     flex: 1,
