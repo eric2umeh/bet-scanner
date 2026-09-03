@@ -13,6 +13,8 @@ import {
 import { colors } from '../theme/colors';
 
 const DELETE_WIDTH = 88;
+/** Always-visible red strip so users know the row can be swiped to delete. */
+const PEEK = 6;
 
 type Props = {
   children: ReactNode;
@@ -33,7 +35,9 @@ export function SwipeableRow({ children, onDelete, style }: Props) {
       onMoveShouldSetPanResponder: (_, g) =>
         Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderMove: (_, g) => {
-        const next = open.current ? Math.min(0, Math.max(-DELETE_WIDTH, g.dx - DELETE_WIDTH)) : Math.min(0, g.dx);
+        const next = open.current
+          ? Math.min(0, Math.max(-DELETE_WIDTH, g.dx - DELETE_WIDTH))
+          : Math.min(0, g.dx);
         translateX.setValue(next);
       },
       onPanResponderRelease: (_, g) => {
@@ -54,7 +58,7 @@ export function SwipeableRow({ children, onDelete, style }: Props) {
   }
 
   return (
-    <View style={[styles.wrap, style]}>
+    <View style={[styles.wrap, style]} accessibilityHint="Swipe left to delete">
       <View style={styles.deleteRail}>
         <Pressable
           style={styles.deleteBtn}
@@ -62,22 +66,32 @@ export function SwipeableRow({ children, onDelete, style }: Props) {
             close();
             onDelete();
           }}
+          accessibilityRole="button"
+          accessibilityLabel="Delete"
         >
           <Text style={styles.deleteText}>Delete</Text>
         </Pressable>
       </View>
-      <Animated.View
-        style={[styles.foreground, { transform: [{ translateX }] }]}
-        {...pan.panHandlers}
-      >
-        {children}
-      </Animated.View>
+      <View style={styles.row}>
+        <Animated.View
+          style={[styles.foreground, { transform: [{ translateX }] }]}
+          {...pan.panHandlers}
+        >
+          {children}
+        </Animated.View>
+        {/* Transparent spacer — delete rail shows through as a permanent edge cue. */}
+        <View style={styles.peek} pointerEvents="none" />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'relative', overflow: 'hidden', borderRadius: 14 },
+  wrap: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 14,
+  },
   deleteRail: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'flex-end',
@@ -93,5 +107,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   deleteText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  foreground: { backgroundColor: colors.card },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  foreground: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
+    // Keep the card flush against the peek so the red edge reads as the card rim.
+    marginRight: 0,
+  },
+  peek: {
+    width: PEEK,
+    backgroundColor: 'transparent',
+  },
 });
