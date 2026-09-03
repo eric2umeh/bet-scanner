@@ -253,20 +253,6 @@ def enrich_picks_with_learning(
             row["learning_note"] += " Stake cut to 75% of normal unit."
         if hide_weak and meta["confidence_label"] == "weak" and model.settled >= MIN_SAMPLE_STRONG:
             continue
-        # Prefer clearer underdogs when history is thin (safer DC default).
-        dog = row.get("dog_odds")
-        try:
-            dog_f = float(dog) if dog is not None else None
-        except (TypeError, ValueError):
-            dog_f = None
-        if (
-            hide_weak
-            and row.get("market") == "double_chance"
-            and dog_f is not None
-            and dog_f < 8.0
-            and model.settled < MIN_SAMPLE_STRONG
-        ):
-            continue
         enriched.append(row)
 
     enriched.sort(

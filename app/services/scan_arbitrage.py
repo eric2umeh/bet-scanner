@@ -201,12 +201,6 @@ def scan_1x2_arbs(
     opportunities.sort(key=lambda x: x["profit_pct"], reverse=True)
 
     scanned_list = sorted(books_scanned)
-    if allowed_bookmakers:
-        filter_note = f" Filter: {', '.join(sorted(allowed_bookmakers))}."
-    elif scanned_list:
-        filter_note = f" Scanned {len(scanned_list)} book(s): {', '.join(scanned_list)}."
-    else:
-        filter_note = " No fresh 1X2 odds in DB — sync odds on Today first."
 
     return {
         "count": len(opportunities),
@@ -215,9 +209,14 @@ def scan_1x2_arbs(
         "books_scanned": scanned_list,
         "opportunities": opportunities,
         "message": (
-            f"Found {len(opportunities)} 1X2 surebet(s) "
-            f"with profit ≥ {min_profit}% and odds younger than {max_age} min."
-            + filter_note
+            f"Found {len(opportunities)} surebet"
+            f"{'' if len(opportunities) == 1 else 's'}."
+            + (
+                f" Checked {len(scanned_list)} book"
+                f"{'' if len(scanned_list) == 1 else 's'}."
+                if scanned_list
+                else " Refresh Today first for prices."
+            )
         ),
     }
 

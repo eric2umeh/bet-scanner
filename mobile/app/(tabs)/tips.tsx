@@ -43,7 +43,15 @@ import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
 type TipsTab = 'active' | 'history';
-type MarketFilter = 'all' | 'double_chance' | '1x2' | 'ou_2_5' | 'btts';
+type MarketFilter =
+  | 'all'
+  | 'double_chance'
+  | '1x2'
+  | 'ou_0_5'
+  | 'ou_1_5'
+  | 'ou_2_5'
+  | 'btts'
+  | 'tt_2_5';
 
 const isWeb = Platform.OS === 'web';
 
@@ -58,8 +66,11 @@ const MARKET_CHIPS: { id: MarketFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'double_chance', label: 'DC' },
   { id: '1x2', label: '1X2' },
-  { id: 'ou_2_5', label: 'O/U' },
+  { id: 'ou_0_5', label: 'O/U 0.5' },
+  { id: 'ou_1_5', label: 'O/U 1.5' },
+  { id: 'ou_2_5', label: 'O/U 2.5' },
   { id: 'btts', label: 'BTTS' },
+  { id: 'tt_2_5', label: 'Team 3+' },
 ];
 
 function resultColor(result: string) {
@@ -539,9 +550,7 @@ export default function TipsScreen() {
         </View>
 
         <Text style={styles.muted}>
-          {tab === 'active'
-            ? 'Active = bets still in play. When a match ends, tips auto-settle and move to History. On web, tap Delete on each card; on phone, swipe left.'
-            : 'History = settled tips (won, lost, or void). On web, tap Delete on each card; on phone, swipe left.'}
+          {tab === 'active' ? 'Open bets still in play.' : 'Settled tips (won, lost, or void).'}
         </Text>
         {status ? <Text style={styles.status}>{status}</Text> : null}
 
@@ -568,21 +577,12 @@ export default function TipsScreen() {
           </View>
         ) : null}
         {!needsSignIn && stats && (stats.won ?? 0) + (stats.lost ?? 0) >= 5 ? (
-          <Text style={styles.leanNote}>
-            BTTS/O/U “lean %” is not win probability — it reflects which side is shorter
-            in the odds. Safer track: Safe DC picks on Today; avoid U21/U23 accas.
-          </Text>
+          <Text style={styles.leanNote}>Hit rate updates as tips settle. Prefer Safe DC on Today.</Text>
         ) : null}
 
         {!needsSignIn ? (
           <>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.filters}
-              contentContainerStyle={styles.filterRow}
-              keyboardShouldPersistTaps="handled"
-            >
+            <View style={styles.filterTools}>
               <TextInput
                 style={styles.searchInput}
                 value={searchQ}
@@ -593,11 +593,22 @@ export default function TipsScreen() {
                 autoCorrect={false}
               />
               <DatePickerField value={dateFilter} onChange={setDateFilter} placeholder="Pick date" />
-              <BookmakerSelect
-                books={availableBooks}
-                value={bookFilter}
-                onChange={setBookFilter}
-              />
+              {availableBooks.length > 0 ? (
+                <BookmakerSelect
+                  books={availableBooks}
+                  value={bookFilter}
+                  onChange={setBookFilter}
+                />
+              ) : null}
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filters}
+              contentContainerStyle={styles.filterRow}
+              keyboardShouldPersistTaps="handled"
+            >
               {MARKET_CHIPS.map((c) => (
                 <Pressable
                   key={c.id}
@@ -809,7 +820,14 @@ const styles = StyleSheet.create({
   tabTextOn: { color: colors.accent },
   muted: { color: colors.muted, marginTop: 6, fontSize: 13, lineHeight: 18 },
   status: { color: colors.ink, marginTop: 8, fontSize: 13 },
-  filters: { marginTop: 12 },
+  filters: { marginTop: 8 },
+  filterTools: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    gap: 8,
+    marginTop: 12,
+    alignItems: 'center',
+  },
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -817,18 +835,8 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   searchInput: {
-    width: 140,
-    backgroundColor: colors.surface,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    color: colors.ink,
-    fontSize: 13,
-  },
-  dateInput: {
-    width: 118,
+    flex: 1,
+    minWidth: 0,
     backgroundColor: colors.surface,
     borderColor: colors.line,
     borderWidth: 1,

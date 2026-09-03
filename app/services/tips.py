@@ -335,7 +335,7 @@ def log_selected_tips(
             continue
 
         market = str(t.get("market") or "").lower()
-        if market in ("ou_2_5", "btts"):
+        if market in ("ou_0_5", "ou_1_5", "ou_2_5", "btts", "tt_2_5"):
             match_row = db.get(Match, int(mid))
             if match_row and is_youth_or_reserve_match(
                 match_row.home_team,
@@ -344,7 +344,7 @@ def log_selected_tips(
                 competition_name=match_row.competition_name,
             ):
                 errors.append(
-                    f"Skipped youth/reserve O/U or BTTS: "
+                    f"Skipped youth/reserve goal market: "
                     f"{match_row.home_team} vs {match_row.away_team}"
                 )
                 continue
@@ -468,10 +468,10 @@ def _market_filter_clause(market: str | None):
         return Tip.market == "double_chance"
     if key in {"1x2", "winner", "ml"}:
         return Tip.market.in_(("1X2", "1x2"))
-    if key == "ou_2_5":
-        return Tip.market == "ou_2_5"
-    if key == "btts":
-        return Tip.market == "btts"
+    if key in {"ou_0_5", "ou_1_5", "ou_2_5", "btts", "tt_2_5"}:
+        return Tip.market == key
+    if key == "ou":
+        return Tip.market.in_(("ou_0_5", "ou_1_5", "ou_2_5"))
     return Tip.market == key
 
 

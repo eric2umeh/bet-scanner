@@ -25,8 +25,8 @@ router = APIRouter(prefix="/predictions", tags=["predictions"])
 def scan_predictions(
     bookmaker: str = Query(default="sportybet"),
     markets: str = Query(
-        default="ou_2_5,btts",
-        description="Comma list: ou_2_5, btts",
+        default="ou_0_5,ou_1_5,ou_2_5,btts,tt_2_5",
+        description="Comma list: ou_0_5, ou_1_5, ou_2_5, btts, tt_2_5",
     ),
     max_odds_age_minutes: int | None = Query(default=None, ge=1, le=24 * 60),
     bankroll_ngn: Decimal = Query(default=Decimal("50000"), gt=0),

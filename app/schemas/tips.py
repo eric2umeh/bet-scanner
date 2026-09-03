@@ -123,8 +123,8 @@ class LogPredictionsScanRequest(BaseModel):
     bankroll_ngn: Decimal = Field(default=Decimal("50000"), gt=0)
     unit_pct: Decimal | None = Field(default=None, gt=0, le=10)
     markets: str = Field(
-        default="ou_2_5,btts",
-        description="Comma list: ou_2_5, btts",
+        default="ou_0_5,ou_1_5,ou_2_5,btts,tt_2_5",
+        description="Comma list: ou_0_5, ou_1_5, ou_2_5, btts, tt_2_5",
     )
     notify_telegram: bool = False
     max_odds_age_minutes: int | None = Field(default=None, ge=1, le=24 * 60)
