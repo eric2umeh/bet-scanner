@@ -423,7 +423,7 @@ export default function MeScreen() {
         <Text style={styles.hint}>
           Run once each morning (or before you bet): refreshes upcoming matches, settles yesterday’s
           tips when scores are in, and writes a short AI brief of today’s best picks. For live
-          SportyBet / 1xBet prices, use Load real bets on the Today tab.
+          SportyBet / 1xBet prices, pull down or tap ↻ on the Today tab.
         </Text>
         <Pressable
           style={[styles.btn, opsBusy && styles.btnDisabled]}
