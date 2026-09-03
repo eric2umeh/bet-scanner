@@ -13,7 +13,7 @@ type Props = {
 
 export function BookmakerSelect({ books, value, onChange, style }: Props) {
   const [open, setOpen] = useState(false);
-  const options = [{ key: 'all', label: 'All books' }, ...books.map((b) => ({ key: b, label: bookLabel(b) }))];
+  const options = [{ key: 'all', label: 'All' }, ...books.map((b) => ({ key: b, label: bookLabel(b) }))];
   const current = options.find((o) => o.key === value) || options[0];
 
   return (
@@ -45,7 +45,9 @@ export function BookmakerSelect({ books, value, onChange, style }: Props) {
                     setOpen(false);
                   }}
                 >
-                  <Text style={[styles.optionText, on && styles.optionTextOn]}>{o.label}</Text>
+                  <Text style={[styles.optionText, on && styles.optionTextOn]}>
+                    {o.key === 'all' ? 'All books' : o.label}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -60,17 +62,18 @@ const styles = StyleSheet.create({
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 2,
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical: 8,
-    minWidth: 120,
+    maxWidth: 88,
+    flexShrink: 0,
   },
-  triggerText: { color: colors.ink, fontSize: 13, fontWeight: '600', flexShrink: 1 },
-  chevron: { color: colors.muted, fontSize: 12 },
+  triggerText: { color: colors.ink, fontSize: 12, fontWeight: '600', flexShrink: 1 },
+  chevron: { color: colors.muted, fontSize: 11 },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
