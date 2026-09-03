@@ -48,7 +48,15 @@ import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 import type { Match, TipPick } from '../../src/types/api';
 
-type MarketFilter = 'all' | 'double_chance' | '1x2' | 'ou_2_5' | 'btts';
+type MarketFilter =
+  | 'all'
+  | 'double_chance'
+  | '1x2'
+  | 'ou_0_5'
+  | 'ou_1_5'
+  | 'ou_2_5'
+  | 'btts'
+  | 'tt_2_5';
 
 const isWeb = Platform.OS === 'web';
 const UPCOMING_DAYS = 21;
@@ -113,7 +121,6 @@ export default function TodayScreen() {
   const [dateFilter, setDateFilter] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
-  const [configuredBooks, setConfiguredBooks] = useState<string[]>(['sportybet', 'onexbet']);
   const [status, setStatus] = useState('Pull down to refresh odds & Safe picks');
   const [busy, setBusy] = useState(false);
   const [selectedN, setSelectedN] = useState(0);
@@ -128,12 +135,18 @@ export default function TodayScreen() {
   useEffect(() => subscribeLoggedTips(() => setLoggedRev((n) => n + 1)), []);
 
   const availableBooks = useMemo(() => {
-    const set = new Set<string>(configuredBooks.map((b) => b.toLowerCase()));
+    const set = new Set<string>();
     for (const p of picks) {
       if (p.bookmaker) set.add(String(p.bookmaker).toLowerCase());
     }
     return [...set].sort();
-  }, [picks, configuredBooks]);
+  }, [picks]);
+
+  useEffect(() => {
+    if (bookFilter !== 'all' && !availableBooks.includes(bookFilter)) {
+      setBookFilter('all');
+    }
+  }, [availableBooks, bookFilter]);
 
   const filteredPicks = useMemo(() => {
     if (bookFilter === 'all') return picks;
@@ -245,7 +258,6 @@ export default function TodayScreen() {
         const books = cfg.odds_bookmakers?.length
           ? cfg.odds_bookmakers
           : ['sportybet', 'onexbet'];
-        setConfiguredBooks(books);
         const [health, bettable] = await Promise.all([
           pingHealth().catch(() => null),
           loadMatchList(books),
@@ -330,8 +342,11 @@ export default function TodayScreen() {
     { id: 'all', label: 'All' },
     { id: 'double_chance', label: 'Double chance' },
     { id: '1x2', label: 'Winner' },
+    { id: 'ou_0_5', label: 'O/U 0.5' },
+    { id: 'ou_1_5', label: 'O/U 1.5' },
     { id: 'ou_2_5', label: 'O/U 2.5' },
     { id: 'btts', label: 'BTTS' },
+    { id: 'tt_2_5', label: 'Team 3+' },
   ];
 
   const showNoTipsBanner = !busy && matches.length > 0 && picks.length === 0;
@@ -388,13 +403,23 @@ export default function TodayScreen() {
             autoCapitalize="none"
             autoCorrect={false}
           />
-          <DatePickerField value={dateFilter} onChange={setDateFilter} placeholder="Pick date" />
-          <BookmakerSelect books={availableBooks} value={bookFilter} onChange={setBookFilter} />
+          <DatePickerField
+            value={dateFilter}
+            onChange={setDateFilter}
+            placeholder="Pick date"
+            style={styles.filterItem}
+          />
+          {availableBooks.length > 0 ? (
+            <BookmakerSelect
+              books={availableBooks}
+              value={bookFilter}
+              onChange={setBookFilter}
+              style={styles.filterItem}
+            />
+          ) : null}
         </View>
 
-        <Text style={styles.hint}>
-          Pull down or tap ↻ to update matches & prices · tap a pick to add it to your slip.
-        </Text>
+        <Text style={styles.hint}>Pull down or tap ↻ to update · tap a pick for your slip.</Text>
 
         {busy && !matches.length ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
@@ -571,16 +596,18 @@ const styles = StyleSheet.create({
   },
   filterTools: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     gap: 8,
     marginTop: 8,
     marginBottom: 4,
     alignItems: 'center',
   },
+  filterItem: {
+    flexShrink: 0,
+  },
   searchInput: {
-    flexGrow: 1,
-    flexBasis: 140,
-    minWidth: 120,
+    flex: 1,
+    minWidth: 0,
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
