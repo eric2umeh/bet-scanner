@@ -67,7 +67,9 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
   const moved = useRef(false);
   const startPos = useRef<FabPos | null>(null);
   const posRef = useRef(pos);
+  const busyRef = useRef(!!busy);
   posRef.current = pos;
+  busyRef.current = !!busy;
 
   useEffect(
     () =>
@@ -135,12 +137,16 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
         const minBottom = defaultBottom(insets.bottom);
         const nextBottom = Math.min(maxBottom, Math.max(minBottom, base - g.dy));
         void savePos({ edge: nextEdge, bottom: nextBottom });
-        if (!moved.current) setOpen(true);
+        if (!moved.current && !busyRef.current) setOpen(true);
         moved.current = false;
         dragY.current = 0;
       },
     })
   ).current;
+
+  useEffect(() => {
+    if (busy) setOpen(false);
+  }, [busy]);
 
   if (count === 0) return null;
 
@@ -149,18 +155,22 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
   return (
     <>
       <View
-        style={[styles.fabHost, fabSide, { bottom: pos.bottom }]}
-        {...pan.panHandlers}
+        style={[styles.fabHost, fabSide, { bottom: pos.bottom }, busy && styles.fabHostBusy]}
+        {...(busy ? {} : pan.panHandlers)}
+        pointerEvents={busy ? 'none' : 'auto'}
         accessibilityRole="button"
-        accessibilityLabel={`${count} tips selected. Drag to move.`}
+        accessibilityState={{ disabled: !!busy }}
+        accessibilityLabel={
+          busy ? 'Logging tips…' : `${count} tips selected. Drag to move.`
+        }
       >
-        <View style={styles.fab}>
+        <View style={[styles.fab, busy && styles.fabBusy]}>
           <View style={styles.fabBadge}>
             <Text style={styles.fabBadgeText}>{count}</Text>
           </View>
-          <Text style={styles.fabOdds}>{combo > 1 ? combo.toFixed(2) : '—'}</Text>
+          <Text style={styles.fabOdds}>{busy ? '…' : combo > 1 ? combo.toFixed(2) : '—'}</Text>
         </View>
-        <Text style={styles.dragHint}>Tap · drag to edge</Text>
+        <Text style={styles.dragHint}>{busy ? 'Logging…' : 'Tap · drag to edge'}</Text>
       </View>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
@@ -221,11 +231,12 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
                 style={[styles.btnPrimary, busy && styles.btnDisabled]}
                 disabled={busy}
                 onPress={() => {
+                  if (busy) return;
                   setOpen(false);
                   onLog();
                 }}
               >
-                <Text style={styles.btnPrimaryText}>Log selected</Text>
+                <Text style={styles.btnPrimaryText}>{busy ? 'Logging…' : 'Log selected'}</Text>
               </Pressable>
             </View>
           </View>
@@ -243,6 +254,7 @@ const styles = StyleSheet.create({
     // @ts-expect-error RN web
     ...(isWeb ? { position: 'fixed' } : null),
   },
+  fabHostBusy: { opacity: 0.55 },
   fab: {
     width: FAB_SIZE,
     height: FAB_SIZE,
@@ -256,6 +268,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.45,
     shadowRadius: 8,
   },
+  fabBusy: { backgroundColor: colors.muted },
   fabBadge: {
     position: 'absolute',
     top: -4,
