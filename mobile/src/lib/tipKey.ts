@@ -23,5 +23,12 @@ export function bookLabel(book: string): string {
   if (b === 'sportybet') return 'SportyBet';
   if (b === 'bet9ja') return 'Bet9ja';
   if (b === 'onexbet' || b === '1xbet') return '1xBet';
+  if (b === 'melbet') return 'MelBet';
+  if (b === 'betwinner') return 'BetWinner';
+  if (b === 'megapari') return 'MegaPari';
+  if (b === 'betano') return 'Betano';
+  if (b === 'ivibet') return 'Ivibet';
+  if (b === 'rabona') return 'Rabona';
+  if (b === 'stake') return 'Stake';
   return book || '—';
 }
