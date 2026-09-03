@@ -402,11 +402,6 @@ export default function MeScreen() {
           <Text style={styles.muted}>Suggested unit ≈ ₦{unitStakeNgn(settings)}</Text>
         ) : null}
         <Text style={styles.label}>App access key</Text>
-        <Text style={styles.hint}>
-          Required for odds sync when the API is on Render with APP_API_KEY set.
-          Paste the same value as APP_API_KEY in Render → Environment, then tap Save settings below.
-          API: {API_URL.replace(/^https?:\/\//, '')}
-        </Text>
         <PasswordInput
           value={accessKey}
           onChangeText={setAccessKey}
@@ -421,9 +416,7 @@ export default function MeScreen() {
       <View style={styles.card}>
         <Text style={styles.section}>Daily update</Text>
         <Text style={styles.hint}>
-          Run once each morning (or before you bet): refreshes upcoming matches, settles yesterday’s
-          tips when scores are in, and writes a short AI brief of today’s best picks. For live
-          SportyBet / 1xBet prices, pull down or tap ↻ on the Today tab.
+          Morning update: fixtures, settle tips, brief. Fresh prices: ↻ on Today.
         </Text>
         <Pressable
           style={[styles.btn, opsBusy && styles.btnDisabled]}
