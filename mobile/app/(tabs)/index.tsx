@@ -398,7 +398,7 @@ export default function TodayScreen() {
             style={styles.searchInput}
             value={searchQ}
             onChangeText={setSearchQ}
-            placeholder="Search teams…"
+            placeholder="Search teams"
             placeholderTextColor={colors.muted}
             autoCapitalize="none"
             autoCorrect={false}
@@ -406,7 +406,7 @@ export default function TodayScreen() {
           <DatePickerField
             value={dateFilter}
             onChange={setDateFilter}
-            placeholder="Pick date"
+            placeholder="Date"
             style={styles.filterItem}
           />
           {availableBooks.length > 0 ? (
@@ -442,20 +442,6 @@ export default function TodayScreen() {
               closer to kickoff, or clear your search/date filters.
             </Text>
           </View>
-        ) : null}
-
-        {visibleMatches.length > 0 ? (
-          <PaginationBar
-            page={pageIndex + 1}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            disabled={busy}
-            onPageChange={(p) => setPageIndex(p - 1)}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPageIndex(0);
-            }}
-          />
         ) : null}
 
         <View style={[styles.matchGrid, isWeb && styles.matchGridWeb]}>
@@ -597,7 +583,7 @@ const styles = StyleSheet.create({
   filterTools: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
-    gap: 8,
+    gap: 6,
     marginTop: 8,
     marginBottom: 4,
     alignItems: 'center',
@@ -607,13 +593,13 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    minWidth: 0,
+    minWidth: 120,
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 10,
     color: colors.ink,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 13,
   },
