@@ -614,11 +614,11 @@ export default function TipsScreen() {
             </ScrollView>
 
             <Pressable
-              style={[styles.btn, styles.settleBtn, busy && styles.disabled]}
+              style={[styles.settlePrimary, busy && styles.disabled]}
               onPress={onAutoSettle}
               disabled={busy}
             >
-              <Text style={styles.btnText}>Settle finished tips</Text>
+              <Text style={styles.settlePrimaryText}>Settle finished tips</Text>
             </Pressable>
 
             {busy && !tips.length ? (
@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
   tabTextOn: { color: colors.accent },
   muted: { color: colors.muted, marginTop: 6, fontSize: 13, lineHeight: 18 },
   status: { color: colors.ink, marginTop: 6, fontSize: 12 },
-  filters: { marginTop: 8 },
+  filters: { marginTop: 8, marginBottom: 4, maxHeight: 44 },
   filterTools: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
@@ -855,10 +855,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
   },
-  settleBtn: {
-    marginTop: 14,
+  /** Primary settle CTA — must not reuse `settleBtn` (W/L chip styles below). */
+  settlePrimary: {
+    marginTop: 18,
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     alignItems: 'center',
+    alignSelf: 'stretch',
   },
+  settlePrimaryText: { color: '#06241c', fontWeight: '800', fontSize: 15 },
   btnText: { color: '#06241c', fontWeight: '700' },
   btnSecondary: {
     backgroundColor: colors.surface,
