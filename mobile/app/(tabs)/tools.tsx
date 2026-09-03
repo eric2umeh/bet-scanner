@@ -17,7 +17,7 @@ export default function ToolsHubScreen() {
       ]}
     >
       <Text style={styles.lead}>
-        Extra scanners and utilities. Arbitrage has its own tab — these tools help with the morning
+        Extra scanners and utilities. Surebets has its own tab — these tools help with the morning
         routine, value bets, tipster codes, and price checks.
       </Text>
 
@@ -50,8 +50,8 @@ export default function ToolsHubScreen() {
       <View style={styles.note}>
         <Text style={styles.noteTitle}>Quick tip</Text>
         <Text style={styles.noteText}>
-          For surebets, use the Arb tab. For daily Safe picks, stay on Today. Bankroll and sign-in
-          live under Account.
+          For surebets, use the Surebets tab. For daily Safe picks, stay on Today. Bankroll and
+          sign-in live under Account.
         </Text>
       </View>
     </ScrollView>
