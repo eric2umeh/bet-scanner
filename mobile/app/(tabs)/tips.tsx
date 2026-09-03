@@ -163,15 +163,6 @@ function WebDeleteButton({ onPress, label = 'Delete' }: { onPress: () => void; l
   );
 }
 
-function WebDeleteBar({ onPress, label = 'Delete tip' }: { onPress: () => void; label?: string }) {
-  if (!isWeb) return null;
-  return (
-    <Pressable style={styles.webDeleteBar} onPress={onPress} accessibilityRole="button">
-      <Text style={styles.webDeleteBarText}>{label}</Text>
-    </Pressable>
-  );
-}
-
 function formatLoggedAt(iso?: string | null): string {
   if (!iso) return '';
   return new Date(iso).toLocaleString(undefined, {
@@ -710,10 +701,6 @@ export default function TipsScreen() {
                         ))}
                       </View>
                     ) : null}
-                    <WebDeleteBar
-                      label="Delete entire slip"
-                      onPress={() => void onDeleteSlip(legs)}
-                    />
                   </View>
                 </SwipeableRow>
               );
@@ -748,9 +735,6 @@ export default function TipsScreen() {
                     {' · '}stake ₦{t.stake_ngn ?? '—'}
                   </Text>
                   {tab === 'active' ? <SettleButtons tipId={t.id} current={t.result} /> : null}
-                  <WebDeleteBar
-                    onPress={() => void onDelete(t.id, `${t.home_team} vs ${t.away_team}`)}
-                  />
                 </View>
               </SwipeableRow>
             ))}
@@ -905,14 +889,6 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   webHeaderDeleteText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  webDeleteBar: {
-    marginTop: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: colors.bad,
-    alignItems: 'center',
-  },
-  webDeleteBarText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   multiHeader: { cursor: 'pointer' as const },
   collapsedHint: { color: colors.muted, fontSize: 11, marginTop: 6 },
   pickBox: { marginTop: 8 },
