@@ -76,7 +76,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'Can I swap Bet9ja for another bookmaker?',
     answer:
-      'Yes — on the free odds-api.io plan you pick any 2 recreational books in their dashboard, then set ODDS_API_IO_BOOKMAKERS in root .env (e.g. SportyBet,BetKing or SportyBet,1xBet). Restart the API and pull down on Today to sync. True surebets stay rare; a second book with more overlapping fixtures helps more than Bet9ja alone if Bet9ja coverage is thin.',
+      'Yes — on the free odds-api.io plan you pick any 2 recreational books in their dashboard, then set ODDS_API_IO_BOOKMAKERS in root .env (e.g. SportyBet,MelBet or SportyBet,1xBet). Restart the API and pull down on Today to refresh. True surebets stay rare; a second book with more overlapping fixtures helps more than a thin book.',
     keywords: ['bet9ja', 'betking', '1xbet', 'bookmaker', 'change', 'swap', 'odds-api'],
   },
   {
