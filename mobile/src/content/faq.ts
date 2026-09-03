@@ -44,8 +44,72 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Today',
     question: 'What do the market chips mean?',
     answer:
-      'All shows every pick. Double chance / 1X2 are Safe Builder styles. O/U is over/under 2.5 goals. BTTS is both teams to score. Filter only hides picks on the list — it does not change the API.',
-    keywords: ['filter', 'chips', 'market', 'double chance', 'btts', 'over under'],
+      'All shows every pick. Double chance / Winner are Safe Builder styles. O/U 0.5, 1.5, 2.5 are match totals. BTTS is both teams to score. Team 3+ is a side scoring 3 or more goals (team totals Over 2.5). Filter only hides picks on the list.',
+    keywords: ['filter', 'chips', 'market', 'double chance', 'btts', 'over under', '0.5', '1.5', 'team'],
+  },
+  {
+    id: 'goal-markets-winrate',
+    category: 'Today',
+    question: 'Which goal markets hit more often?',
+    answer:
+      'Over 0.5 (at least one goal) and Over 1.5 usually hit more often than Over 2.5, but odds are shorter. Under 0.5 (0-0) is rare so we skip it. Team scores 3+ is a longshot — only shown when the book heavily favours that side. Lean % is not win probability; prefer Safe double chance for steadier results. Avoid U21/U23 accumulators.',
+    keywords: ['win rate', 'over 0.5', 'over 1.5', 'under', 'team 3', 'lean', 'confidence'],
+  },
+  {
+    id: 'tips-tabs',
+    category: 'Tips',
+    question: 'What is Active vs History?',
+    answer:
+      'Active = bets still in play. When a match ends, tips auto-settle and move to History. History = won, lost, or void. On web, tap Delete on a card; on phone, swipe left to delete.',
+    keywords: ['active', 'history', 'delete', 'swipe'],
+  },
+  {
+    id: 'arb-how',
+    category: 'Arbitrage',
+    question: 'How do I use the Arb tab?',
+    answer:
+      'Refresh prices on Today first (↻). Open Arb → Find surebets. The scan uses every book with fresh 1X2 odds; best Home/Draw/Away can come from different books. Copy the stake plan and place legs quickly. True arbs are rare — more books on odds-api.io help, but the free plan only allows 2 recreational books.',
+    keywords: ['arb', 'how', 'steps', 'stake', 'plan', 'surebet'],
+  },
+  {
+    id: 'arb-empty',
+    category: 'Arbitrage',
+    question: 'Why are there no surebets?',
+    answer:
+      'True arbs are rare. Odds must be fresh, and tiny edges disappear fast. Refresh Today, then Find surebets closer to kickoff. With only one book in the scan you will not see cross-book arbs.',
+    keywords: ['no', 'empty', 'rare', 'none', 'surebet'],
+  },
+  {
+    id: 'auth-key',
+    category: 'Account',
+    question: 'What is the app access key?',
+    answer:
+      'When the API on Render has APP_API_KEY set, paste that same value in Me → Settings → App access key, then Save. It is not your login password. API host: bet-scanner-znvg.onrender.com.',
+    keywords: ['access', 'key', 'api key', 'password', 'render', 'app_api_key'],
+  },
+  {
+    id: 'bookmaker-pair',
+    category: 'Odds & API',
+    question: 'How do I set my bookmaker pair?',
+    answer:
+      '1) On odds-api.io dashboard, enable exactly 2 recreational books (e.g. SportyBet + MelBet). 2) In local .env and Render → Environment set ODDS_API_IO_BOOKMAKERS=SportyBet,MelBet (same spelling as the dashboard). 3) Restart/redeploy the API, then tap ↻ on Today.',
+    keywords: ['bookmaker', 'pair', 'odds-api', 'sportybet', 'melbet', '1xbet', 'env'],
+  },
+  {
+    id: 'safe-dog',
+    category: 'Today',
+    question: 'What is SAFE_DOG_HIGH?',
+    answer:
+      'Safe double chance only shows when the underdog price is at least this number (default 6), with no upper limit. Set SAFE_DOG_HIGH=6 in local .env and on Render → Environment, then restart/redeploy.',
+    keywords: ['safe', 'dog', 'threshold', 'double chance', 'render'],
+  },
+  {
+    id: 'today-refresh',
+    category: 'Today',
+    question: 'What does refresh (↻) do?',
+    answer:
+      'One action: update the upcoming match list and fetch live prices from your configured books, then rescan Safe and goal tips. There is no separate Sync fixtures / Load real bets button anymore.',
+    keywords: ['refresh', 'sync', 'fixtures', 'load', 'real', 'bets'],
   },
   {
     id: 'tips-settle',
@@ -96,22 +160,6 @@ export const FAQ_ITEMS: FaqItem[] = [
     keywords: ['arbitrage', 'surebet', 'arb', 'what', 'explain'],
   },
   {
-    id: 'arb-how',
-    category: 'Arbitrage',
-    question: 'How do I use the Arb tab?',
-    answer:
-      '1) Set bankroll in Me → Settings. 2) Open Arb → Find surebets (syncs odds + scans). 3) Copy the stake plan and place each leg quickly.',
-    keywords: ['arb', 'how', 'steps', 'stake', 'plan'],
-  },
-  {
-    id: 'arb-empty',
-    category: 'Arbitrage',
-    question: 'Why are there no surebets?',
-    answer:
-      'True arbs are rare on just SportyBet and Bet9ja. Odds must be fresh, and tiny edges may disappear before you place all legs. Try refreshing odds and scanning again closer to kickoff.',
-    keywords: ['no', 'empty', 'rare', 'none', 'surebet'],
-  },
-  {
     id: 'value-what',
     category: 'Value',
     question: 'What is a value (+EV) pick?',
@@ -150,14 +198,6 @@ export const FAQ_ITEMS: FaqItem[] = [
     answer:
       'Only if your server has AUTH_REQUIRED_FOR_TIPS=true. Otherwise sign-in is optional but keeps your tips tied to your email when you use multiple devices.',
     keywords: ['sign in', 'login', 'account', 'auth', 'required'],
-  },
-  {
-    id: 'auth-key',
-    category: 'Account',
-    question: 'What is the app access key?',
-    answer:
-      'A separate server-wide password (APP_API_KEY on Render). Most personal setups leave it blank. It is not your email password — that is Me → Account.',
-    keywords: ['access', 'key', 'api key', 'password'],
   },
   {
     id: 'odds-quota',
