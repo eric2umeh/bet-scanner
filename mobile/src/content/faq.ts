@@ -20,7 +20,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Getting started',
     question: 'What should I do each morning?',
     answer:
-      'Pull down on Today to sync odds and Safe picks (or run Morning update in Me for fixtures only). Tick tips you plan to place → Log selected. After matches finish, open Tips → Settle finished tips.',
+      'Pull down on Today to sync odds and Safe picks (or run Daily update under Tools for fixtures + settle + brief). Tick tips you plan to place → Log selected. After matches finish, open Tips → Settle finished tips.',
     keywords: ['morning', 'routine', 'daily', 'workflow'],
   },
   {
@@ -204,7 +204,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Odds & API',
     question: 'Why should I avoid syncing odds too often?',
     answer:
-      'Free odds-api.io has a small hourly quota (~100 requests). Use Morning update in Me for daily fixtures without odds, and pull down on Today (or Find surebets / Scan value) only when you need fresh prices.',
+      'Free odds-api.io has a small hourly quota (~100 requests). Use Daily update under Tools for daily fixtures without odds, and pull down on Today (or Find surebets / Scan value) only when you need fresh prices.',
     keywords: ['quota', 'limit', '429', 'sync', 'odds', 'rate'],
   },
   {
