@@ -614,7 +614,7 @@ export default function TipsScreen() {
             </ScrollView>
 
             <Pressable
-              style={[styles.btn, busy && styles.disabled]}
+              style={[styles.btn, styles.settleBtn, busy && styles.disabled]}
               onPress={onAutoSettle}
               disabled={busy}
             >
@@ -854,6 +854,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
+  },
+  settleBtn: {
+    marginTop: 14,
+    alignItems: 'center',
   },
   btnText: { color: '#06241c', fontWeight: '700' },
   btnSecondary: {
