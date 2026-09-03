@@ -13,8 +13,11 @@ export function marketLabel(market: string): string {
   const m = String(market || '').toLowerCase();
   if (m === 'double_chance') return 'DC';
   if (m === '1x2') return '1X2';
+  if (m === 'ou_0_5') return 'O/U 0.5';
+  if (m === 'ou_1_5') return 'O/U 1.5';
   if (m === 'ou_2_5') return 'O/U 2.5';
   if (m === 'btts') return 'BTTS';
+  if (m === 'tt_2_5') return 'Team 3+';
   return market;
 }
 

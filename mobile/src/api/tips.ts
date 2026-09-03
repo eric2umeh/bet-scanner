@@ -58,7 +58,7 @@ function tipsQuery(params: FetchTipsParams): string {
 
 export function tipSource(p: TipPick): string {
   const m = String(p.market || '').toLowerCase();
-  if (m === 'ou_2_5' || m === 'btts') return 'goal_markets';
+  if (m.startsWith('ou_') || m === 'btts' || m === 'tt_2_5') return 'goal_markets';
   if (String(p.profile || '').includes('safe') || m === 'double_chance' || m === '1x2') {
     return 'safe_builder';
   }
