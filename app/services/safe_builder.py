@@ -1,7 +1,7 @@
 """
 Safe Builder rules (Phase 3C) — pure functions, no database.
 
-When underdog odds > 7 (home/away):
+When underdog odds >= 6 (home/away), no upper limit:
 
   Default pick_market = double_chance
     home favourite → 1X (Home or Draw)
@@ -11,7 +11,7 @@ When underdog odds > 7 (home/away):
     → straight favourite (home or away)
     → if underdog > 10, tagged accumulator_flex (prefer flex multi)
 
-User chooses the market style; rules still require underdog > 7.
+User chooses the market style; rules still require underdog >= dog_high (default 6).
 These are heuristics for safer slips — they can still lose.
 """
 
@@ -92,7 +92,8 @@ def evaluate_match(
     fav_side, fav_odds, dog_side, dog_odds = _sides(prices)
     dc_sel, dc_label = double_chance_for_favourite(fav_side)
 
-    if dog_odds <= dog_high:
+    # "6 and above": underdog odds must be at least dog_high (no upper limit).
+    if dog_odds < dog_high:
         return None
 
     # --- User chose double chance (default, including dog > 10) ---
