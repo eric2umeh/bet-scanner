@@ -24,9 +24,9 @@ import {
   type TipOut,
 } from '../../src/api/tips';
 import { isAuthError } from '../../src/api/client';
-import { BookmakerSelect } from '../../src/components/BookmakerSelect';
+import { BookLeanFilters } from '../../src/components/BookLeanFilters';
 import { DatePickerField } from '../../src/components/DatePickerField';
-import { LeanPctFilter } from '../../src/components/LeanPctFilter';
+import { LeanBar } from '../../src/components/LeanBar';
 import { PaginationBar } from '../../src/components/PaginationBar';
 import { SignInRequiredBanner } from '../../src/components/SignInRequiredBanner';
 import { SwipeableRow } from '../../src/components/SwipeableRow';
@@ -38,7 +38,7 @@ import { markScoreRefreshRan, shouldRunScoreRefresh } from '../../src/store/auto
 import { queryKeys } from '../../src/query/client';
 import { bookLabel, marketLabel } from '../../src/lib/tipKey';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
-import { formatConfidencePct, youthMatchHint } from '../../src/lib/marketLean';
+import { youthMatchHint } from '../../src/lib/marketLean';
 import { subscribeTipsList } from '../../src/store/tipsEvents';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
@@ -206,27 +206,28 @@ function LegResultBadge({ result, compact }: { result: string; compact?: boolean
   );
 }
 
-/** Same two-line layout as Today match cards. */
+/** Same layout as Today: pick lines + lean bar. */
 function PickLines({ t }: { t: TipOut }) {
   const odds = t.odds_price != null ? String(t.odds_price) : null;
-  const conf = formatConfidencePct(t.market, t.confidence_pct);
   const youthHint = youthMatchHint(t.home_team, t.away_team);
   return (
-    <>
-      <Text style={styles.pickTitle} numberOfLines={2}>
-        {marketLabel(t.market)} · {String(t.selection).toUpperCase()}
-        {odds ? ` @ ${odds}` : ''}
-      </Text>
-      <Text style={styles.pickMeta} numberOfLines={1}>
-        {bookLabel(t.bookmaker || '')}
-        {conf ? ` · ${conf}` : ''}
-      </Text>
-      {youthHint ? (
-        <Text style={styles.youthHint} numberOfLines={2}>
-          {youthHint}
+    <View style={styles.pickRow}>
+      <View style={styles.pickBody}>
+        <Text style={styles.pickTitle} numberOfLines={2}>
+          {marketLabel(t.market)} · {String(t.selection).toUpperCase()}
+          {odds ? ` @ ${odds}` : ''}
         </Text>
-      ) : null}
-    </>
+        <Text style={styles.pickMeta} numberOfLines={1}>
+          {bookLabel(t.bookmaker || '')}
+        </Text>
+        {youthHint ? (
+          <Text style={styles.youthHint} numberOfLines={2}>
+            {youthHint}
+          </Text>
+        ) : null}
+      </View>
+      <LeanBar pct={t.confidence_pct} />
+    </View>
   );
 }
 
@@ -575,16 +576,14 @@ export default function TipsScreen() {
                 autoCorrect={false}
               />
               <DatePickerField value={dateFilter} onChange={setDateFilter} placeholder="Date" />
-              {availableBooks.length > 0 ? (
-                <BookmakerSelect
-                  books={availableBooks}
-                  value={bookFilter}
-                  onChange={setBookFilter}
-                />
-              ) : null}
+              <BookLeanFilters
+                books={availableBooks}
+                bookValue={bookFilter}
+                onBookChange={setBookFilter}
+                leanValue={minLeanPct}
+                onLeanChange={setMinLeanPct}
+              />
             </View>
-
-            <LeanPctFilter value={minLeanPct} onChange={setMinLeanPct} />
 
             <ScrollView
               horizontal
@@ -905,6 +904,12 @@ const styles = StyleSheet.create({
   multiHeader: { cursor: 'pointer' as const },
   collapsedHint: { color: colors.muted, fontSize: 11, marginTop: 6 },
   pickBox: { marginTop: 8 },
+  pickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pickBody: { flex: 1, minWidth: 0 },
   pickTitle: { color: colors.ink, fontWeight: '600', fontSize: 13, lineHeight: 18 },
   pickMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
   meta: { color: colors.muted, marginTop: 6, fontSize: 12, lineHeight: 17 },
