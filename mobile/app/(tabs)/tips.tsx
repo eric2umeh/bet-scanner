@@ -26,6 +26,7 @@ import {
 import { isAuthError } from '../../src/api/client';
 import { BookmakerSelect } from '../../src/components/BookmakerSelect';
 import { DatePickerField } from '../../src/components/DatePickerField';
+import { LeanPctFilter } from '../../src/components/LeanPctFilter';
 import { PaginationBar } from '../../src/components/PaginationBar';
 import { SignInRequiredBanner } from '../../src/components/SignInRequiredBanner';
 import { SwipeableRow } from '../../src/components/SwipeableRow';
@@ -247,11 +248,12 @@ export default function TipsScreen() {
   const [dateFilter, setDateFilter] = useState('');
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('all');
   const [bookFilter, setBookFilter] = useState<string>('all');
+  const [minLeanPct, setMinLeanPct] = useState(0);
 
   const debouncedQ = useDebouncedValue(searchQ, 450);
   const debouncedDate = useDebouncedValue(dateFilter, 200);
 
-  const listKey = `${tab}|${marketFilter}|${bookFilter}|${debouncedQ}|${debouncedDate}|${pageSize}`;
+  const listKey = `${tab}|${marketFilter}|${bookFilter}|${minLeanPct}|${debouncedQ}|${debouncedDate}|${pageSize}`;
   const prevListKey = useRef(listKey);
 
   const fetchParams = useCallback(
@@ -261,11 +263,12 @@ export default function TipsScreen() {
       result: tab === 'active' ? 'pending' : 'settled',
       market: marketFilter === 'all' ? undefined : marketFilter,
       bookmaker: bookFilter === 'all' ? undefined : bookFilter,
+      min_lean_pct: minLeanPct > 0 ? minLeanPct : undefined,
       q: debouncedQ || undefined,
       date_from: debouncedDate || undefined,
       date_to: debouncedDate || undefined,
     }),
-    [pageSize, tab, marketFilter, bookFilter, debouncedQ, debouncedDate]
+    [pageSize, tab, marketFilter, bookFilter, minLeanPct, debouncedQ, debouncedDate]
   );
 
   const statsQuery = useQuery({
@@ -580,6 +583,8 @@ export default function TipsScreen() {
                 />
               ) : null}
             </View>
+
+            <LeanPctFilter value={minLeanPct} onChange={setMinLeanPct} />
 
             <ScrollView
               horizontal
