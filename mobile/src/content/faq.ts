@@ -43,10 +43,18 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: 'multi-odds',
     category: 'Today',
     question: 'Why don’t multi odds match SportyBet?',
-    answer:
-      'Bet Scout multi estimate multiplies each leg’s decimal odds (1.03 × 1.38 × 1.62 ≈ 2.30). That matches a normal SportyBet Multiple when each leg is a different match. Same-match legs (e.g. DC + O/U + BTTS on one game) are a Bet Builder — the book recalculates correlated prices and will not equal the product of singles. Also check you’re on SportyBet’s Multiple tab, not Single (Single is three separate stakes, not one combined price). Always confirm live before staking.',
-    keywords: ['multi', 'combined', 'odds', 'accumulator', 'bet builder', 'parlay', 'sportybet'],
-  },
+      answer:
+        'Bet Scout multi estimate multiplies each leg’s decimal odds. That matches a normal Multiple when each leg is a different match. Same-match legs (e.g. DC + O/U + BTTS) are correlated: SportyBet usually strikes out Multiple; MelBet and similar books either block related outcomes in a normal accumulator or push you to Bet Builder (re-priced, not odds × odds). Bet Scout disables Log as multi for same-match slips and logs singles. Always confirm live on your book.',
+      keywords: ['multi', 'combined', 'odds', 'accumulator', 'bet builder', 'parlay', 'sportybet', 'melbet'],
+    },
+    {
+      id: 'lean-filter',
+      category: 'Today',
+      question: 'What does the Lean % filter do?',
+      answer:
+        'Lean % is how strongly the market prices one side shorter than the other (odds gap) — not a predicted win rate. On Today and Tips, set Lean ≥ 75 (or tap 75+) to hide weaker tips. Clear or All shows everything.',
+      keywords: ['lean', 'confidence', 'filter', 'percent', '75'],
+    },
   {
     id: 'today-filter',
     category: 'Today',
