@@ -21,17 +21,16 @@ import { scanSafeBuilder } from '../../src/api/safe';
 import { logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
-import { BookmakerSelect } from '../../src/components/BookmakerSelect';
+import { BookLeanFilters } from '../../src/components/BookLeanFilters';
 import { DatePickerField } from '../../src/components/DatePickerField';
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
+import { LeanBar } from '../../src/components/LeanBar';
 import { PaginationBar } from '../../src/components/PaginationBar';
 import { SyncHeaderButton } from '../../src/components/SyncHeaderButton';
 import { BetSlipFab } from '../../src/components/BetSlipFab';
-import { LeanPctFilter } from '../../src/components/LeanPctFilter';
 import { useAppModal } from '../../src/components/modal';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
-import { formatConfidencePct } from '../../src/lib/marketLean';
 import { setMatchCache } from '../../src/store/matchCache';
 import { isTipLogged, initLoggedTips, markTipsLogged, subscribeLoggedTips } from '../../src/store/loggedTips';
 import {
@@ -417,17 +416,14 @@ export default function TodayScreen() {
             placeholder="Date"
             style={styles.filterItem}
           />
-          {availableBooks.length > 0 ? (
-            <BookmakerSelect
-              books={availableBooks}
-              value={bookFilter}
-              onChange={setBookFilter}
-              style={styles.filterItem}
-            />
-          ) : null}
+          <BookLeanFilters
+            books={availableBooks}
+            bookValue={bookFilter}
+            onBookChange={setBookFilter}
+            leanValue={minLeanPct}
+            onLeanChange={setMinLeanPct}
+          />
         </View>
-
-        <LeanPctFilter value={minLeanPct} onChange={setMinLeanPct} />
 
         <Text style={styles.hint}>Pull down or tap ↻ to update · tap a pick for your slip.</Text>
 
@@ -503,7 +499,7 @@ export default function TodayScreen() {
                         <View style={[styles.check, on && styles.checkOn, logged && styles.checkLogged]}>
                           {logged ? <Text style={styles.checkMark}>✓</Text> : on ? <Text style={styles.checkMark}>✓</Text> : null}
                         </View>
-                        <View style={{ flex: 1 }}>
+                        <View style={styles.tipBody}>
                           <Text
                             style={[styles.tipTitle, loggedPickStyle(logged)]}
                             numberOfLines={2}
@@ -511,12 +507,8 @@ export default function TodayScreen() {
                             {marketLabel(p.market)} · {String(p.selection).toUpperCase()}
                             {p.odds != null ? ` @ ${p.odds}` : ''}
                           </Text>
-                          <Text style={styles.tipMeta} numberOfLines={2}>
+                          <Text style={styles.tipMeta} numberOfLines={1}>
                             {bookLabel(p.bookmaker)}
-                            {(() => {
-                              const lean = formatConfidencePct(p.market, p.confidence_pct);
-                              return lean ? ` · ${lean}` : '';
-                            })()}
                           </Text>
                           {p.singles_only_hint ? (
                             <Text style={styles.tipWarn} numberOfLines={2}>
@@ -524,6 +516,7 @@ export default function TodayScreen() {
                             </Text>
                           ) : null}
                         </View>
+                        <LeanBar pct={p.confidence_pct} />
                       </Pressable>
                     );
                   })
@@ -707,6 +700,7 @@ const styles = StyleSheet.create({
   staleText: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: 4 },
   tipRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
     marginTop: 10,
     paddingTop: 10,
@@ -729,6 +723,7 @@ const styles = StyleSheet.create({
   checkOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   checkLogged: { backgroundColor: colors.muted, borderColor: colors.muted },
   checkMark: { color: '#06241c', fontWeight: '800', fontSize: 12 },
+  tipBody: { flex: 1, minWidth: 0 },
   tipTitle: { color: colors.ink, fontWeight: '700', fontSize: 14 },
   tipTitleLogged: { textDecorationLine: 'line-through', color: colors.muted },
   tipMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
