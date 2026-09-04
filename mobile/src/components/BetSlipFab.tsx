@@ -84,6 +84,13 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
     []
   );
 
+  // SportyBet / MelBet strike Multiple for same-match O/U+BTTS(+DC) — log as singles only.
+  useEffect(() => {
+    if (sameMatchMulti && asMulti) {
+      onAsMultiChange(false);
+    }
+  }, [sameMatchMulti, asMulti, onAsMultiChange]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -215,33 +222,35 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
           </ScrollView>
 
           <View style={styles.sheetFooter}>
-            <View style={styles.multiRow}>
-              <Text style={styles.multiLabel}>Log as multi</Text>
+            <View style={[styles.multiRow, sameMatchMulti && styles.multiRowDisabled]}>
+              <Text style={[styles.multiLabel, sameMatchMulti && styles.multiLabelStruck]}>
+                Log as multi
+              </Text>
               <Switch
-                value={asMulti}
+                value={sameMatchMulti ? false : asMulti}
                 onValueChange={onAsMultiChange}
+                disabled={sameMatchMulti || !!busy}
                 trackColor={{ true: colors.accent, false: colors.line }}
               />
             </View>
-            {combo > 1 ? (
+            {sameMatchMulti ? (
+              <Text style={styles.comboWarn}>
+                Same match (e.g. O/U + BTTS): most books (SportyBet, MelBet, …) block a normal
+                Multiple for correlated markets — Multiple is struck out; use Singles or Bet
+                Builder. Bet Scout logs these as separate tips.
+              </Text>
+            ) : combo > 1 && asMulti ? (
               <>
-                <Text style={styles.comboLine}>
-                  {asMulti
-                    ? `Est. accumulator ≈ ${combo.toFixed(2)}`
-                    : `Product of singles ≈ ${combo.toFixed(2)}`}
+                <Text style={styles.comboLine}>Est. accumulator ≈ {combo.toFixed(2)}</Text>
+                <Text style={styles.comboHint}>
+                  Multi = multiply odds, one stake. Use different matches so SportyBet Multiple
+                  stays available.
                 </Text>
-                {asMulti && sameMatchMulti ? (
-                  <Text style={styles.comboWarn}>
-                    Same-match legs: books use Bet Builder pricing — not odds × odds. Confirm live
-                    on SportyBet (Multiple / Bet Builder). Our figure is only a rough estimate.
-                  </Text>
-                ) : asMulti ? (
-                  <Text style={styles.comboHint}>
-                    Standard multi = multiply leg odds (one stake). Matches SportyBet Multiple when
-                    each leg is a different match. Singles tab = separate bets, not one multi.
-                  </Text>
-                ) : null}
               </>
+            ) : combo > 1 ? (
+              <Text style={styles.comboHint}>
+                Logging as singles — each tip is its own bet (like SportyBet Single).
+              </Text>
             ) : null}
             <View style={styles.sheetActions}>
               <Pressable style={styles.btnGhost} onPress={clearSelection}>
@@ -386,7 +395,12 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
   },
   multiRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  multiRowDisabled: { opacity: 0.55 },
   multiLabel: { color: colors.ink, fontSize: 14 },
+  multiLabelStruck: {
+    textDecorationLine: 'line-through',
+    color: colors.muted,
+  },
   comboLine: { color: colors.accent, fontSize: 13, marginTop: 8, fontWeight: '600' },
   comboHint: { color: colors.muted, fontSize: 11, marginTop: 6, lineHeight: 15 },
   comboWarn: { color: colors.warn, fontSize: 11, marginTop: 6, lineHeight: 15, fontWeight: '600' },
