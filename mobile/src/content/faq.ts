@@ -52,7 +52,7 @@ export const FAQ_ITEMS: FaqItem[] = [
       category: 'Today',
       question: 'What does the Lean % filter do?',
       answer:
-        'Lean % is how strongly the market prices one side shorter than the other (odds gap) — not a predicted win rate. On Today and Tips, set Lean ≥ 75 (or tap 75+) to hide weaker tips. Clear or All shows everything.',
+        'Lean % is how strongly the market prices one side shorter than the other (odds gap) — not a predicted win rate. On Today and Tips, open Filters (or Lean on wide screens) and set ≥ 75 to hide weaker tips. Reset clears the filter.',
       keywords: ['lean', 'confidence', 'filter', 'percent', '75'],
     },
   {
