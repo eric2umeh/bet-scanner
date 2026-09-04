@@ -22,6 +22,7 @@ import {
   combinedSelectionOdds,
   getSelectedCount,
   getSelectedTips,
+  selectionHasSameMatchLegs,
   subscribeSelection,
   toggleTip,
 } from '../store/selection';
@@ -59,6 +60,7 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
   const [open, setOpen] = useState(false);
   const [tips, setTips] = useState<TipPick[]>([]);
   const [combo, setCombo] = useState(0);
+  const [sameMatchMulti, setSameMatchMulti] = useState(false);
   const [pos, setPos] = useState<FabPos>(() => ({
     edge: 'right',
     bottom: defaultBottom(insets.bottom),
@@ -77,6 +79,7 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
         setCount(getSelectedCount());
         setTips(getSelectedTips());
         setCombo(combinedSelectionOdds());
+        setSameMatchMulti(selectionHasSameMatchLegs());
       }),
     []
   );
@@ -221,7 +224,24 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
               />
             </View>
             {combo > 1 ? (
-              <Text style={styles.comboLine}>Combined odds ≈ {combo.toFixed(2)}</Text>
+              <>
+                <Text style={styles.comboLine}>
+                  {asMulti
+                    ? `Est. accumulator ≈ ${combo.toFixed(2)}`
+                    : `Product of singles ≈ ${combo.toFixed(2)}`}
+                </Text>
+                {asMulti && sameMatchMulti ? (
+                  <Text style={styles.comboWarn}>
+                    Same-match legs: books use Bet Builder pricing — not odds × odds. Confirm live
+                    on SportyBet (Multiple / Bet Builder). Our figure is only a rough estimate.
+                  </Text>
+                ) : asMulti ? (
+                  <Text style={styles.comboHint}>
+                    Standard multi = multiply leg odds (one stake). Matches SportyBet Multiple when
+                    each leg is a different match. Singles tab = separate bets, not one multi.
+                  </Text>
+                ) : null}
+              </>
             ) : null}
             <View style={styles.sheetActions}>
               <Pressable style={styles.btnGhost} onPress={clearSelection}>
@@ -368,6 +388,8 @@ const styles = StyleSheet.create({
   multiRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   multiLabel: { color: colors.ink, fontSize: 14 },
   comboLine: { color: colors.accent, fontSize: 13, marginTop: 8, fontWeight: '600' },
+  comboHint: { color: colors.muted, fontSize: 11, marginTop: 6, lineHeight: 15 },
+  comboWarn: { color: colors.warn, fontSize: 11, marginTop: 6, lineHeight: 15, fontWeight: '600' },
   sheetActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
   btnGhost: {
     flex: 1,
