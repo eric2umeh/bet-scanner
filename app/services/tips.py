@@ -548,6 +548,19 @@ def _group_tips_into_cards(tips: list) -> list[list]:
     return entries
 
 
+def _card_max_lean(group: list) -> float:
+    vals: list[float] = []
+    for tip in group:
+        raw = getattr(tip, "confidence_pct", None)
+        if raw is None:
+            continue
+        try:
+            vals.append(float(raw))
+        except (TypeError, ValueError):
+            continue
+    return max(vals) if vals else -1.0
+
+
 def list_tips(
     db: Session,
     *,
@@ -562,6 +575,7 @@ def list_tips(
     hide_void: bool = False,
     owner_id: str | None = None,
     bookmaker: str | None = None,
+    min_lean_pct: float | None = None,
 ) -> dict:
     """
     Paginated tip list by UI cards (multi slip = 1, single = 1).
@@ -573,6 +587,7 @@ def list_tips(
     page_size = max(1, min(int(limit), 50))
     off = max(0, int(offset))
     needle = (q or "").strip()
+    lean_floor = float(min_lean_pct) if min_lean_pct is not None else 0.0
 
     base = select(Tip).join(Match, Tip.match_id == Match.id)
     base = _apply_tip_list_filters(
@@ -594,6 +609,9 @@ def list_tips(
     )
     rows = list(db.scalars(stmt).unique().all())
     cards = _group_tips_into_cards(rows)
+    if lean_floor > 0:
+        # Keep whole multi if strongest leg meets floor (legs stay together).
+        cards = [c for c in cards if _card_max_lean(c) >= lean_floor]
     total = len(cards)
     page_cards = cards[off : off + page_size]
     items = [tip_to_dict(t) for group in page_cards for t in group]

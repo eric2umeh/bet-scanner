@@ -38,6 +38,7 @@ export type FetchTipsParams = {
   result?: string;
   market?: string;
   bookmaker?: string;
+  min_lean_pct?: number;
   q?: string;
   date_from?: string;
   date_to?: string;
@@ -52,6 +53,9 @@ function tipsQuery(params: FetchTipsParams): string {
   if (params.result) q.set('result', params.result);
   if (params.market && params.market !== 'all') q.set('market', params.market);
   if (params.bookmaker && params.bookmaker !== 'all') q.set('bookmaker', params.bookmaker);
+  if (params.min_lean_pct != null && params.min_lean_pct > 0) {
+    q.set('min_lean_pct', String(params.min_lean_pct));
+  }
   if (params.q?.trim()) q.set('q', params.q.trim());
   if (params.date_from) q.set('date_from', params.date_from);
   if (params.date_to) q.set('date_to', params.date_to);
