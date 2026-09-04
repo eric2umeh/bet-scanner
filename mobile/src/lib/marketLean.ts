@@ -5,7 +5,15 @@ const YOUTH_RE =
 
 export function isGoalMarketLean(market: string): boolean {
   const m = String(market || '').toLowerCase();
-  return m === 'ou_2_5' || m === 'btts';
+  return (
+    m === 'ou_0_5' ||
+    m === 'ou_1_5' ||
+    m === 'ou_2_5' ||
+    m === 'btts' ||
+    m === 'tt_2_5' ||
+    m === 'double_chance' ||
+    m === '1x2'
+  );
 }
 
 export function formatConfidencePct(market: string, pct: number | null | undefined): string | null {
