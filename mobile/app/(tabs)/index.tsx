@@ -27,6 +27,7 @@ import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
 import { PaginationBar } from '../../src/components/PaginationBar';
 import { SyncHeaderButton } from '../../src/components/SyncHeaderButton';
 import { BetSlipFab } from '../../src/components/BetSlipFab';
+import { LeanPctFilter } from '../../src/components/LeanPctFilter';
 import { useAppModal } from '../../src/components/modal';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
@@ -40,6 +41,7 @@ import {
   initSelection,
   isTipSelected,
   pruneSelection,
+  selectionHasSameMatchLegs,
   subscribeSelection,
   toggleTip,
 } from '../../src/store/selection';
@@ -121,6 +123,7 @@ export default function TodayScreen() {
   const [dateFilter, setDateFilter] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
+  const [minLeanPct, setMinLeanPct] = useState(0);
   const [status, setStatus] = useState('Pull down to refresh odds & Safe picks');
   const [busy, setBusy] = useState(false);
   const [selectedN, setSelectedN] = useState(0);
@@ -157,11 +160,15 @@ export default function TodayScreen() {
     const map: Record<number, TipPick[]> = {};
     for (const p of filteredPicks) {
       if (filter !== 'all' && String(p.market).toLowerCase() !== filter) continue;
+      if (minLeanPct > 0) {
+        const lean = Number(p.confidence_pct);
+        if (!Number.isFinite(lean) || lean < minLeanPct) continue;
+      }
       if (!map[p.match_id]) map[p.match_id] = [];
       map[p.match_id].push(p);
     }
     return map;
-  }, [filteredPicks, filter]);
+  }, [filteredPicks, filter, minLeanPct]);
 
   const visibleMatches = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
@@ -188,7 +195,7 @@ export default function TodayScreen() {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [searchQ, dateFilter, bookFilter, filter, pageSize]);
+  }, [searchQ, dateFilter, bookFilter, filter, pageSize, minLeanPct]);
 
   useEffect(() => {
     if (totalPages > 0 && pageIndex > totalPages - 1) {
@@ -315,9 +322,11 @@ export default function TodayScreen() {
     setBusy(true);
     try {
       const s = settings || (await loadSettings());
+      // Same-match correlated markets can't be a normal multi on most books — force singles.
+      const forceSingles = selectionHasSameMatchLegs();
       const data = await logTipBatch({
         tips,
-        as_multi: asMulti,
+        as_multi: forceSingles ? false : asMulti,
         stakeFallback: unitStakeNgn(s),
       });
       await markTipsLogged(tips);
@@ -417,6 +426,8 @@ export default function TodayScreen() {
             />
           ) : null}
         </View>
+
+        <LeanPctFilter value={minLeanPct} onChange={setMinLeanPct} />
 
         <Text style={styles.hint}>Pull down or tap ↻ to update · tap a pick for your slip.</Text>
 
