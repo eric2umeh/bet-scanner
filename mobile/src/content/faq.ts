@@ -40,6 +40,14 @@ export const FAQ_ITEMS: FaqItem[] = [
     keywords: ['log', 'selected', 'multi', 'accumulator', 'tick'],
   },
   {
+    id: 'multi-odds',
+    category: 'Today',
+    question: 'Why don’t multi odds match SportyBet?',
+    answer:
+      'Bet Scout multi estimate multiplies each leg’s decimal odds (1.03 × 1.38 × 1.62 ≈ 2.30). That matches a normal SportyBet Multiple when each leg is a different match. Same-match legs (e.g. DC + O/U + BTTS on one game) are a Bet Builder — the book recalculates correlated prices and will not equal the product of singles. Also check you’re on SportyBet’s Multiple tab, not Single (Single is three separate stakes, not one combined price). Always confirm live before staking.',
+    keywords: ['multi', 'combined', 'odds', 'accumulator', 'bet builder', 'parlay', 'sportybet'],
+  },
+  {
     id: 'today-filter',
     category: 'Today',
     question: 'What do the market chips mean?',
