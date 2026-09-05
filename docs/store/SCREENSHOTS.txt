@@ -26,7 +26,7 @@ HOW
 
 FEATURE GRAPHIC (1024×500)
 --------------------------
-  Dark background #0b1014, logo mark + “Bet Scanner” + tagline:
+  Dark background #0b1014, logo mark + “Bet Scout” + tagline:
   “Scan · Log · Track hit rate”
 
 PRIVACY URL (paste in Play Console)

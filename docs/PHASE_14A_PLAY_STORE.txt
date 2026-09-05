@@ -3,7 +3,7 @@ PHASE 14A — PRODUCTION RELEASE (Google Play first · App Store later)
 ================================================================================
 
 Goal:
-  Ship an installable Bet Scanner app to the Google Play Store (internal →
+  Ship an installable Bet Scout app to the Google Play Store (internal →
   production). iOS follows once you have an Apple Developer account ($99/yr).
 
 Prerequisites:
@@ -83,7 +83,7 @@ STEP 3 — GOOGLE PLAY CONSOLE (first release)
 --------------------------------------------------------------------------------
 
   1) https://play.google.com/console → Create app
-     - Name: Bet Scanner
+     - Name: Bet Scout
      - App / Games → App
      - Free
 
@@ -150,7 +150,7 @@ Short:
   Scan football tips, log slips, track hit rate — SportyBet & Bet9ja odds.
 
 Full:
-  Bet Scanner helps you work through a disciplined betting morning:
+  Bet Scout helps you work through a disciplined betting morning:
 
   • Load real bets — sync SportyBet and Bet9ja odds, see Safe picks and goal markets
   • Log what you actually placed — singles and multis, swipe to remove mistakes

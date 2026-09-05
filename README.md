@@ -1,4 +1,4 @@
-# Bet Scanner — Football decision / surebet API
+# Bet Scout — Football decision / surebet API
 
 You are building a football betting **decision** app, learning AI/backend engineering as you go.
 

@@ -34,7 +34,7 @@ HOW TO TRY
 NOTE
 --------------------------------------------------------------------------------
 
-  Log as multi = tracking in Bet Scanner DB.
+  Log as multi = tracking in Bet Scout DB.
   Placing on SportyBet is still manual (same-match often singles there).
 
   Auto-settle needs FINISHED + FT scores on the tip's match row.
