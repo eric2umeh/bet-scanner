@@ -71,6 +71,13 @@ services:
         sync: false
       - key: AUTH_REQUIRED_FOR_TIPS
         value: "true"
+      # O/U 2.5 lean floor (de-vig fair %). Higher = fewer soft Overs.
+      - key: GOAL_OU25_MIN_CONFIDENCE
+        value: "70"
+      - key: GOAL_LEAN_MIN_CONFIDENCE
+        value: "60"
+      - key: GOAL_TT_MIN_CONFIDENCE
+        value: "62"
 
   # Cron is usually NOT on the free tier (~$1+/mo). Create this when ready.
   # Schedule: 06:00 UTC = 07:00 Africa/Lagos
