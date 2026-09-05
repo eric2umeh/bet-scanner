@@ -226,7 +226,7 @@ function PickLines({ t }: { t: TipOut }) {
           </Text>
         ) : null}
       </View>
-      <LeanBar pct={t.confidence_pct} />
+      <LeanBar pct={t.confidence_pct} compact />
     </View>
   );
 }
