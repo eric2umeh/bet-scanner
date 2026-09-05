@@ -1,7 +1,7 @@
 """
-Phase 10B — O/U 2.5 + BTTS lean tips.
+Goal-market lean tips: O/U 0.5 · 1.5 · 2.5, BTTS, team totals 2.5 (Team 3+).
 
-  GET /predictions/scan?bookmaker=sportybet&markets=ou_2_5,btts
+  GET /predictions/scan?bookmaker=sportybet&markets=ou_0_5,ou_1_5,ou_2_5,btts,tt_2_5
 """
 
 from decimal import Decimal
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/predictions", tags=["predictions"])
 @router.get(
     "/scan",
     response_model=GoalMarketScanResponse,
-    summary="Scan O/U 2.5 and BTTS market-lean tips",
+    summary="Scan goal-market lean tips (O/U 0.5/1.5/2.5, BTTS, Team 3+)",
 )
 def scan_predictions(
     bookmaker: str = Query(default="sportybet"),
