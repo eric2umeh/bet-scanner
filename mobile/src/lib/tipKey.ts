@@ -4,11 +4,14 @@ import type { TipPick } from '../types/api';
 export function tipKey(
   p: Pick<TipPick, 'match_id' | 'bookmaker' | 'market' | 'selection'>
 ): string {
+  const market = String(p.market || '').toLowerCase().replace(/-/g, '_');
+  // Safe builder may emit 1X2; tips API stores lowercased/normalized variants.
+  const marketNorm = market === '1x2' ? '1x2' : market;
   return [
-    p.match_id,
-    String(p.bookmaker || '').toLowerCase(),
-    String(p.market || '').toLowerCase(),
-    String(p.selection || '').toLowerCase(),
+    Number(p.match_id),
+    String(p.bookmaker || '').trim().toLowerCase(),
+    marketNorm,
+    String(p.selection || '').trim().toLowerCase(),
   ].join('|');
 }
 
