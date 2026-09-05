@@ -100,7 +100,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Account',
     question: 'What is the app access key?',
     answer:
-      'Developer-only. When APP_API_KEY is set on the server, sign in with the developer account → Me → Settings → App access key. Regular users never see this field. It is not your login password.',
+      'Not shown to regular users. When APP_API_KEY is set on Render, the web/app build should include EXPO_PUBLIC_APP_API_KEY (same value) so Refresh works automatically. Developers can also paste it under Me → Settings. It is not your login password. Or just sign in — a valid login also unlocks sync/settle.',
     keywords: ['access', 'key', 'api key', 'password', 'render', 'app_api_key'],
   },
   {
