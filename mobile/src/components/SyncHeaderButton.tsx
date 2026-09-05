@@ -7,11 +7,19 @@ type Props = {
   onPress: () => void;
   disabled?: boolean;
   busy?: boolean;
-  /** Show “Refresh” label — helpful on narrow web where the icon alone can be missed. */
+  /** Show text label (default true on callers that pass it). */
   showLabel?: boolean;
+  /** Button label — default “Load matches” (not browser refresh). */
+  label?: string;
 };
 
-export function SyncHeaderButton({ onPress, disabled, busy, showLabel }: Props) {
+export function SyncHeaderButton({
+  onPress,
+  disabled,
+  busy,
+  showLabel = true,
+  label = 'Load matches',
+}: Props) {
   const off = disabled || busy;
   return (
     <Pressable
@@ -19,15 +27,15 @@ export function SyncHeaderButton({ onPress, disabled, busy, showLabel }: Props) 
       onPress={onPress}
       disabled={off}
       accessibilityRole="button"
-      accessibilityLabel="Sync odds and rescan Safe picks"
-      accessibilityHint="Refresh odds and tips"
+      accessibilityLabel={label}
+      accessibilityHint="Fetches fresh odds and rebuilds Today tips — not the same as browser refresh"
     >
       {busy ? (
         <ActivityIndicator size="small" color={colors.accent} />
       ) : (
         <View style={styles.inner}>
-          <FontAwesome name="refresh" size={showLabel ? 16 : 20} color={colors.accent} />
-          {showLabel ? <Text style={styles.label}>Refresh</Text> : null}
+          <FontAwesome name="download" size={showLabel ? 15 : 18} color={colors.accent} />
+          {showLabel ? <Text style={styles.label}>{label}</Text> : null}
         </View>
       )}
     </Pressable>
@@ -54,5 +62,5 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.45 },
   inner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  label: { color: colors.accent, fontWeight: '800', fontSize: 13 },
+  label: { color: colors.accent, fontWeight: '800', fontSize: 12 },
 });
