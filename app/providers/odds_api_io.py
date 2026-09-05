@@ -116,20 +116,32 @@ class OddsApiIoProvider:
             ko = ko.replace(tzinfo=timezone.utc)
         else:
             ko = ko.astimezone(timezone.utc)
-        window_from = ko - timedelta(hours=18)
-        window_to = ko + timedelta(hours=18)
+        window_from = ko - timedelta(hours=48)
+        window_to = ko + timedelta(hours=48)
 
         query = (home_team or away_team or "").strip()
         if len(query) < 3:
             return None
 
-        # Prefer the strongest team token ("Apollon L." → "Apollon") for search
-        tokens = [t for t in re.sub(r"[^\w\s]", " ", query).split() if len(t) >= 3]
-        search_queries = [query[:80]]
-        if tokens and tokens[0].lower() not in query[:80].lower():
-            search_queries.insert(0, tokens[0])
-        elif tokens and tokens[0] != query:
+        # Prefer strongest tokens from either side ("Apollon L." → "Apollon")
+        tokens: list[str] = []
+        for name in (home_team, away_team):
+            for t in re.sub(r"[^\w\s]", " ", name or "").split():
+                if len(t) >= 3 and t.lower() not in {x.lower() for x in tokens}:
+                    tokens.append(t)
+        search_queries: list[str] = []
+        if tokens:
             search_queries.append(tokens[0])
+        if len(tokens) > 1:
+            search_queries.append(tokens[1])
+            # Combined "Apollon AEK" style queries help historical search
+            search_queries.append(f"{tokens[0]} {tokens[1]}")
+        if away_team and away_team.strip() and away_team.strip() not in search_queries:
+            away_q = away_team.strip()[:80]
+            if len(away_q) >= 3:
+                search_queries.append(away_q)
+        if query and query not in search_queries:
+            search_queries.append(query[:80])
 
         best: FixtureMatch | None = None
         best_pair = 0.0
@@ -160,13 +172,13 @@ class OddsApiIoProvider:
                     + _team_name_score(away_team, fx.home_team)
                 ) / 2
                 pair = max(direct, swapped)
-                if pair < 0.72:
+                if pair < 0.55:
                     continue
                 fx_ko = fx.kickoff_at
                 if fx_ko.tzinfo is None:
                     fx_ko = fx_ko.replace(tzinfo=timezone.utc)
                 hours = abs((ko - fx_ko.astimezone(timezone.utc)).total_seconds()) / 3600.0
-                if hours > 18:
+                if hours > 48:
                     continue
                 if pair > best_pair:
                     best_pair = pair
@@ -643,7 +655,11 @@ def _team_name_score(a: str, b: str) -> float:
     inter = len(ta & tb)
     if inter == 0:
         for x in ta:
-            if any(y.startswith(x) or x.startswith(y) for y in tb if min(len(x), len(y)) >= 4):
+            if any(
+                y.startswith(x) or x.startswith(y)
+                for y in tb
+                if min(len(x), len(y)) >= 3
+            ):
                 return 0.85
         return 0.0
     return inter / min(len(ta), len(tb))
