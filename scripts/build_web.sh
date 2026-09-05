@@ -40,7 +40,18 @@ load_dotenv "$ROOT/.env"
 load_dotenv "$ROOT/mobile/.env"
 
 # Empty EXPO_PUBLIC_API_URL → client uses window.location.origin (same host as the API).
-export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-}"
+# On a laptop build, never bake the Render URL into mobile/dist — otherwise
+# http://127.0.0.1:8000/ talks to Render (cold starts / pool fights) instead of local uvicorn.
+# Render deploys set RENDER=true and keep same-origin (empty) unless you override.
+if [[ "${RENDER:-}" != "true" && -z "${BUILD_WEB_FORCE_REMOTE_API:-}" ]]; then
+  if [[ -n "${EXPO_PUBLIC_API_URL:-}" ]]; then
+    echo "build_web: clearing EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL} (local same-origin API)."
+    echo "  Tip: phone Expo still uses mobile/.env; only the static / export is same-origin."
+  fi
+  export EXPO_PUBLIC_API_URL=""
+else
+  export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-}"
+fi
 export EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${SUPABASE_URL:-}}"
 export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${SUPABASE_ANON_KEY:-}}"
 
