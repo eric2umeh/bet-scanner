@@ -9,6 +9,7 @@ type Listener = () => void;
 
 let keys = new Set<string>();
 let loaded = false;
+let loadPromise: Promise<void> | null = null;
 const listeners = new Set<Listener>();
 
 function emit() {
@@ -17,13 +18,20 @@ function emit() {
 
 async function ensureLoaded() {
   if (loaded) return;
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    if (raw) keys = new Set(JSON.parse(raw) as string[]);
-  } catch {
-    keys = new Set();
+  if (loadPromise) {
+    await loadPromise;
+    return;
   }
-  loaded = true;
+  loadPromise = (async () => {
+    try {
+      const raw = await AsyncStorage.getItem(KEY);
+      if (raw) keys = new Set(JSON.parse(raw) as string[]);
+    } catch {
+      keys = new Set();
+    }
+    loaded = true;
+  })();
+  await loadPromise;
 }
 
 async function persist() {
@@ -38,6 +46,7 @@ export function subscribeLoggedTips(listener: Listener) {
 
 export async function initLoggedTips() {
   await ensureLoaded();
+  emit();
 }
 
 export async function markTipsLogged(tips: TipPick[]) {
@@ -52,10 +61,8 @@ export async function markTipsLogged(tips: TipPick[]) {
   }
   if (changed) {
     await persist();
-    emit();
-  } else {
-    emit();
   }
+  emit();
 }
 
 /** Merge keys from Tips API (pending logs) so strikethrough survives reload / new devices. */
@@ -70,8 +77,9 @@ export async function hydrateLoggedKeys(incoming: Iterable<string>) {
   }
   if (changed) {
     await persist();
-    emit();
   }
+  // Always notify — Today may have mounted before AsyncStorage finished loading.
+  emit();
 }
 
 export function isTipLogged(p: TipPick): boolean {
