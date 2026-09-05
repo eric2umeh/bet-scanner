@@ -23,7 +23,7 @@ import {
   TIPS_PAGE_SIZE,
   type TipOut,
 } from '../../src/api/tips';
-import { isAuthError } from '../../src/api/client';
+import { isAuthError, userFacingError } from '../../src/api/client';
 import { BookLeanFilters } from '../../src/components/BookLeanFilters';
 import { DatePickerField } from '../../src/components/DatePickerField';
 import { LeanBar } from '../../src/components/LeanBar';
@@ -329,7 +329,7 @@ export default function TipsScreen() {
       } catch (e) {
         if (reqId !== loadGen.current) return;
         if (!isAuthError(e)) {
-          setStatus(e instanceof Error ? e.message : String(e));
+          setStatus(userFacingError(e));
         }
         // Clear spinner even on error so Tips never looks permanently stuck.
         setTips((prev) => prev);
@@ -500,7 +500,7 @@ export default function TipsScreen() {
       setStatus(data.message);
       await reloadAll();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = userFacingError(e);
       setStatus(msg);
       await modal.alert({ title: 'Could not settle tips', message: msg });
     }
