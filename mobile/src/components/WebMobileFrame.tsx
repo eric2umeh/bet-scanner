@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     borderColor: 'rgba(42, 53, 64, 0.9)',
-    overflow: 'visible',
+    overflow: 'hidden',
     position: 'relative',
     // @ts-expect-error RN web boxShadow
     boxShadow: '0 28px 90px rgba(0, 0, 0, 0.62)',
