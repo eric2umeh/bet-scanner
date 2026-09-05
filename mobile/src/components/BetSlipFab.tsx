@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Dimensions,
+  LayoutChangeEvent,
   Modal,
   PanResponder,
   Platform,
@@ -36,22 +36,46 @@ type Props = {
   busy?: boolean;
 };
 
-type FabEdge = 'left' | 'right';
-
+/** Free position inside the Today page (not browser chrome / black frame). */
 type FabPos = {
-  edge: FabEdge;
+  left: number;
   bottom: number;
 };
 
 const FAB_SIZE = 56;
-const FAB_MARGIN = 16;
-const POS_KEY = 'bet_slip_fab_pos_v1';
-const DRAG_THRESHOLD = 10;
+const FAB_MARGIN = 8;
+const POS_KEY = 'bet_slip_fab_pos_v3';
+const DRAG_THRESHOLD = 6;
 const isWeb = Platform.OS === 'web';
 
-function defaultBottom(insetsBottom: number): number {
-  const tabClearance = isWeb ? WEB_TAB_BAR_HEIGHT + 12 : 72;
-  return Math.max(insetsBottom, 0) + tabClearance;
+function defaultPos(width: number, height: number, insetsBottom: number): FabPos {
+  const tabClearance = isWeb ? WEB_TAB_BAR_HEIGHT + 8 : 72;
+  const minBottom = Math.max(insetsBottom, 0) + tabClearance;
+  return {
+    left: Math.max(FAB_MARGIN, width - FAB_SIZE - FAB_MARGIN),
+    bottom: minBottom,
+  };
+}
+
+/** Clamp anywhere inside the Today root — including over the card list. */
+function clampPos(
+  left: number,
+  bottom: number,
+  width: number,
+  height: number,
+  insetsBottom: number
+): FabPos {
+  const tabClearance = isWeb ? WEB_TAB_BAR_HEIGHT + 4 : 64;
+  const minBottom = Math.max(insetsBottom, 0) + 4;
+  const maxBottom = Math.max(minBottom, height - FAB_SIZE - FAB_MARGIN);
+  // Keep a little room above the tab bar so the FAB isn't fully buried, but
+  // still allow parking over the lower cards.
+  const softMaxBottom = Math.max(minBottom, maxBottom - Math.min(24, tabClearance / 2));
+  const maxLeft = Math.max(FAB_MARGIN, width - FAB_SIZE - FAB_MARGIN);
+  return {
+    left: Math.min(maxLeft, Math.max(FAB_MARGIN, left)),
+    bottom: Math.min(softMaxBottom, Math.max(minBottom, bottom)),
+  };
 }
 
 export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
@@ -61,17 +85,21 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
   const [tips, setTips] = useState<TipPick[]>([]);
   const [combo, setCombo] = useState(0);
   const [sameMatchMulti, setSameMatchMulti] = useState(false);
-  const [pos, setPos] = useState<FabPos>(() => ({
-    edge: 'right',
-    bottom: defaultBottom(insets.bottom),
-  }));
-  const dragY = useRef(0);
+  const [box, setBox] = useState({ width: 360, height: 640 });
+  const [pos, setPos] = useState<FabPos>(() =>
+    defaultPos(360, 640, insets.bottom)
+  );
+  const [dragging, setDragging] = useState(false);
   const moved = useRef(false);
   const startPos = useRef<FabPos | null>(null);
   const posRef = useRef(pos);
+  const boxRef = useRef(box);
   const busyRef = useRef(!!busy);
+  const insetsBottomRef = useRef(insets.bottom);
   posRef.current = pos;
+  boxRef.current = box;
   busyRef.current = !!busy;
+  insetsBottomRef.current = insets.bottom;
 
   useEffect(
     () =>
@@ -84,7 +112,6 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
     []
   );
 
-  // SportyBet / MelBet strike Multiple for same-match O/U+BTTS(+DC) — log as singles only.
   useEffect(() => {
     if (sameMatchMulti && asMulti) {
       onAsMultiChange(false);
@@ -98,8 +125,10 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
         const raw = await AsyncStorage.getItem(POS_KEY);
         if (!raw || cancelled) return;
         const saved = JSON.parse(raw) as FabPos;
-        if (saved?.edge && typeof saved.bottom === 'number') {
-          setPos({ edge: saved.edge, bottom: Math.max(defaultBottom(insets.bottom), saved.bottom) });
+        if (typeof saved?.left === 'number' && typeof saved?.bottom === 'number') {
+          setPos(
+            clampPos(saved.left, saved.bottom, boxRef.current.width, boxRef.current.height, insets.bottom)
+          );
         }
       } catch {
         /* ignore */
@@ -110,6 +139,16 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
     };
   }, [insets.bottom]);
 
+  const onHostLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const { width, height } = e.nativeEvent.layout;
+      if (width < 40 || height < 40) return;
+      setBox({ width, height });
+      setPos((p) => clampPos(p.left, p.bottom, width, height, insets.bottom));
+    },
+    [insets.bottom]
+  );
+
   const savePos = useCallback(async (next: FabPos) => {
     setPos(next);
     await AsyncStorage.setItem(POS_KEY, JSON.stringify(next));
@@ -118,38 +157,50 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dx) > DRAG_THRESHOLD || Math.abs(g.dy) > DRAG_THRESHOLD,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
       onPanResponderGrant: () => {
         moved.current = false;
         startPos.current = { ...posRef.current };
-        dragY.current = 0;
+        setDragging(true);
       },
       onPanResponderMove: (_, g) => {
         if (Math.abs(g.dx) > DRAG_THRESHOLD || Math.abs(g.dy) > DRAG_THRESHOLD) {
           moved.current = true;
         }
-        dragY.current = g.dy;
-        const base = startPos.current?.bottom ?? defaultBottom(insets.bottom);
-        const maxBottom =
-          Dimensions.get('window').height - FAB_SIZE - FAB_MARGIN - (isWeb ? WEB_TAB_BAR_HEIGHT : 0);
-        const minBottom = defaultBottom(insets.bottom);
-        setPos((p) => ({
-          ...p,
-          bottom: Math.min(maxBottom, Math.max(minBottom, base - g.dy)),
-        }));
+        const base = startPos.current ?? posRef.current;
+        const { width, height } = boxRef.current;
+        setPos(
+          clampPos(
+            base.left + g.dx,
+            base.bottom - g.dy,
+            width,
+            height,
+            insetsBottomRef.current
+          )
+        );
       },
       onPanResponderRelease: (_, g) => {
-        const nextEdge: FabEdge = g.moveX > Dimensions.get('window').width / 2 ? 'right' : 'left';
-        const base = startPos.current?.bottom ?? defaultBottom(insets.bottom);
-        const maxBottom =
-          Dimensions.get('window').height - FAB_SIZE - FAB_MARGIN - (isWeb ? WEB_TAB_BAR_HEIGHT : 0);
-        const minBottom = defaultBottom(insets.bottom);
-        const nextBottom = Math.min(maxBottom, Math.max(minBottom, base - g.dy));
-        void savePos({ edge: nextEdge, bottom: nextBottom });
+        const base = startPos.current ?? posRef.current;
+        const { width, height } = boxRef.current;
+        const next = clampPos(
+          base.left + g.dx,
+          base.bottom - g.dy,
+          width,
+          height,
+          insetsBottomRef.current
+        );
+        void savePos(next);
+        setDragging(false);
         if (!moved.current && !busyRef.current) setOpen(true);
         moved.current = false;
-        dragY.current = 0;
+      },
+      onPanResponderTerminate: () => {
+        setDragging(false);
+        moved.current = false;
       },
     })
   ).current;
@@ -160,18 +211,29 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
 
   if (count === 0) return null;
 
-  const fabSide = pos.edge === 'right' ? { right: FAB_MARGIN } : { left: FAB_MARGIN };
-
   return (
-    <>
+    <View
+      style={styles.host}
+      pointerEvents={dragging ? 'auto' : 'box-none'}
+      onLayout={onHostLayout}
+    >
+      {/* While dragging, block ScrollView so the FAB can park over cards. */}
+      {dragging ? <View style={styles.dragShield} pointerEvents="auto" /> : null}
+
       <View
-        style={[styles.fabHost, fabSide, { bottom: pos.bottom }, busy && styles.fabHostBusy]}
+        style={[
+          styles.fabHost,
+          { left: pos.left, bottom: pos.bottom },
+          busy && styles.fabHostBusy,
+          // @ts-expect-error RN web
+          isWeb ? { touchAction: 'none', userSelect: 'none', cursor: 'grab' } : null,
+        ]}
         {...(busy ? {} : pan.panHandlers)}
         pointerEvents={busy ? 'none' : 'auto'}
         accessibilityRole="button"
         accessibilityState={{ disabled: !!busy }}
         accessibilityLabel={
-          busy ? 'Logging tips…' : `${count} tips selected. Drag to move.`
+          busy ? 'Logging tips…' : `${count} tips selected. Drag anywhere on Today.`
         }
       >
         <View style={[styles.fab, busy && styles.fabBusy]}>
@@ -180,7 +242,7 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
           </View>
           <Text style={styles.fabOdds}>{busy ? '…' : combo > 1 ? combo.toFixed(2) : '—'}</Text>
         </View>
-        <Text style={styles.dragHint}>{busy ? 'Logging…' : 'Tap · drag to edge'}</Text>
+        <Text style={styles.dragHint}>{busy ? 'Logging…' : 'Tap · drag'}</Text>
       </View>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
@@ -271,17 +333,26 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
           </View>
         </View>
       </Modal>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  host: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 40,
+    elevation: 40,
+  },
+  dragShield: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 40,
+    backgroundColor: 'transparent',
+  },
   fabHost: {
     position: 'absolute',
-    zIndex: 99999,
+    zIndex: 41,
+    elevation: 41,
     alignItems: 'center',
-    // @ts-expect-error RN web
-    ...(isWeb ? { position: 'fixed' } : null),
   },
   fabHostBusy: { opacity: 0.55 },
   fab: {
