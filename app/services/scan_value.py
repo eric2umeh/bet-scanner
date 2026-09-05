@@ -20,6 +20,7 @@ from app.config import Settings
 from app.models import Match
 from app.services.arbitrage_math import looks_like_palpable_error
 from app.services.bankroll import potential_return, round_money, unit_stake_ngn
+from app.services.match_bettable import match_still_bettable
 from app.services.value_math import (
     average_fair_probs,
     expected_value_pct,
@@ -129,7 +130,7 @@ def scan_value_1x2(
             continue
 
         match = db.get(Match, match_id)
-        if match is None:
+        if match is None or not match_still_bettable(match, now=now):
             continue
 
         for i, sel in enumerate(SELECTIONS):
