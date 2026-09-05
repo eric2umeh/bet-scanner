@@ -20,7 +20,7 @@ import { fetchPublicAppConfig } from '../../src/api/appConfig';
 import { syncOdds } from '../../src/api/odds';
 import { scanGoalMarkets } from '../../src/api/predictions';
 import { scanSafeBuilder } from '../../src/api/safe';
-import { fetchTipsPage, logTipBatch } from '../../src/api/tips';
+import { logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { BookLeanFilters } from '../../src/components/BookLeanFilters';
@@ -31,19 +31,17 @@ import { SyncHeaderButton } from '../../src/components/SyncHeaderButton';
 import { BetSlipFab } from '../../src/components/BetSlipFab';
 import { useWebPullRefresh, WebPullHint } from '../../src/components/useWebPullRefresh';
 import { useAppModal } from '../../src/components/modal';
+import { usePendingLoggedTips } from '../../src/hooks/usePendingLoggedTips';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { isMatchBettable } from '../../src/lib/matchBettable';
-import { bookLabel, marketLabel, tipKey, tipKeyLoose } from '../../src/lib/tipKey';
+import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import { setMatchCache } from '../../src/store/matchCache';
 import {
-  hydrateLoggedKeys,
   isTipLogged,
   initLoggedTips,
   markTipsLogged,
   subscribeLoggedTips,
 } from '../../src/store/loggedTips';
-import { subscribeTipsList } from '../../src/store/tipsEvents';
-import { subscribeSession, getAccessToken } from '../../src/store/session';
 import {
   clearSelection,
   getSelectedCount,
@@ -94,29 +92,6 @@ function loggedPickStyle(logged: boolean) {
     textDecorationLine: 'line-through' as const,
     textDecorationStyle: 'solid' as const,
   };
-}
-
-async function syncLoggedStrikethroughFromServer() {
-  const page = await fetchTipsPage({ result: 'pending', limit: 200 });
-  const keys: string[] = [];
-  for (const t of page.items || []) {
-    keys.push(
-      tipKey({
-        match_id: t.match_id,
-        bookmaker: t.bookmaker || '',
-        market: t.market,
-        selection: t.selection,
-      })
-    );
-    keys.push(
-      tipKeyLoose({
-        match_id: t.match_id,
-        market: t.market,
-        selection: t.selection,
-      })
-    );
-  }
-  await hydrateLoggedKeys(keys);
 }
 
 function dedupePicks(picks: TipPick[]): TipPick[] {
@@ -220,10 +195,17 @@ export default function TodayScreen() {
   const [loggedRev, setLoggedRev] = useState(0);
   /** Re-evaluate kickoff filters every minute without a full refresh. */
   const [clockTick, setClockTick] = useState(0);
+  const { isPickLogged: isPickLoggedFromServer, refetchIfStale: refetchLoggedTipsIfStale } =
+    usePendingLoggedTips(true);
   const { width: windowWidth } = useWindowDimensions();
   const narrowWeb = isWeb && windowWidth < 560;
   /** Two-column match grid only when cards stay wide enough to read tip text. */
   const twoColWeb = isWeb && windowWidth >= 640;
+
+  const pickIsLogged = useCallback(
+    (p: TipPick) => isTipLogged(p) || isPickLoggedFromServer(p),
+    [isPickLoggedFromServer, loggedRev]
+  );
 
   useEffect(() => {
     void Promise.all([initSelection(), initLoggedTips()]);
@@ -237,39 +219,12 @@ export default function TodayScreen() {
   useEffect(() => subscribeSelection(() => setSelectedN(getSelectedCount())), []);
   useEffect(() => subscribeLoggedTips(() => setLoggedRev((n) => n + 1)), []);
 
-  // Re-pull pending tips whenever Today is focused (other origin / device logs).
+  // Today focus: reuse cache unless stale (~90s) — no extra egress spam.
   useFocusEffect(
     useCallback(() => {
-      void syncLoggedStrikethroughFromServer().catch(() => null);
-    }, [])
+      refetchLoggedTipsIfStale();
+    }, [refetchLoggedTipsIfStale])
   );
-
-  // After Tips tab / log-batch invalidates cache, refresh strikethrough here too.
-  useEffect(() => {
-    return subscribeTipsList(() => {
-      void syncLoggedStrikethroughFromServer().catch(() => null);
-    });
-  }, []);
-
-  // Sign-in completes after first paint — hydrate again once we have a token.
-  useEffect(() => {
-    return subscribeSession(() => {
-      if (!getAccessToken()) return;
-      void syncLoggedStrikethroughFromServer().catch(() => null);
-    });
-  }, []);
-
-  // Desktop web: tab focus / return to the Render tab.
-  useEffect(() => {
-    if (!isWeb || typeof document === 'undefined') return;
-    const onVis = () => {
-      if (document.visibilityState === 'visible') {
-        void syncLoggedStrikethroughFromServer().catch(() => null);
-      }
-    };
-    document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
-  }, []);
   const availableBooks = useMemo(() => {
     const set = new Set<string>();
     for (const p of picks) {
@@ -427,12 +382,7 @@ export default function TodayScreen() {
         setMatches(merged);
         setMatchCache(merged, all);
         pruneSelection(new Set(merged.map((m) => m.id)));
-        // Restore strikethrough from Tips you’ve already logged (server + local).
-        try {
-          await syncLoggedStrikethroughFromServer();
-        } catch {
-          /* optional — local logged keys still apply */
-        }
+        refetchLoggedTipsIfStale();
         setStatus(
           merged.length
             ? `${merged.length} match${merged.length === 1 ? '' : 'es'} · ${n} tip${n === 1 ? '' : 's'}${withOdds ? ' · updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
@@ -446,7 +396,7 @@ export default function TodayScreen() {
         setBusy(false);
       }
     },
-    [loadScans, loadMatchList, settings]
+    [loadScans, loadMatchList, settings, refetchLoggedTipsIfStale]
   );
 
   const onSyncOdds = useCallback(() => {
@@ -478,7 +428,7 @@ export default function TodayScreen() {
   async function onLogSelected() {
     const raw = getSelectedTips();
     // Skip already-logged legs so the confirm modal never lists duplicates.
-    const tips = dedupePicks(raw.filter((t) => !isTipLogged(t)));
+    const tips = dedupePicks(raw.filter((t) => !pickIsLogged(t)));
     if (!tips.length) {
       await modal.alert({
         title: 'Nothing new to log',
@@ -699,7 +649,7 @@ export default function TodayScreen() {
                 ) : (
                   tips.map((p) => {
                     const on = isTipSelected(p);
-                    const logged = isTipLogged(p);
+                    const logged = pickIsLogged(p);
                     void loggedRev;
                     return (
                       <Pressable
