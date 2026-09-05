@@ -5,13 +5,15 @@ import { colors } from '../theme/colors';
 type Props = {
   pct?: number | null;
   style?: object;
+  /** Narrow cards — smaller meter so tip text stays readable. */
+  compact?: boolean;
 };
 
 /**
  * Legacy-style lean / confidence meter (pct label + pill progress bar).
  * Matches dashboard.html `.conf` / `.conf-bar`.
  */
-export function LeanBar({ pct, style }: Props) {
+export function LeanBar({ pct, style, compact }: Props) {
   const raw = Number(pct);
   const n = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
   const label = n ? `${Number(n.toFixed(1))}%` : '—';
@@ -26,9 +28,12 @@ export function LeanBar({ pct, style }: Props) {
   }
 
   return (
-    <View style={[styles.wrap, style]} accessibilityLabel={n ? `Lean ${label}` : 'No lean'}>
-      <Text style={styles.pct}>{label}</Text>
-      <View style={styles.track}>
+    <View
+      style={[styles.wrap, compact && styles.wrapCompact, style]}
+      accessibilityLabel={n ? `Lean ${label}` : 'No lean'}
+    >
+      <Text style={[styles.pct, compact && styles.pctCompact]}>{label}</Text>
+      <View style={[styles.track, compact && styles.trackCompact]}>
         <View style={[styles.fill, fillStyle]} />
       </View>
     </View>
@@ -41,6 +46,9 @@ const styles = StyleSheet.create({
     width: 72,
     alignItems: 'flex-end',
   },
+  wrapCompact: {
+    width: 48,
+  },
   pct: {
     color: colors.muted,
     fontSize: 12,
@@ -48,12 +56,19 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginBottom: 4,
   },
+  pctCompact: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
   track: {
     width: '100%',
     height: 4,
     borderRadius: 99,
     backgroundColor: 'rgba(255,255,255,0.08)',
     overflow: 'hidden',
+  },
+  trackCompact: {
+    height: 3,
   },
   fill: {
     height: '100%',
