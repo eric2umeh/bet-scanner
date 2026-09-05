@@ -20,6 +20,8 @@ type Props = {
   stacked?: boolean;
   /** Replaces default tagline under the wordmark */
   tagline?: string | null;
+  /** Hide tagline (use when status is shown on its own row). */
+  hideTagline?: boolean;
   style?: ViewStyle;
 };
 
@@ -32,10 +34,12 @@ export function BrandLogo({
   showWordmark = false,
   stacked = false,
   tagline = 'Odds · tips · edge',
+  hideTagline = false,
   style,
 }: Props) {
   const dim = SIZES[size];
   const mark = <LogoMark size={dim} />;
+  const showTag = !hideTagline && !stacked && !!tagline;
 
   if (!showWordmark) {
     return <View style={style}>{mark}</View>;
@@ -44,9 +48,15 @@ export function BrandLogo({
   return (
     <View style={[styles.row, stacked && styles.stacked, style]}>
       {mark}
-      <View style={stacked ? styles.textStack : styles.textInline}>
-        <Text style={[styles.wordmark, sizeWordmark(size)]}>Bet Scanner</Text>
-        {!stacked && tagline ? <Text style={styles.tagline}>{tagline}</Text> : null}
+      <View style={[stacked ? styles.textStack : styles.textInline, !stacked && styles.textShrink]}>
+        <Text style={[styles.wordmark, sizeWordmark(size)]} numberOfLines={1}>
+          Bet Scanner
+        </Text>
+        {showTag ? (
+          <Text style={styles.tagline} numberOfLines={1}>
+            {tagline}
+          </Text>
+        ) : null}
       </View>
     </View>
   );
@@ -90,7 +100,6 @@ function LogoMark({ size }: { size: number }) {
       ]}
     >
       <Svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-        {/* Radar arcs */}
         <Circle
           cx={c}
           cy={c}
@@ -118,7 +127,6 @@ function LogoMark({ size }: { size: number }) {
           fill="none"
           opacity={0.85}
         />
-        {/* Scan beam */}
         <Line
           x1={c}
           y1={c}
@@ -129,12 +137,7 @@ function LogoMark({ size }: { size: number }) {
           strokeLinecap="round"
           opacity={0.9}
         />
-        {/* Abstract football (hex + panels) */}
-        <Path
-          d={footballPath(c, c, s * 0.11)}
-          fill={ink}
-          opacity={0.95}
-        />
+        <Path d={footballPath(c, c, s * 0.11)} fill={ink} opacity={0.95} />
         <Path
           d={footballPath(c, c, s * 0.11)}
           stroke={accent}
@@ -147,7 +150,6 @@ function LogoMark({ size }: { size: number }) {
   );
 }
 
-/** Simple hex football centered at (cx, cy). */
 function footballPath(cx: number, cy: number, radius: number): string {
   const pts: [number, number][] = [];
   for (let i = 0; i < 6; i += 1) {
@@ -167,6 +169,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    minWidth: 0,
   },
   stacked: {
     flexDirection: 'column',
@@ -174,7 +177,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   textStack: { alignItems: 'center' },
-  textInline: { flex: 1, gap: 2 },
+  textInline: { gap: 2 },
+  textShrink: { flex: 1, minWidth: 0 },
   wordmark: {
     color: colors.ink,
     fontWeight: '800',
@@ -192,5 +196,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    flexShrink: 0,
   },
 });
