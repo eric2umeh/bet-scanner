@@ -490,22 +490,39 @@ def _quotes_for_market(*, market_name: str, odds_rows: list, base: dict) -> list
             add(market_key, "under", row.get("under"))
         return out
 
-    if key in {"team totals", "team total", "teamtotals"}:
+    if key in {"team totals", "team total", "teamtotals", "team over/under"}:
         # Team over 2.5 goals ≈ that side scores 3+.
         for row in odds_rows:
             line = row.get("max")
             if line is None:
                 line = row.get("hdp")
+            if line is None:
+                line = row.get("handicap")
             try:
                 if line is None or abs(float(line) - 2.5) > 0.01:
                     continue
             except (TypeError, ValueError):
                 continue
-            side = str(row.get("team") or row.get("side") or row.get("name") or "").lower()
-            if side in {"home", "1", "h"}:
+            side_raw = (
+                row.get("team")
+                or row.get("side")
+                or row.get("name")
+                or row.get("participant")
+                or row.get("type")
+                or ""
+            )
+            side = str(side_raw).lower().strip()
+            homeish = side in {"home", "1", "h", "home team", "team1", "team_1"}
+            awayish = side in {"away", "2", "a", "away team", "team2", "team_2"}
+            if not homeish and not awayish:
+                # Some feeds use "Home Over" / "1 Over" in name/label fields
+                blob = f"{side} {row.get('label') or ''} {row.get('selection') or ''}".lower()
+                homeish = "home" in blob or blob.startswith("1 ")
+                awayish = "away" in blob or blob.startswith("2 ")
+            if homeish:
                 add("tt_2_5", "home_over", row.get("over"))
                 add("tt_2_5", "home_under", row.get("under"))
-            elif side in {"away", "2", "a"}:
+            elif awayish:
                 add("tt_2_5", "away_over", row.get("over"))
                 add("tt_2_5", "away_under", row.get("under"))
         return out
