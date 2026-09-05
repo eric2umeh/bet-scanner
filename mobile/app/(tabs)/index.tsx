@@ -209,18 +209,25 @@ export default function TodayScreen() {
   }, [totalPages, pageIndex]);
 
   const loadScans = useCallback(async (s: AppSettings, books: string[]) => {
-    const q = {
-      pick_market: s.pickMarket,
+    const bankroll = {
       bankroll_ngn: s.bankroll,
       unit_pct: s.unitPct,
     };
-    const safeCalls = books.map((bookmaker) =>
-      scanSafeBuilder({ bookmaker, ...q }).catch(() => ({ picks: [] as TipPick[] }))
-    );
-    const goalCalls = books.map((bookmaker) =>
-      scanGoalMarkets({ bookmaker, bankroll_ngn: s.bankroll, unit_pct: s.unitPct }).catch(
+    // Always load DC + Winner so Today chips work regardless of Me → Safe tip style.
+    const safeCalls = books.flatMap((bookmaker) => [
+      scanSafeBuilder({ bookmaker, pick_market: 'double_chance', ...bankroll }).catch(
         () => ({ picks: [] as TipPick[] })
-      )
+      ),
+      scanSafeBuilder({ bookmaker, pick_market: '1x2', ...bankroll }).catch(
+        () => ({ picks: [] as TipPick[] })
+      ),
+    ]);
+    const goalCalls = books.map((bookmaker) =>
+      scanGoalMarkets({
+        bookmaker,
+        markets: 'ou_0_5,ou_1_5,ou_2_5,btts,tt_2_5',
+        ...bankroll,
+      }).catch(() => ({ picks: [] as TipPick[] }))
     );
     const results = await Promise.all([...safeCalls, ...goalCalls]);
     const all = dedupePicks(results.flatMap((r) => r.picks || []));
