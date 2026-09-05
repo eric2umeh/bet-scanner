@@ -1,4 +1,4 @@
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { WEB_APP_MAX_WIDTH } from '../theme/layout';
 import { colors } from '../theme/colors';
@@ -7,12 +7,24 @@ type Props = {
   children: React.ReactNode;
 };
 
+/** Below this width: full-bleed (phones / Fold cover). Above: desktop phone shell. */
+const SHELL_MIN_WIDTH = 560;
+
 /**
- * Desktop web: centered phone/tablet shell (legacy dashboard feel).
+ * Desktop web: centered phone/tablet shell.
+ * Narrow web (Samsung Fold cover, phones): full-bleed — no padding that steals width.
  */
 export function WebMobileFrame({ children }: Props) {
+  const { width } = useWindowDimensions();
+
   if (Platform.OS !== 'web') {
     return <>{children}</>;
+  }
+
+  const useShell = width >= SHELL_MIN_WIDTH;
+
+  if (!useShell) {
+    return <View style={styles.fullBleed}>{children}</View>;
   }
 
   return (
@@ -23,6 +35,12 @@ export function WebMobileFrame({ children }: Props) {
 }
 
 const styles = StyleSheet.create({
+  fullBleed: {
+    flex: 1,
+    width: '100%',
+    minHeight: '100%',
+    backgroundColor: colors.bg,
+  },
   outer: {
     flex: 1,
     minHeight: '100%',
