@@ -23,7 +23,6 @@ import { fetchTipsPage, logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { BookLeanFilters } from '../../src/components/BookLeanFilters';
-import { DatePickerField } from '../../src/components/DatePickerField';
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
 import { LeanBar } from '../../src/components/LeanBar';
 import { PaginationBar } from '../../src/components/PaginationBar';
@@ -83,16 +82,6 @@ function kickoffLabel(iso?: string | null) {
   });
 }
 
-function matchDayIso(iso?: string | null) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
 function loggedPickStyle(logged: boolean) {
   if (!logged) return null;
   return isWeb
@@ -130,16 +119,15 @@ const CHIP_LABELS: { id: MarketFilter; label: string }[] = [
 
 function emptyStateForFilter(
   filter: MarketFilter,
-  opts: { minLeanPct: number; searchQ: string; dateFilter: string; totalTips: number }
+  opts: { minLeanPct: number; searchQ: string; totalTips: number }
 ): { title: string; body: string } {
   const leanHint =
     opts.minLeanPct > 0
       ? ` Lower Lean % (now ≥${opts.minLeanPct}) or tap Clear in Filters.`
       : ' Try Load matches.';
-  const searchHint =
-    opts.searchQ.trim() || opts.dateFilter
-      ? ' Clear search/date if you narrowed the list.'
-      : '';
+  const searchHint = opts.searchQ.trim()
+    ? ' Clear search if you narrowed the list.'
+    : '';
 
   if (opts.totalTips === 0) {
     return {
@@ -151,7 +139,7 @@ function emptyStateForFilter(
   const map: Record<MarketFilter, { title: string; body: string }> = {
     all: {
       title: 'No matches match your filters',
-      body: `Tips exist, but search/date/book/lean hid them.${searchHint}${leanHint}`,
+      body: `Tips exist, but search/book/lean hid them.${searchHint}${leanHint}`,
     },
     double_chance: {
       title: 'No Double chance tips',
@@ -196,7 +184,6 @@ export default function TodayScreen() {
   const [filter, setFilter] = useState<MarketFilter>('all');
   const [bookFilter, setBookFilter] = useState<string>('all');
   const [searchQ, setSearchQ] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
   const [minLeanPct, setMinLeanPct] = useState(0);
@@ -253,9 +240,6 @@ export default function TodayScreen() {
   const visibleMatches = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
     let withTips = matches.filter((m) => (picksByMatch[m.id] || []).length > 0);
-    if (dateFilter) {
-      withTips = withTips.filter((m) => matchDayIso(m.kickoff_at) === dateFilter);
-    }
     if (q) {
       withTips = withTips.filter((m) => {
         const hay = `${m.home_team} ${m.away_team} ${m.competition_code || ''}`.toLowerCase();
@@ -263,7 +247,7 @@ export default function TodayScreen() {
       });
     }
     return withTips;
-  }, [matches, picksByMatch, searchQ, dateFilter]);
+  }, [matches, picksByMatch, searchQ]);
 
   const totalPages = visibleMatches.length
     ? Math.max(1, Math.ceil(visibleMatches.length / pageSize))
@@ -275,7 +259,7 @@ export default function TodayScreen() {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [searchQ, dateFilter, bookFilter, filter, pageSize, minLeanPct]);
+  }, [searchQ, bookFilter, filter, pageSize, minLeanPct]);
 
   useEffect(() => {
     if (totalPages > 0 && pageIndex > totalPages - 1) {
@@ -483,7 +467,6 @@ export default function TodayScreen() {
   const filterEmpty = emptyStateForFilter(filter, {
     minLeanPct,
     searchQ,
-    dateFilter,
     totalTips: picks.length,
   });
 
@@ -567,12 +550,6 @@ export default function TodayScreen() {
             placeholderTextColor={colors.muted}
             autoCapitalize="none"
             autoCorrect={false}
-          />
-          <DatePickerField
-            value={dateFilter}
-            onChange={setDateFilter}
-            placeholder="Date"
-            style={styles.filterItem}
           />
           <BookLeanFilters
             books={availableBooks}
@@ -738,7 +715,12 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+  root: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    position: 'relative',
+    overflow: 'hidden',
+  },
   screen: { flex: 1 },
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28 },
   topbar: { marginBottom: 4 },
@@ -788,9 +770,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 4,
     alignItems: 'center',
-  },
-  filterItem: {
-    flexShrink: 0,
   },
   searchInput: {
     flex: 1,
