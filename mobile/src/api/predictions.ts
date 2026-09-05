@@ -9,7 +9,8 @@ export function scanGoalMarkets(opts: {
 }) {
   const q = new URLSearchParams({
     bookmaker: opts.bookmaker,
-    markets: opts.markets || 'ou_2_5,btts',
+    // Keep in sync with Today filter chips + API default
+    markets: opts.markets || 'ou_0_5,ou_1_5,ou_2_5,btts,tt_2_5',
     bankroll_ngn: String(opts.bankroll_ngn ?? 50000),
   });
   if (opts.unit_pct != null) q.set('unit_pct', String(opts.unit_pct));
