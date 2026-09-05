@@ -611,17 +611,31 @@ def list_tips(
         base.options(joinedload(Tip.match))
         .order_by(Tip.created_at.desc(), Tip.id.desc())
     )
-    rows = list(db.scalars(stmt).unique().all())
+    # Cap row fetch — loading the entire tip history hung Tips on mobile/web.
+    # Over-fetch tip rows so multi slips still group into enough UI cards.
+    need_cards = off + page_size
+    overfetch = min(800, max(need_cards * 8 + 24, 80))
+    if needle or lean_floor > 0:
+        overfetch = min(800, max(overfetch, 400))
+    rows = list(db.scalars(stmt.limit(overfetch)).unique().all())
     cards = _group_tips_into_cards(rows)
     if lean_floor > 0:
         # Keep whole multi if strongest leg meets floor (legs stay together).
         cards = [c for c in cards if _card_max_lean(c) >= lean_floor]
-    total = len(cards)
+    capped = len(rows) >= overfetch
+    if capped:
+        # Exact total unknown without a full scan; expose enough for paging.
+        total = max(len(cards), need_cards + (page_size if len(cards) > need_cards else 0))
+        if len(cards) > need_cards:
+            total = max(total, off + len(cards))
+    else:
+        total = len(cards)
     page_cards = cards[off : off + page_size]
     items = [tip_to_dict(t) for group in page_cards for t in group]
+    has_more = off + page_size < total or (capped and len(page_cards) >= page_size)
     return {
         "items": items,
-        "has_more": off + page_size < total,
+        "has_more": has_more,
         "total": total,
         "limit": page_size,
         "offset": off,
