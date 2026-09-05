@@ -132,6 +132,8 @@ export default function TodayScreen() {
   const [loggedRev, setLoggedRev] = useState(0);
   const { width: windowWidth } = useWindowDimensions();
   const narrowWeb = isWeb && windowWidth < 560;
+  /** Two-column match grid only when cards stay wide enough to read tip text. */
+  const twoColWeb = isWeb && windowWidth >= 640;
 
   useEffect(() => {
     void Promise.all([initSelection(), initLoggedTips()]);
@@ -455,11 +457,13 @@ export default function TodayScreen() {
           />
         </View>
 
-        <Text style={styles.hint}>
-          {isWeb
-            ? 'Tap Refresh (or pull down) to update · tap a pick for your slip.'
-            : 'Pull down or tap ↻ to update · tap a pick for your slip.'}
-        </Text>
+        {isWeb && !narrowWeb ? (
+          <Text style={styles.hint}>
+            Tap Refresh (or pull down) to update · tap a pick for your slip.
+          </Text>
+        ) : !isWeb ? (
+          <Text style={styles.hint}>Pull down or tap ↻ to update · tap a pick for your slip.</Text>
+        ) : null}
 
         {busy && !matches.length ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
@@ -484,26 +488,34 @@ export default function TodayScreen() {
           </View>
         ) : null}
 
-        <View style={[styles.matchGrid, isWeb && styles.matchGridWeb]}>
+        <View style={[styles.matchGrid, twoColWeb && styles.matchGridWeb]}>
           {pagedMatches.map((m) => {
             const tips = picksByMatch[m.id] || [];
             const hasTip = tips.length > 0;
             return (
               <View
                 key={m.id}
-                style={[styles.card, isWeb && styles.cardWeb, hasTip && styles.cardHasTip]}
+                style={[
+                  styles.card,
+                  !twoColWeb && styles.cardCompact,
+                  twoColWeb && styles.cardWeb,
+                  hasTip && styles.cardHasTip,
+                ]}
               >
                 <Pressable onPress={() => router.push(`/match/${m.id}`)}>
-                  <View style={styles.cardTop}>
+                  <View style={[styles.cardTop, !twoColWeb && styles.cardTopCompact]}>
                     <Text style={styles.league} numberOfLines={1}>
                       {m.competition_code || '—'}
                     </Text>
-                    <Text style={styles.kickoff} numberOfLines={2}>
+                    <Text style={styles.kickoff} numberOfLines={1}>
                       {kickoffLabel(m.kickoff_at)}
                     </Text>
                   </View>
-                  <Text style={styles.match} numberOfLines={1}>
-                    {formatMatchTitle(m.home_team, m.away_team)}
+                  <Text
+                    style={[styles.match, !twoColWeb && styles.matchCompact]}
+                    numberOfLines={1}
+                  >
+                    {formatMatchTitle(m.home_team, m.away_team, twoColWeb ? 14 : 18)}
                   </Text>
                 </Pressable>
                 {!tips.length ? (
@@ -520,6 +532,7 @@ export default function TodayScreen() {
                         key={tipKey(p)}
                         style={[
                           styles.tipRow,
+                          !twoColWeb && styles.tipRowCompact,
                           on && styles.tipRowOn,
                           logged && styles.tipRowLogged,
                           busy && styles.tipRowBusy,
@@ -530,27 +543,41 @@ export default function TodayScreen() {
                         }}
                         disabled={logged || busy}
                       >
-                        <View style={[styles.check, on && styles.checkOn, logged && styles.checkLogged]}>
-                          {logged ? <Text style={styles.checkMark}>✓</Text> : on ? <Text style={styles.checkMark}>✓</Text> : null}
+                        <View
+                          style={[
+                            styles.check,
+                            !twoColWeb && styles.checkCompact,
+                            on && styles.checkOn,
+                            logged && styles.checkLogged,
+                          ]}
+                        >
+                          {logged || on ? <Text style={styles.checkMark}>✓</Text> : null}
                         </View>
                         <View style={styles.tipBody}>
                           <Text
-                            style={[styles.tipTitle, loggedPickStyle(logged)]}
-                            numberOfLines={2}
+                            style={[
+                              styles.tipTitle,
+                              !twoColWeb && styles.tipTitleCompact,
+                              loggedPickStyle(logged),
+                            ]}
+                            numberOfLines={1}
                           >
                             {marketLabel(p.market)} · {String(p.selection).toUpperCase()}
                             {p.odds != null ? ` @ ${p.odds}` : ''}
+                            {!twoColWeb ? ` · ${bookLabel(p.bookmaker)}` : ''}
                           </Text>
-                          <Text style={styles.tipMeta} numberOfLines={1}>
-                            {bookLabel(p.bookmaker)}
-                          </Text>
+                          {twoColWeb ? (
+                            <Text style={styles.tipMeta} numberOfLines={1}>
+                              {bookLabel(p.bookmaker)}
+                            </Text>
+                          ) : null}
                           {p.singles_only_hint ? (
-                            <Text style={styles.tipWarn} numberOfLines={2}>
+                            <Text style={styles.tipWarn} numberOfLines={1}>
                               {p.singles_only_hint}
                             </Text>
                           ) : null}
                         </View>
-                        <LeanBar pct={p.confidence_pct} />
+                        <LeanBar pct={p.confidence_pct} compact={!twoColWeb} />
                       </Pressable>
                     );
                   })
@@ -700,6 +727,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
+  cardCompact: {
+    marginTop: 8,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
   cardWeb: {
     width: '48%',
     flexGrow: 1,
@@ -717,9 +750,13 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 8,
   },
-  league: { color: colors.muted, fontSize: 11, fontWeight: '600', flex: 1 },
-  kickoff: { color: colors.muted, fontSize: 10, textAlign: 'right', maxWidth: '52%' },
+  cardTopCompact: {
+    marginBottom: 4,
+  },
+  league: { color: colors.muted, fontSize: 11, fontWeight: '600', flex: 1, minWidth: 0 },
+  kickoff: { color: colors.muted, fontSize: 10, textAlign: 'right', flexShrink: 0 },
   match: { color: colors.ink, fontSize: 14, fontWeight: '700', lineHeight: 19 },
+  matchCompact: { fontSize: 13, lineHeight: 17 },
   noTip: {
     color: colors.muted,
     fontSize: 12,
@@ -748,6 +785,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(42, 53, 64, 0.85)',
   },
+  tipRowCompact: {
+    gap: 8,
+    marginTop: 6,
+    paddingTop: 6,
+  },
   tipRowOn: { backgroundColor: colors.accentDim, borderRadius: 10, paddingHorizontal: 8, paddingBottom: 8 },
   tipRowLogged: { opacity: 0.72 },
   tipRowBusy: { opacity: 0.45 },
@@ -760,12 +802,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
+    flexShrink: 0,
+  },
+  checkCompact: {
+    width: 20,
+    height: 20,
+    marginTop: 0,
   },
   checkOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   checkLogged: { backgroundColor: colors.muted, borderColor: colors.muted },
   checkMark: { color: '#06241c', fontWeight: '800', fontSize: 12 },
   tipBody: { flex: 1, minWidth: 0 },
   tipTitle: { color: colors.ink, fontWeight: '700', fontSize: 14 },
+  tipTitleCompact: { fontSize: 12, lineHeight: 16, fontWeight: '600' },
   tipTitleLogged: { textDecorationLine: 'line-through', color: colors.muted },
   tipMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
   tipWarn: { color: colors.warn, fontSize: 11, marginTop: 4, lineHeight: 15 },
