@@ -7,11 +7,18 @@ const PRESETS = [0, 60, 65, 70, 75, 80, 85] as const;
 type Props = {
   value: number;
   onChange: (minPct: number) => void;
+  /** Fired for preset / Clear taps so the parent can close the sheet immediately. */
+  onCommit?: (minPct: number) => void;
 };
 
 /** Lean ≥ controls (presets + number). Used inside filter sheets. */
-export function LeanPctPanel({ value, onChange }: Props) {
+export function LeanPctPanel({ value, onChange, onCommit }: Props) {
   const active = value > 0;
+
+  function commit(n: number) {
+    onChange(n);
+    onCommit?.(n);
+  }
 
   function setFromInput(raw: string) {
     const cleaned = raw.replace(/[^\d]/g, '');
@@ -32,13 +39,22 @@ export function LeanPctPanel({ value, onChange }: Props) {
           keyboardType="number-pad"
           value={active ? String(value) : ''}
           onChangeText={setFromInput}
+          onEndEditing={(e) => {
+            const cleaned = String(e.nativeEvent.text || '').replace(/[^\d]/g, '');
+            if (!cleaned) {
+              commit(0);
+              return;
+            }
+            const n = Math.min(99, Math.max(0, Number(cleaned)));
+            commit(Number.isFinite(n) ? n : 0);
+          }}
           placeholder="off"
           placeholderTextColor={colors.muted}
           maxLength={2}
         />
         <Text style={styles.unit}>%</Text>
         {active ? (
-          <Pressable onPress={() => onChange(0)} hitSlop={8}>
+          <Pressable onPress={() => commit(0)} hitSlop={8}>
             <Text style={styles.clear}>Clear</Text>
           </Pressable>
         ) : null}
@@ -48,11 +64,7 @@ export function LeanPctPanel({ value, onChange }: Props) {
         {PRESETS.map((p) => {
           const on = (p === 0 && !active) || (p > 0 && value === p);
           return (
-            <Pressable
-              key={p}
-              style={[styles.chip, on && styles.chipOn]}
-              onPress={() => onChange(p)}
-            >
+            <Pressable key={p} style={[styles.chip, on && styles.chipOn]} onPress={() => commit(p)}>
               <Text style={[styles.chipText, on && styles.chipTextOn]}>
                 {p === 0 ? 'All' : `${p}+`}
               </Text>
