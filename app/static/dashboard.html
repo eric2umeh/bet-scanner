@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Bet Scanner</title>
+  <title>Bet Scout</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -832,7 +832,7 @@
     <!-- First-run onboarding (Phase 10C) -->
     <div class="onboard" id="onboard" aria-hidden="true">
       <div class="onboard-card">
-        <h2>Welcome to Bet Scanner</h2>
+        <h2>Welcome to Bet Scout</h2>
         <p class="muted" style="margin:0">Nigeria books · Safe / O/U / BTTS tips · log what you place for Auto-settle.</p>
         <div class="row">
           <label>Bankroll ₦ <input id="obBankroll" type="number" value="50000" min="1000" step="1000" style="width:8rem" /></label>
@@ -3063,7 +3063,7 @@
           return;
         }
         const data = await postJson('/telegram/test', {
-          text: 'Bet Scanner ✅ Telegram works.',
+          text: 'Bet Scout ✅ Telegram works.',
         });
         setStatus(data.message || JSON.stringify(data), !data.ok);
       } catch (e) {
