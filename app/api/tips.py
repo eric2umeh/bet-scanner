@@ -375,7 +375,7 @@ def list_tips_endpoint(
     date_from: date | None = Query(default=None, description="Created on/after (UTC date)"),
     date_to: date | None = Query(default=None, description="Created on/before (UTC date)"),
     offset: int = Query(default=0, ge=0, description="Card offset (multi slip = 1 card)"),
-    limit: int = Query(default=10, ge=1, le=50, description="Cards per page"),
+    limit: int = Query(default=10, ge=1, le=100, description="Cards per page"),
     db: Session = Depends(get_db),
     user: AuthUser | None = Depends(get_current_user),
 ) -> TipListResponse:
