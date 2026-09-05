@@ -43,8 +43,12 @@ LEAGUE_CODE_HINTS = (
     ("europa-league", "EL", "UEFA Europa League"),
 )
 
-# One /odds call returns all of these (no extra request cost)
-ODDS_MARKETS = "ML,Totals,Both Teams To Score,Double Chance,Team Totals"
+# One /odds call returns all of these (no extra request cost).
+# Team totals are per-side markets on odds-api.io (not a single "Team Totals" name).
+ODDS_MARKETS = (
+    "ML,Totals,Both Teams To Score,Double Chance,"
+    "Team Total Home,Team Total Away"
+)
 MULTI_BATCH = 10
 
 
@@ -503,7 +507,7 @@ def _quotes_for_market(*, market_name: str, odds_rows: list, base: dict) -> list
         return out
 
     if key in {"team totals", "team total", "teamtotals", "team over/under"}:
-        # Team over 2.5 goals ≈ that side scores 3+.
+        # Legacy combined block (some feeds); prefer side from row fields.
         for row in odds_rows:
             line = row.get("max")
             if line is None:
@@ -527,7 +531,6 @@ def _quotes_for_market(*, market_name: str, odds_rows: list, base: dict) -> list
             homeish = side in {"home", "1", "h", "home team", "team1", "team_1"}
             awayish = side in {"away", "2", "a", "away team", "team2", "team_2"}
             if not homeish and not awayish:
-                # Some feeds use "Home Over" / "1 Over" in name/label fields
                 blob = f"{side} {row.get('label') or ''} {row.get('selection') or ''}".lower()
                 homeish = "home" in blob or blob.startswith("1 ")
                 awayish = "away" in blob or blob.startswith("2 ")
@@ -537,6 +540,39 @@ def _quotes_for_market(*, market_name: str, odds_rows: list, base: dict) -> list
             elif awayish:
                 add("tt_2_5", "away_over", row.get("over"))
                 add("tt_2_5", "away_under", row.get("under"))
+        return out
+
+    # odds-api.io standard names (docs / dropping-odds markets list)
+    if key in {"team total home", "team totals home", "home team total", "home team totals"}:
+        for row in odds_rows:
+            line = row.get("hdp")
+            if line is None:
+                line = row.get("max")
+            if line is None:
+                line = row.get("handicap")
+            try:
+                if line is None or abs(float(line) - 2.5) > 0.01:
+                    continue
+            except (TypeError, ValueError):
+                continue
+            add("tt_2_5", "home_over", row.get("over"))
+            add("tt_2_5", "home_under", row.get("under"))
+        return out
+
+    if key in {"team total away", "team totals away", "away team total", "away team totals"}:
+        for row in odds_rows:
+            line = row.get("hdp")
+            if line is None:
+                line = row.get("max")
+            if line is None:
+                line = row.get("handicap")
+            try:
+                if line is None or abs(float(line) - 2.5) > 0.01:
+                    continue
+            except (TypeError, ValueError):
+                continue
+            add("tt_2_5", "away_over", row.get("over"))
+            add("tt_2_5", "away_under", row.get("under"))
         return out
 
     return out
