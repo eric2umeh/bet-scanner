@@ -111,6 +111,75 @@ function dedupePicks(picks: TipPick[]): TipPick[] {
   return out;
 }
 
+const CHIP_LABELS: { id: MarketFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'double_chance', label: 'Double chance' },
+  { id: '1x2', label: 'Winner' },
+  { id: 'ou_0_5', label: 'O/U 0.5' },
+  { id: 'ou_1_5', label: 'O/U 1.5' },
+  { id: 'ou_2_5', label: 'O/U 2.5' },
+  { id: 'btts', label: 'BTTS' },
+  { id: 'tt_2_5', label: 'Team 3+' },
+];
+
+function emptyStateForFilter(
+  filter: MarketFilter,
+  opts: { minLeanPct: number; searchQ: string; dateFilter: string; totalTips: number }
+): { title: string; body: string } {
+  const leanHint =
+    opts.minLeanPct > 0
+      ? ` Lower Lean % (now ≥${opts.minLeanPct}) or tap Clear in Filters.`
+      : ' Try Refresh.';
+  const searchHint =
+    opts.searchQ.trim() || opts.dateFilter
+      ? ' Clear search/date if you narrowed the list.'
+      : '';
+
+  if (opts.totalTips === 0) {
+    return {
+      title: 'No tips yet',
+      body: 'Tap Refresh to sync prices. Tips appear when the book shows a clear lean.',
+    };
+  }
+
+  const map: Record<MarketFilter, { title: string; body: string }> = {
+    all: {
+      title: 'No matches match your filters',
+      body: `Tips exist, but search/date/book/lean hid them.${searchHint}${leanHint}`,
+    },
+    double_chance: {
+      title: 'No Double chance tips',
+      body: `No 1X/X2 Safe tips for this view.${leanHint}${searchHint}`,
+    },
+    '1x2': {
+      title: 'No Winner tips',
+      body: `No 1X2 favourite tips right now — needs a clear favourite.${leanHint}${searchHint}`,
+    },
+    ou_0_5: {
+      title: 'No O/U 0.5 leans',
+      body: `No Over 0.5 tips in this view — try Refresh / lower Lean %.${searchHint}`,
+    },
+    ou_1_5: {
+      title: 'No O/U 1.5 leans',
+      body: `No Over 1.5 tips in this view — try Refresh / lower Lean %.${searchHint}`,
+    },
+    ou_2_5: {
+      title: 'No O/U 2.5 leans',
+      body: `No O/U 2.5 tips in this view — try Refresh / lower Lean %.${searchHint}`,
+    },
+    btts: {
+      title: 'No BTTS leans',
+      body: `No BTTS Yes/No tips in this view — try Refresh / lower Lean %.${searchHint}`,
+    },
+    tt_2_5: {
+      title: 'No Team 3+ tips',
+      body:
+        'Team scores 3+ is rare (needs Team Totals from the feed + strong Over lean). Tap Refresh; if sync says Team3+ 0, this book/league may not offer that market.',
+    },
+  };
+  return map[filter];
+}
+
 export default function TodayScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -365,18 +434,35 @@ export default function TodayScreen() {
     }
   }
 
-  const chips: { id: MarketFilter; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'double_chance', label: 'Double chance' },
-    { id: '1x2', label: 'Winner' },
-    { id: 'ou_0_5', label: 'O/U 0.5' },
-    { id: 'ou_1_5', label: 'O/U 1.5' },
-    { id: 'ou_2_5', label: 'O/U 2.5' },
-    { id: 'btts', label: 'BTTS' },
-    { id: 'tt_2_5', label: 'Team 3+' },
-  ];
+  const leanAwarePicks = useMemo(() => {
+    if (minLeanPct <= 0) return filteredPicks;
+    return filteredPicks.filter((p) => {
+      const lean = Number(p.confidence_pct);
+      return Number.isFinite(lean) && lean >= minLeanPct;
+    });
+  }, [filteredPicks, minLeanPct]);
+
+  const chipCounts = useMemo(() => {
+    const counts: Partial<Record<MarketFilter, number>> = {
+      all: leanAwarePicks.length,
+    };
+    for (const p of leanAwarePicks) {
+      const m = String(p.market || '').toLowerCase() as MarketFilter;
+      if (m === 'all') continue;
+      counts[m] = (counts[m] || 0) + 1;
+    }
+    return counts;
+  }, [leanAwarePicks]);
+
+  const filterEmpty = emptyStateForFilter(filter, {
+    minLeanPct,
+    searchQ,
+    dateFilter,
+    totalTips: picks.length,
+  });
 
   const showNoTipsBanner = !busy && matches.length > 0 && picks.length === 0;
+  const showFilterEmpty = !busy && !visibleMatches.length && !showNoTipsBanner;
 
   return (
     <View style={styles.root}>
@@ -428,15 +514,21 @@ export default function TodayScreen() {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
-          {chips.map((c) => (
-            <Pressable
-              key={c.id}
-              style={[styles.chip, filter === c.id && styles.chipOn]}
-              onPress={() => setFilter(c.id)}
-            >
-              <Text style={[styles.chipText, filter === c.id && styles.chipTextOn]}>{c.label}</Text>
-            </Pressable>
-          ))}
+          {CHIP_LABELS.map((c) => {
+            const n = chipCounts[c.id] ?? 0;
+            const label = c.id === 'all' ? `${c.label} · ${n}` : `${c.label} · ${n}`;
+            return (
+              <Pressable
+                key={c.id}
+                style={[styles.chip, filter === c.id && styles.chipOn]}
+                onPress={() => setFilter(c.id)}
+              >
+                <Text style={[styles.chipText, filter === c.id && styles.chipTextOn]}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
 
         <View style={styles.filterTools}>
@@ -485,13 +577,10 @@ export default function TodayScreen() {
           </View>
         ) : null}
 
-        {!busy && !visibleMatches.length ? (
+        {showFilterEmpty ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No matches yet</Text>
-            <Text style={styles.staleText}>
-              Pull down or tap ↻ to load today’s games and prices. If it’s still empty, try again
-              closer to kickoff, or clear your search/date filters.
-            </Text>
+            <Text style={styles.emptyTitle}>{filterEmpty.title}</Text>
+            <Text style={styles.staleText}>{filterEmpty.body}</Text>
           </View>
         ) : null}
 
