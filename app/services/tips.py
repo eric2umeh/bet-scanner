@@ -762,6 +762,9 @@ def auto_settle_finished(
                     "tip_id": tip.id,
                     "reason": "match not finished",
                     "match_status": status,
+                    "home_team": m.home_team,
+                    "away_team": m.away_team,
+                    "has_scores": m.home_score is not None and m.away_score is not None,
                 }
             )
             continue
@@ -786,10 +789,14 @@ def auto_settle_finished(
         parts.append(f"Auto-settled {len(settled)} tip(s) from finished matches.")
     if not voided and not settled:
         if unresolved:
-            sample = unresolved[0].get("reason") or "unknown"
+            u0 = unresolved[0]
+            sample = u0.get("reason") or "unknown"
+            teams = ""
+            if u0.get("home_team") and u0.get("away_team"):
+                teams = f" ({u0['home_team']} vs {u0['away_team']}, status={u0.get('match_status')})"
             parts.append(
                 f"No tips settled — {len(unresolved)} still pending "
-                f"(e.g. {sample}). Scores may still be missing; try again later "
+                f"(e.g. {sample}{teams}). Scores may still be missing; try again later "
                 "or mark Won/Lost manually."
             )
         else:
