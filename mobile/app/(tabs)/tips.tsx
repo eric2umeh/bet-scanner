@@ -36,7 +36,7 @@ import { useNeedsSignIn } from '../../src/hooks/useTipsFeed';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { markScoreRefreshRan, shouldRunScoreRefresh } from '../../src/store/autoSettle';
 import { queryKeys } from '../../src/query/client';
-import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
+import { bookLabel, marketLabel, tipKey, tipKeyLoose } from '../../src/lib/tipKey';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { hydrateLoggedKeys } from '../../src/store/loggedTips';
 import { youthMatchHint } from '../../src/lib/marketLean';
@@ -293,16 +293,25 @@ export default function TipsScreen() {
         setStatus('');
         // Keep Today strikethrough in sync when Tips refreshes (incl. logs from web).
         if (tab === 'active' && items.length) {
-          void hydrateLoggedKeys(
-            items.map((t) =>
+          const keys: string[] = [];
+          for (const t of items) {
+            keys.push(
               tipKey({
                 match_id: t.match_id,
                 bookmaker: t.bookmaker || '',
                 market: t.market,
                 selection: t.selection,
               })
-            )
-          );
+            );
+            keys.push(
+              tipKeyLoose({
+                match_id: t.match_id,
+                market: t.market,
+                selection: t.selection,
+              })
+            );
+          }
+          void hydrateLoggedKeys(keys);
         }      } catch (e) {
         if (!isAuthError(e)) {
           setStatus(e instanceof Error ? e.message : String(e));
