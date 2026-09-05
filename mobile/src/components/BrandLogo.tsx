@@ -14,7 +14,7 @@ const SIZES: Record<Size, number> = {
 
 type Props = {
   size?: Size;
-  /** Show "Bet Scanner" wordmark beside the mark */
+  /** Show "Bet Scout" wordmark beside the mark */
   showWordmark?: boolean;
   /** Stack wordmark under the mark */
   stacked?: boolean;
@@ -50,7 +50,7 @@ export function BrandLogo({
       {mark}
       <View style={[stacked ? styles.textStack : styles.textInline, !stacked && styles.textShrink]}>
         <Text style={[styles.wordmark, sizeWordmark(size)]} numberOfLines={1}>
-          Bet Scanner
+          Bet Scout
         </Text>
         {showTag ? (
           <Text style={styles.tagline} numberOfLines={1}>
@@ -75,7 +75,7 @@ export function BrandLogoImage({
     <Image
       source={require('../../assets/images/logo-mark-sm.png')}
       style={[{ width: dim, height: dim, borderRadius: dim * 0.22 }, style]}
-      accessibilityLabel="Bet Scanner"
+      accessibilityLabel="Bet Scout"
     />
   );
 }
