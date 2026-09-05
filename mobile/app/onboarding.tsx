@@ -9,11 +9,9 @@ import {
   View,
 } from 'react-native';
 
-import { API_URL, setCachedAccessKey } from '../src/api/client';
-import { saveAccessKey } from '../src/store/accessKey';
+import { API_URL } from '../src/api/client';
 import { markOnboardingDone } from '../src/store/onboarding';
 import { BrandLogo } from '../src/components/BrandLogo';
-import { PasswordInput } from '../src/components/PasswordInput';
 import { saveSettings, unitStakeNgn, type AppSettings } from '../src/store/settings';
 import { colors } from '../src/theme/colors';
 
@@ -22,7 +20,6 @@ export default function OnboardingScreen() {
   const [bankroll, setBankroll] = useState('50000');
   const [unitPct, setUnitPct] = useState('1');
   const [pickMarket, setPickMarket] = useState<'double_chance' | '1x2'>('double_chance');
-  const [accessKey, setAccessKey] = useState('');
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
 
@@ -36,8 +33,7 @@ export default function OnboardingScreen() {
         pickMarket,
       };
       await saveSettings(next);
-      await saveAccessKey(accessKey);
-      setCachedAccessKey(accessKey.trim() || null);
+      // Access key is developer-only (Me → Settings when signed in as developer).
       await markOnboardingDone();
       router.replace('/(tabs)');
     } catch (e) {
@@ -100,18 +96,6 @@ export default function OnboardingScreen() {
         ))}
       </View>
 
-      <Text style={styles.label}>App access key (optional)</Text>
-      <Text style={styles.hint}>
-        Only needed if your server has APP_API_KEY set. Leave blank for open local / learning
-        servers.
-      </Text>
-      <PasswordInput
-        value={accessKey}
-        onChangeText={setAccessKey}
-        placeholder="Same value as APP_API_KEY on the server"
-        placeholderTextColor={colors.muted}
-      />
-
       {hint ? <Text style={styles.error}>{hint}</Text> : null}
 
       <Pressable style={[styles.btn, busy && styles.disabled]} disabled={busy} onPress={onFinish}>
@@ -127,7 +111,6 @@ const styles = StyleSheet.create({
   kicker: { color: colors.accent, fontWeight: '700', fontSize: 13, letterSpacing: 0.5 },
   title: { color: colors.ink, fontSize: 30, fontWeight: '700', marginTop: 4 },
   muted: { color: colors.muted, fontSize: 14, lineHeight: 20 },
-  hint: { color: colors.muted, fontSize: 12, lineHeight: 17, marginBottom: 2 },
   label: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 12 },
   input: {
     backgroundColor: colors.card,
