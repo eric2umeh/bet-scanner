@@ -114,7 +114,10 @@ export function logTipBatch(opts: {
 export function fetchTipsPage(params: FetchTipsParams = {}) {
   const limit = params.limit ?? TIPS_PAGE_SIZE;
   const offset = params.offset ?? 0;
-  return getJson<TipListPage | TipOut[]>(`/tips${tipsQuery(params)}`).then((raw) => {
+  // Tips list should fail fast — don't sit on the 55s Render wake timeout.
+  return getJson<TipListPage | TipOut[]>(`/tips${tipsQuery(params)}`, {
+    timeoutMs: 25000,
+  }).then((raw) => {
     if (Array.isArray(raw)) {
       const slice = raw.slice(offset, offset + limit);
       const total = raw.length;
@@ -172,5 +175,8 @@ export function autoSettleTips(opts?: { refreshScores?: boolean }) {
     voided_count?: number;
     unresolved_count: number;
     message: string;
-  }>(`/tips/auto-settle${q}`, {});
+  }>(`/tips/auto-settle${q}`, {}, {
+    // DB-only settle is quick; score refresh can be slow — keep a hard cap either way.
+    timeoutMs: refresh ? 45000 : 20000,
+  });
 }
