@@ -26,6 +26,20 @@ function bookTriggerLabel(books: string[], value: string) {
   return bookLabel(value);
 }
 
+function SheetClose({ onClose }: { onClose: () => void }) {
+  return (
+    <Pressable
+      onPress={onClose}
+      hitSlop={10}
+      accessibilityRole="button"
+      accessibilityLabel="Close"
+      style={styles.closeBtn}
+    >
+      <Text style={styles.closeX}>×</Text>
+    </Pressable>
+  );
+}
+
 /**
  * Bookmaker + Lean filters on one row when wide; one Filters sheet when narrow.
  */
@@ -78,18 +92,21 @@ export function BookLeanFilters({
           <Pressable style={styles.backdrop} onPress={() => setOpenAll(false)}>
             <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
               <View style={styles.sheetHead}>
-                <Text style={styles.title}>Filters</Text>
-                {filtersActive ? (
-                  <Pressable
-                    onPress={() => {
-                      onBookChange('all');
-                      onLeanChange(0);
-                    }}
-                    hitSlop={8}
-                  >
-                    <Text style={styles.clearAll}>Reset</Text>
-                  </Pressable>
-                ) : null}
+                <Text style={styles.titleInline}>Filters</Text>
+                <View style={styles.sheetHeadRight}>
+                  {filtersActive ? (
+                    <Pressable
+                      onPress={() => {
+                        onBookChange('all');
+                        onLeanChange(0);
+                      }}
+                      hitSlop={8}
+                    >
+                      <Text style={styles.clearAll}>Reset</Text>
+                    </Pressable>
+                  ) : null}
+                  <SheetClose onClose={() => setOpenAll(false)} />
+                </View>
               </View>
 
               {books.length > 0 ? (
@@ -101,7 +118,10 @@ export function BookLeanFilters({
                       <Pressable
                         key={o.key}
                         style={[styles.option, on && styles.optionOn]}
-                        onPress={() => onBookChange(o.key)}
+                        onPress={() => {
+                          onBookChange(o.key);
+                          setOpenAll(false);
+                        }}
                       >
                         <Text style={[styles.optionText, on && styles.optionTextOn]}>{o.label}</Text>
                       </Pressable>
@@ -112,11 +132,14 @@ export function BookLeanFilters({
               ) : null}
 
               <Text style={styles.section}>Lean %</Text>
-              <LeanPctPanel value={leanValue} onChange={onLeanChange} />
-
-              <Pressable style={styles.doneBtn} onPress={() => setOpenAll(false)}>
-                <Text style={styles.doneBtnText}>Done</Text>
-              </Pressable>
+              <LeanPctPanel
+                value={leanValue}
+                onChange={onLeanChange}
+                onCommit={(v) => {
+                  onLeanChange(v);
+                  setOpenAll(false);
+                }}
+              />
             </Pressable>
           </Pressable>
         </Modal>
@@ -142,7 +165,10 @@ export function BookLeanFilters({
           <Modal visible={openBook} transparent animationType="fade" onRequestClose={() => setOpenBook(false)}>
             <Pressable style={styles.backdrop} onPress={() => setOpenBook(false)}>
               <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-                <Text style={styles.title}>Bookmaker</Text>
+                <View style={styles.sheetHead}>
+                  <Text style={styles.titleInline}>Bookmaker</Text>
+                  <SheetClose onClose={() => setOpenBook(false)} />
+                </View>
                 {bookOptions.map((o) => {
                   const on = o.key === bookValue;
                   return (
@@ -182,11 +208,18 @@ export function BookLeanFilters({
       <Modal visible={openLean} transparent animationType="fade" onRequestClose={() => setOpenLean(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpenLean(false)}>
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.title}>Lean %</Text>
-            <LeanPctPanel value={leanValue} onChange={onLeanChange} />
-            <Pressable style={styles.doneBtn} onPress={() => setOpenLean(false)}>
-              <Text style={styles.doneBtnText}>Done</Text>
-            </Pressable>
+            <View style={styles.sheetHead}>
+              <Text style={styles.titleInline}>Lean %</Text>
+              <SheetClose onClose={() => setOpenLean(false)} />
+            </View>
+            <LeanPctPanel
+              value={leanValue}
+              onChange={onLeanChange}
+              onCommit={(v) => {
+                onLeanChange(v);
+                setOpenLean(false);
+              }}
+            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -239,14 +272,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 10,
+    gap: 8,
   },
-  title: {
+  sheetHeadRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  titleInline: {
     color: colors.muted,
     fontSize: 12,
     fontWeight: '700',
-    marginBottom: 8,
-    paddingHorizontal: 2,
+    flex: 1,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  closeX: {
+    color: colors.ink,
+    fontSize: 22,
+    fontWeight: '600',
+    lineHeight: 24,
+    marginTop: -1,
   },
   section: {
     color: colors.muted,
@@ -271,12 +326,4 @@ const styles = StyleSheet.create({
   optionOn: { backgroundColor: colors.accentDim },
   optionText: { color: colors.ink, fontSize: 15, fontWeight: '600' },
   optionTextOn: { color: colors.accent },
-  doneBtn: {
-    marginTop: 16,
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  doneBtnText: { color: '#06241c', fontWeight: '800', fontSize: 14 },
 });
