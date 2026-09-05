@@ -9,7 +9,7 @@ import { colors } from '../theme/colors';
 type Kind = 'offline' | 'server' | null;
 
 /**
- * Top banner when the phone has no internet, or Bet Scanner's server
+ * Top banner when the phone has no internet, or Bet Scout's server
  * does not answer a quick health check.
  */
 export function ConnectionBanner() {
@@ -53,7 +53,7 @@ export function ConnectionBanner() {
   const message =
     kind === 'offline'
       ? 'No internet connection. Tips and prices will not update until you are back online.'
-      : 'Cannot reach the Bet Scanner server. It may be waking up — wait a minute and pull down to refresh.';
+      : 'Cannot reach the Bet Scout server. It may be waking up — wait a minute and pull down to refresh.';
 
   return (
     <View style={[styles.wrap, { paddingTop: Math.max(insets.top, 8) }]}>
