@@ -36,9 +36,8 @@ import { useNeedsSignIn } from '../../src/hooks/useTipsFeed';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { markScoreRefreshRan, shouldRunScoreRefresh } from '../../src/store/autoSettle';
 import { queryKeys } from '../../src/query/client';
-import { bookLabel, marketLabel, tipKey, tipKeyLoose } from '../../src/lib/tipKey';
+import { bookLabel, marketLabel } from '../../src/lib/tipKey';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
-import { hydrateLoggedKeys } from '../../src/store/loggedTips';
 import { youthMatchHint } from '../../src/lib/marketLean';
 import { subscribeTipsList } from '../../src/store/tipsEvents';
 import { colors } from '../../src/theme/colors';
@@ -74,6 +73,24 @@ const MARKET_CHIPS: { id: MarketFilter; label: string }[] = [
   { id: 'btts', label: 'BTTS' },
   { id: 'tt_2_5', label: 'Team 3+' },
 ];
+
+function tipMatchesTeamSearch(t: TipOut, rawQ: string): boolean {
+  const needle = rawQ.trim().toLowerCase();
+  if (!needle) return true;
+  const hay = [
+    t.home_team,
+    t.away_team,
+    t.competition_code,
+    t.market,
+    t.selection,
+    t.bookmaker,
+    formatMatchTitle(t.home_team || '', t.away_team || ''),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return needle.split(/\s+/).every((tok) => hay.includes(tok));
+}
 
 function resultColor(result: string) {
   const r = (result || '').toLowerCase();
@@ -291,28 +308,7 @@ export default function TipsScreen() {
         setTips(items);
         setTotalCount(data.total ?? 0);
         setStatus('');
-        // Keep Today strikethrough in sync when Tips refreshes (incl. logs from web).
-        if (tab === 'active' && items.length) {
-          const keys: string[] = [];
-          for (const t of items) {
-            keys.push(
-              tipKey({
-                match_id: t.match_id,
-                bookmaker: t.bookmaker || '',
-                market: t.market,
-                selection: t.selection,
-              })
-            );
-            keys.push(
-              tipKeyLoose({
-                match_id: t.match_id,
-                market: t.market,
-                selection: t.selection,
-              })
-            );
-          }
-          void hydrateLoggedKeys(keys);
-        }      } catch (e) {
+      } catch (e) {
         if (!isAuthError(e)) {
           setStatus(e instanceof Error ? e.message : String(e));
         }
@@ -395,9 +391,13 @@ export default function TipsScreen() {
   const busy = listBusy;
 
   const { singles, multis } = useMemo(() => {
+    // Client-side team search too — works even if a page was loaded before debounce fired.
+    const visible = searchQ.trim()
+      ? tips.filter((t) => tipMatchesTeamSearch(t, searchQ))
+      : tips;
     const singles: TipOut[] = [];
     const multis: Record<string, TipOut[]> = {};
-    for (const t of tips) {
+    for (const t of visible) {
       if (t.slip_id) {
         (multis[t.slip_id] || (multis[t.slip_id] = [])).push(t);
       } else {
@@ -408,7 +408,7 @@ export default function TipsScreen() {
       legs.sort((a, b) => a.id - b.id);
     }
     return { singles, multis };
-  }, [tips]);
+  }, [tips, searchQ]);
 
   async function reloadAll() {
     await invalidateTipsCache();
@@ -527,7 +527,11 @@ export default function TipsScreen() {
     );
   }
 
-  const showEmpty = !busy && !tips.length && !needsSignIn && totalCount === 0;
+  const showEmpty =
+    !busy &&
+    !needsSignIn &&
+    ((totalCount === 0 && !tips.length) ||
+      (tips.length > 0 && !singles.length && !Object.keys(multis).length));
 
   return (
     <View style={styles.root}>
