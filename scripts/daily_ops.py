@@ -28,7 +28,7 @@ from app.services.daily_ops import run_daily_ops
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Bet Scanner daily ops")
+    parser = argparse.ArgumentParser(description="Bet Scout daily ops")
     parser.add_argument("--no-fixtures", action="store_true")
     parser.add_argument("--no-odds", action="store_true", help="Skip odds sync (save quota)")
     parser.add_argument("--no-settle", action="store_true")

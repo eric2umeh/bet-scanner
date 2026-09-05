@@ -138,7 +138,7 @@ def run_daily_ops(
 
     telegram_info = None
     if notify_telegram:
-        text_parts = ["Bet Scanner — daily ops", ""]
+        text_parts = ["Bet Scout — daily ops", ""]
         for s in steps:
             mark = "✓" if s.get("ok") else "✗"
             text_parts.append(f"{mark} {s.get('step')}: {s.get('message')}")

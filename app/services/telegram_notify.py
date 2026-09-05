@@ -80,7 +80,7 @@ def send_telegram_message(settings: Settings, text: str) -> dict:
     return {"ok": True, "message": "Telegram message sent.", "telegram": data.get("result")}
 
 
-def format_tips_digest(tips: list[dict], title: str = "Bet Scanner picks") -> str:
+def format_tips_digest(tips: list[dict], title: str = "Bet Scout picks") -> str:
     if not tips:
         return f"{title}\n(no picks)"
     lines = [title, ""]

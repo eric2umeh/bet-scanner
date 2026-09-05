@@ -13,7 +13,7 @@ router = APIRouter(prefix="/telegram", tags=["telegram"])
 
 class TelegramTestRequest(BaseModel):
     text: str = Field(
-        default="Bet Scanner online ✅ Phase 4 Telegram works.",
+        default="Bet Scout online ✅ Phase 4 Telegram works.",
         max_length=4000,
     )
 
