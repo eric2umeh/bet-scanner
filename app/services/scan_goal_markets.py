@@ -169,6 +169,11 @@ def scan_goal_market_picks(
                     under_k = f"{side}_under"
                     if over_k not in mkts["tt_2_5"] or under_k not in mkts["tt_2_5"]:
                         continue
+                    over_price = mkts["tt_2_5"][over_k]["price"]
+                    under_price = mkts["tt_2_5"][under_k]["price"]
+                    # Team 3+ only: Over must be the shorter (favoured) side.
+                    if over_price > under_price:
+                        continue
                     pick = _lean_two_way(
                         {
                             "over": mkts["tt_2_5"][over_k],
@@ -180,12 +185,10 @@ def scan_goal_market_picks(
                         profile="market_lean_tt",
                         max_odds=max_odds,
                     )
-                    if not pick:
+                    if not pick or pick["selection"] != "over":
                         continue
-                    # Only show team scores 3+ when Over is the short side and lean is strong.
-                    if pick["selection"] != "over":
-                        continue
-                    if float(pick.get("confidence_pct") or 0) < max(min_lean, tt_lean):
+                    # Soft floor for longshot team totals (env GOAL_TT_MIN_CONFIDENCE).
+                    if float(pick.get("confidence_pct") or 0) < tt_lean:
                         continue
                     pick = {
                         **pick,
@@ -222,7 +225,7 @@ def scan_goal_market_picks(
         elif tt_tips == 0:
             msg += (
                 f" Team Totals present on {tt_odds_rows} book·match row(s) "
-                f"but none cleared lean ≥{max(min_lean, tt_lean):.0f}% Over."
+                f"but none cleared Over lean ≥{tt_lean:.0f}%."
             )
 
     return {
