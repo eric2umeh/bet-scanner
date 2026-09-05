@@ -1,18 +1,35 @@
 import type { TipPick } from '../types/api';
 
+function normMarket(market: string): string {
+  const m = String(market || '').toLowerCase().replace(/-/g, '_');
+  return m === '1x2' ? '1x2' : m;
+}
+
+function normSel(selection: string): string {
+  return String(selection || '').trim().toLowerCase();
+}
+
+function normBook(bookmaker: string): string {
+  return String(bookmaker || '').trim().toLowerCase();
+}
+
 /** Stable id for selection / logged strikethrough (no odds — survives reload). */
 export function tipKey(
   p: Pick<TipPick, 'match_id' | 'bookmaker' | 'market' | 'selection'>
 ): string {
-  const market = String(p.market || '').toLowerCase().replace(/-/g, '_');
-  // Safe builder may emit 1X2; tips API stores lowercased/normalized variants.
-  const marketNorm = market === '1x2' ? '1x2' : market;
   return [
     Number(p.match_id),
-    String(p.bookmaker || '').trim().toLowerCase(),
-    marketNorm,
-    String(p.selection || '').trim().toLowerCase(),
+    normBook(p.bookmaker || ''),
+    normMarket(p.market || ''),
+    normSel(p.selection || ''),
   ].join('|');
+}
+
+/** Bookmaker-agnostic key — tips API rows sometimes omit bookmaker. */
+export function tipKeyLoose(
+  p: Pick<TipPick, 'match_id' | 'market' | 'selection'>
+): string {
+  return [Number(p.match_id), normMarket(p.market || ''), normSel(p.selection || '')].join('|');
 }
 
 export function marketLabel(market: string): string {
