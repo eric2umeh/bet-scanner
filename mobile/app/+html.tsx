@@ -19,7 +19,8 @@ export default function Root({ children }: PropsWithChildren) {
               body {
                 margin: 0;
                 background: radial-gradient(ellipse at 50% 20%, #0f151c 0%, #040608 55%);
-                overscroll-behavior: none;
+                /* Contain rubber-band to the app scroll view (in-app pull), not full page reload */
+                overscroll-behavior-y: contain;
               }
             `,
           }}
