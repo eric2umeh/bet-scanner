@@ -22,7 +22,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "bet-scanner"
+    app_name: str = "Bet Scout"
     app_env: str = "development"
     debug: bool = True
 
