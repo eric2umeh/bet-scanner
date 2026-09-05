@@ -114,9 +114,9 @@ export function logTipBatch(opts: {
 export function fetchTipsPage(params: FetchTipsParams = {}) {
   const limit = params.limit ?? TIPS_PAGE_SIZE;
   const offset = params.offset ?? 0;
-  // Tips list should fail fast — don't sit on the 55s Render wake timeout.
+  // Tips list should stay snappy but not false-timeout on a slow DB.
   return getJson<TipListPage | TipOut[]>(`/tips${tipsQuery(params)}`, {
-    timeoutMs: 25000,
+    timeoutMs: 45000,
   }).then((raw) => {
     if (Array.isArray(raw)) {
       const slice = raw.slice(offset, offset + limit);
