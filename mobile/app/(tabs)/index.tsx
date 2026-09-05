@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 
-import { pingHealth } from '../../src/api/client';
+import { pingHealth, userFacingError } from '../../src/api/client';
 import { fetchBettableMatches, syncFixtures } from '../../src/api/matches';
 import { fetchPublicAppConfig } from '../../src/api/appConfig';
 import { syncOdds } from '../../src/api/odds';
@@ -391,7 +391,7 @@ export default function TodayScreen() {
               : 'No matches yet — tap Load matches to sync.'
         );
       } catch (e) {
-        setStatus(e instanceof Error ? e.message : String(e));
+        setStatus(userFacingError(e));
       } finally {
         setBusy(false);
       }
@@ -459,7 +459,7 @@ export default function TodayScreen() {
     } catch (e) {
       await modal.alert({
         title: 'Log failed',
-        message: e instanceof Error ? e.message : String(e),
+        message: userFacingError(e),
       });
     } finally {
       setBusy(false);
