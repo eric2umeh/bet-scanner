@@ -36,8 +36,9 @@ import { useNeedsSignIn } from '../../src/hooks/useTipsFeed';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { markScoreRefreshRan, shouldRunScoreRefresh } from '../../src/store/autoSettle';
 import { queryKeys } from '../../src/query/client';
-import { bookLabel, marketLabel } from '../../src/lib/tipKey';
+import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
+import { hydrateLoggedKeys } from '../../src/store/loggedTips';
 import { youthMatchHint } from '../../src/lib/marketLean';
 import { subscribeTipsList } from '../../src/store/tipsEvents';
 import { colors } from '../../src/theme/colors';
@@ -286,10 +287,23 @@ export default function TipsScreen() {
       setListBusy(true);
       try {
         const data = await fetchTipsPage(fetchParams(page));
-        setTips(data.items ?? []);
+        const items = data.items ?? [];
+        setTips(items);
         setTotalCount(data.total ?? 0);
         setStatus('');
-      } catch (e) {
+        // Keep Today strikethrough in sync when Tips refreshes (incl. logs from web).
+        if (tab === 'active' && items.length) {
+          void hydrateLoggedKeys(
+            items.map((t) =>
+              tipKey({
+                match_id: t.match_id,
+                bookmaker: t.bookmaker || '',
+                market: t.market,
+                selection: t.selection,
+              })
+            )
+          );
+        }      } catch (e) {
         if (!isAuthError(e)) {
           setStatus(e instanceof Error ? e.message : String(e));
         }
@@ -297,7 +311,7 @@ export default function TipsScreen() {
         setListBusy(false);
       }
     },
-    [needsSignIn, fetchParams, pageSize]
+    [needsSignIn, fetchParams, pageSize, tab]
   );
 
   useEffect(() => {
