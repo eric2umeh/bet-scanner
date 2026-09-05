@@ -42,9 +42,36 @@ export async function initLoggedTips() {
 
 export async function markTipsLogged(tips: TipPick[]) {
   await ensureLoaded();
-  for (const t of tips) keys.add(tipKey(t));
-  await persist();
-  emit();
+  let changed = false;
+  for (const t of tips) {
+    const k = tipKey(t);
+    if (!keys.has(k)) {
+      keys.add(k);
+      changed = true;
+    }
+  }
+  if (changed) {
+    await persist();
+    emit();
+  } else {
+    emit();
+  }
+}
+
+/** Merge keys from Tips API (pending logs) so strikethrough survives reload / new devices. */
+export async function hydrateLoggedKeys(incoming: Iterable<string>) {
+  await ensureLoaded();
+  let changed = false;
+  for (const k of incoming) {
+    const key = String(k || '').trim();
+    if (!key || keys.has(key)) continue;
+    keys.add(key);
+    changed = true;
+  }
+  if (changed) {
+    await persist();
+    emit();
+  }
 }
 
 export function isTipLogged(p: TipPick): boolean {
