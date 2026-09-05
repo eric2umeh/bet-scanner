@@ -19,7 +19,7 @@ import { fetchPublicAppConfig } from '../../src/api/appConfig';
 import { syncOdds } from '../../src/api/odds';
 import { scanGoalMarkets } from '../../src/api/predictions';
 import { scanSafeBuilder } from '../../src/api/safe';
-import { logTipBatch } from '../../src/api/tips';
+import { fetchTipsPage, logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { BookLeanFilters } from '../../src/components/BookLeanFilters';
@@ -34,7 +34,13 @@ import { useAppModal } from '../../src/components/modal';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import { setMatchCache } from '../../src/store/matchCache';
-import { isTipLogged, initLoggedTips, markTipsLogged, subscribeLoggedTips } from '../../src/store/loggedTips';
+import {
+  hydrateLoggedKeys,
+  isTipLogged,
+  initLoggedTips,
+  markTipsLogged,
+  subscribeLoggedTips,
+} from '../../src/store/loggedTips';
 import {
   clearSelection,
   getSelectedCount,
@@ -129,7 +135,7 @@ function emptyStateForFilter(
   const leanHint =
     opts.minLeanPct > 0
       ? ` Lower Lean % (now ≥${opts.minLeanPct}) or tap Clear in Filters.`
-      : ' Try Refresh.';
+      : ' Try Load matches.';
   const searchHint =
     opts.searchQ.trim() || opts.dateFilter
       ? ' Clear search/date if you narrowed the list.'
@@ -138,7 +144,7 @@ function emptyStateForFilter(
   if (opts.totalTips === 0) {
     return {
       title: 'No tips yet',
-      body: 'Tap Refresh to sync prices. Tips appear when the book shows a clear lean.',
+      body: 'Tap Load matches to sync prices. Tips appear when the book shows a clear lean.',
     };
   }
 
@@ -157,24 +163,24 @@ function emptyStateForFilter(
     },
     ou_0_5: {
       title: 'No O/U 0.5 leans',
-      body: `No Over 0.5 tips in this view — try Refresh / lower Lean %.${searchHint}`,
+      body: `No Over 0.5 tips in this view — try Load matches / lower Lean %.${searchHint}`,
     },
     ou_1_5: {
       title: 'No O/U 1.5 leans',
-      body: `No Over 1.5 tips in this view — try Refresh / lower Lean %.${searchHint}`,
+      body: `No Over 1.5 tips in this view — try Load matches / lower Lean %.${searchHint}`,
     },
     ou_2_5: {
       title: 'No O/U 2.5 leans',
-      body: `No O/U 2.5 tips in this view — try Refresh / lower Lean %.${searchHint}`,
+      body: `No O/U 2.5 tips in this view — try Load matches / lower Lean %.${searchHint}`,
     },
     btts: {
       title: 'No BTTS leans',
-      body: `No BTTS Yes/No tips in this view — try Refresh / lower Lean %.${searchHint}`,
+      body: `No BTTS Yes/No tips in this view — try Load matches / lower Lean %.${searchHint}`,
     },
     tt_2_5: {
       title: 'No Team 3+ tips',
       body:
-        'Team scores 3+ is rare (needs Team Totals from the feed + strong Over lean). Tap Refresh; if sync says Team3+ 0, this book/league may not offer that market.',
+        'Team scores 3+ is rare (needs Team Totals from the feed + strong Over lean). Tap Load matches; if sync says Team3+ 0, this book/league may not offer that market.',
     },
   };
   return map[filter];
@@ -355,12 +361,28 @@ export default function TodayScreen() {
         setMatches(merged);
         setMatchCache(merged, all);
         pruneSelection(new Set(merged.map((m) => m.id)));
+        // Restore strikethrough from Tips you’ve already logged (server + local).
+        try {
+          const page = await fetchTipsPage({ result: 'pending', limit: 200 });
+          await hydrateLoggedKeys(
+            (page.items || []).map((t) =>
+              tipKey({
+                match_id: t.match_id,
+                bookmaker: t.bookmaker || '',
+                market: t.market,
+                selection: t.selection,
+              })
+            )
+          );
+        } catch {
+          /* optional — local logged keys still apply */
+        }
         setStatus(
           merged.length
             ? `${merged.length} match${merged.length === 1 ? '' : 'es'} · ${n} tip${n === 1 ? '' : 's'}${withOdds ? ' · updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
             : withOdds
               ? 'Updated — no matches with tips yet. Try again closer to kickoff.'
-              : 'No matches yet — pull down or tap ↻ to refresh.'
+              : 'No matches yet — tap Load matches to sync.'
         );
       } catch (e) {
         setStatus(e instanceof Error ? e.message : String(e));
@@ -386,7 +408,7 @@ export default function TodayScreen() {
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerActions}>
-          <SyncHeaderButton onPress={onSyncOdds} disabled={busy} busy={busy} />
+          <SyncHeaderButton onPress={onSyncOdds} disabled={busy} busy={busy} label="Load matches" />
           <HelpHeaderButton />
         </View>
       ),
@@ -398,11 +420,15 @@ export default function TodayScreen() {
   }, []);
 
   async function onLogSelected() {
-    const tips = getSelectedTips();
+    const raw = getSelectedTips();
+    // Skip already-logged legs so the confirm modal never lists duplicates.
+    const tips = dedupePicks(raw.filter((t) => !isTipLogged(t)));
     if (!tips.length) {
       await modal.alert({
-        title: 'Nothing selected',
-        message: 'Tick tips you placed, then Log selected.',
+        title: 'Nothing new to log',
+        message: raw.length
+          ? 'Those picks were already logged (struck through). Pick something new.'
+          : 'Tick tips you placed, then Log selected.',
       });
       return;
     }
@@ -500,7 +526,8 @@ export default function TodayScreen() {
                   onPress={onSyncOdds}
                   disabled={busy}
                   busy={busy}
-                  showLabel={narrowWeb}
+                  showLabel
+                  label="Load matches"
                 />
                 <HelpHeaderButton />
               </View>
@@ -558,10 +585,12 @@ export default function TodayScreen() {
 
         {isWeb && !narrowWeb ? (
           <Text style={styles.hint}>
-            Tap Refresh (or pull down) to update · tap a pick for your slip.
+            Tap Load matches (or pull down) for fresh odds · tap a pick for your slip.
           </Text>
         ) : !isWeb ? (
-          <Text style={styles.hint}>Pull down or tap ↻ to update · tap a pick for your slip.</Text>
+          <Text style={styles.hint}>
+            Pull down or tap Load matches for fresh odds · tap a pick for your slip.
+          </Text>
         ) : null}
 
         {busy && !matches.length ? (
