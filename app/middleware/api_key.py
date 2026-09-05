@@ -2,12 +2,11 @@
 Phase 12A — optional APP_API_KEY gate for mutating requests.
 
 When APP_API_KEY is empty, all routes stay open (local / learning default).
-When set, POST/PUT/PATCH/DELETE must send:
+When set, POST/PUT/PATCH/DELETE must send either:
   X-API-Key: <key>
+  Authorization: Bearer <valid Supabase access token>
 
-Authorization: Bearer is reserved for Supabase user login (Phase 12C).
-
-GET /health, docs, and the HTML dashboard stay public.
+Signed-in users can sync/settle without pasting the developer access key.
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from app.config import get_settings
+from app.deps.auth import _decode_supabase_user, auth_verification_enabled
 
 _OPEN_PREFIXES = (
     "/docs",
@@ -30,6 +30,13 @@ _MUTATING = {"POST", "PUT", "PATCH", "DELETE"}
 
 def _extract_key(request: Request) -> str:
     return (request.headers.get("x-api-key") or "").strip()
+
+
+def _extract_bearer(request: Request) -> str:
+    auth = (request.headers.get("authorization") or "").strip()
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    return ""
 
 
 class AppApiKeyMiddleware(BaseHTTPMiddleware):
@@ -46,7 +53,18 @@ class AppApiKeyMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         provided = _extract_key(request)
-        if not provided:
+        if provided and provided == expected:
+            return await call_next(request)
+
+        # Signed-in users: valid Supabase JWT unlocks mutating routes
+        settings = get_settings()
+        bearer = _extract_bearer(request)
+        if bearer and auth_verification_enabled(settings):
+            user = _decode_supabase_user(bearer, settings)
+            if user is not None:
+                return await call_next(request)
+
+        if not provided and not bearer:
             return JSONResponse(
                 status_code=401,
                 content={
@@ -56,9 +74,16 @@ class AppApiKeyMiddleware(BaseHTTPMiddleware):
                     )
                 },
             )
-        if provided != expected:
+        if provided and provided != expected:
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Invalid app access key."},
             )
-        return await call_next(request)
+        return JSONResponse(
+            status_code=401,
+            content={
+                "detail": (
+                    "Sign in on Me, or set the app access key, then try again."
+                )
+            },
+        )
