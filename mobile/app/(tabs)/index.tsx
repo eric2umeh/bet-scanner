@@ -32,6 +32,7 @@ import { BetSlipFab } from '../../src/components/BetSlipFab';
 import { useWebPullRefresh, WebPullHint } from '../../src/components/useWebPullRefresh';
 import { useAppModal } from '../../src/components/modal';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
+import { isMatchBettable } from '../../src/lib/matchBettable';
 import { bookLabel, marketLabel, tipKey, tipKeyLoose } from '../../src/lib/tipKey';
 import { setMatchCache } from '../../src/store/matchCache';
 import {
@@ -217,6 +218,8 @@ export default function TodayScreen() {
   const [selectedN, setSelectedN] = useState(0);
   const [asMulti, setAsMulti] = useState(true);
   const [loggedRev, setLoggedRev] = useState(0);
+  /** Re-evaluate kickoff filters every minute without a full refresh. */
+  const [clockTick, setClockTick] = useState(0);
   const { width: windowWidth } = useWindowDimensions();
   const narrowWeb = isWeb && windowWidth < 560;
   /** Two-column match grid only when cards stay wide enough to read tip text. */
@@ -224,6 +227,11 @@ export default function TodayScreen() {
 
   useEffect(() => {
     void Promise.all([initSelection(), initLoggedTips()]);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => setClockTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => subscribeSelection(() => setSelectedN(getSelectedCount())), []);
@@ -282,8 +290,21 @@ export default function TodayScreen() {
   }, [picks, bookFilter]);
 
   const picksByMatch = useMemo(() => {
+    void clockTick;
+    const matchById = new Map(matches.map((m) => [m.id, m]));
     const map: Record<number, TipPick[]> = {};
     for (const p of filteredPicks) {
+      const m = matchById.get(p.match_id);
+      if (m) {
+        if (!isMatchBettable(m)) continue;
+      } else if (
+        !isMatchBettable({
+          kickoff_at: p.kickoff_at,
+          status: undefined,
+        })
+      ) {
+        continue;
+      }
       if (filter !== 'all' && String(p.market).toLowerCase() !== filter) continue;
       if (minLeanPct > 0) {
         const lean = Number(p.confidence_pct);
@@ -293,11 +314,14 @@ export default function TodayScreen() {
       map[p.match_id].push(p);
     }
     return map;
-  }, [filteredPicks, filter, minLeanPct]);
+  }, [filteredPicks, filter, minLeanPct, matches, clockTick]);
 
   const visibleMatches = useMemo(() => {
+    void clockTick;
     const q = searchQ.trim().toLowerCase();
-    let withTips = matches.filter((m) => (picksByMatch[m.id] || []).length > 0);
+    let withTips = matches.filter(
+      (m) => isMatchBettable(m) && (picksByMatch[m.id] || []).length > 0
+    );
     if (q) {
       withTips = withTips.filter((m) => {
         const hay = `${m.home_team} ${m.away_team} ${m.competition_code || ''}`.toLowerCase();
@@ -305,7 +329,7 @@ export default function TodayScreen() {
       });
     }
     return withTips;
-  }, [matches, picksByMatch, searchQ]);
+  }, [matches, picksByMatch, searchQ, clockTick]);
 
   const totalPages = visibleMatches.length
     ? Math.max(1, Math.ceil(visibleMatches.length / pageSize))
