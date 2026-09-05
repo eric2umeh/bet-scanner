@@ -30,9 +30,13 @@ async function storageDelete(): Promise<void> {
 
 export async function loadAccessKey(): Promise<string> {
   try {
-    return ((await storageGet()) || '').trim();
+    const stored = ((await storageGet()) || '').trim();
+    if (stored) return stored;
+    // Baked into web/native builds so Render clients don't need Me → access key
+    const fromEnv = (process.env.EXPO_PUBLIC_APP_API_KEY || '').trim();
+    return fromEnv;
   } catch {
-    return '';
+    return (process.env.EXPO_PUBLIC_APP_API_KEY || '').trim();
   }
 }
 
