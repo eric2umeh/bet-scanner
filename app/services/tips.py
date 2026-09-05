@@ -511,16 +511,20 @@ def _apply_tip_list_filters(
     if book and book not in {"all", "unknown"}:
         stmt = stmt.where(func.lower(Tip.bookmaker) == book)
     if needle:
-        like = f"%{needle}%"
-        stmt = stmt.where(
-            or_(
-                Match.home_team.ilike(like),
-                Match.away_team.ilike(like),
-                Tip.market.ilike(like),
-                Tip.selection.ilike(like),
-                Tip.bookmaker.ilike(like),
+        # All tokens must appear somewhere in team / market / book (Today-style search).
+        tokens = [t for t in needle.lower().split() if t]
+        for token in tokens:
+            like = f"%{token}%"
+            stmt = stmt.where(
+                or_(
+                    Match.home_team.ilike(like),
+                    Match.away_team.ilike(like),
+                    Match.competition_code.ilike(like),
+                    Tip.market.ilike(like),
+                    Tip.selection.ilike(like),
+                    Tip.bookmaker.ilike(like),
+                )
             )
-        )
     return stmt
 
 
