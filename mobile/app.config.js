@@ -34,7 +34,7 @@ const supabaseAnonKey =
 
 module.exports = {
   expo: {
-    name: 'Bet Scanner',
+    name: 'Bet Scout',
     slug: 'bet-scanner',
     version: '1.0.0',
     orientation: 'portrait',
