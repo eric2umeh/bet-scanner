@@ -18,6 +18,7 @@ import {
 } from '../api/edge';
 import { syncOdds } from '../api/odds';
 import { bookLabel } from '../lib/tipKey';
+import { isKickoffUpcoming } from '../lib/matchBettable';
 import { shareOrCopyText } from '../lib/shareText';
 import { loadSettings, type AppSettings } from '../store/settings';
 import { colors } from '../theme/colors';
@@ -39,6 +40,17 @@ export function ArbitragePanel({ onFlash }: Props) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [opps, setOpps] = useState<ArbOpportunity[]>([]);
   const [busy, setBusy] = useState(false);
+  const [clockTick, setClockTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setClockTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const visibleOpps = opps.filter((o) => {
+    void clockTick;
+    return isKickoffUpcoming(o.kickoff_at);
+  });
 
   function flash(msg: string, bad = false) {
     onFlash?.(msg, bad);
@@ -50,10 +62,13 @@ export function ArbitragePanel({ onFlash }: Props) {
       const s = await loadSettings();
       setSettings(s);
       const data = await scanSurebets({ sample_stake_ngn: s.bankroll });
-      setOpps(data.opportunities || []);
+      const upcoming = (data.opportunities || []).filter((o) =>
+        isKickoffUpcoming(o.kickoff_at)
+      );
+      setOpps(upcoming);
       flash(
-        data.opportunities?.length
-          ? data.message || `Found ${data.opportunities.length} surebet(s).`
+        upcoming.length
+          ? data.message || `Found ${upcoming.length} surebet(s).`
           : data.message || 'No surebets on saved odds — pull down or tap Find surebets.'
       );
     } catch (e) {
@@ -74,10 +89,13 @@ export function ArbitragePanel({ onFlash }: Props) {
           await syncOdds();
         }
         const data = await scanSurebets({ sample_stake_ngn: s.bankroll });
-        setOpps(data.opportunities || []);
+        const upcoming = (data.opportunities || []).filter((o) =>
+          isKickoffUpcoming(o.kickoff_at)
+        );
+        setOpps(upcoming);
         flash(
-          data.opportunities?.length
-            ? data.message || `Found ${data.opportunities.length} surebet(s).`
+          upcoming.length
+            ? data.message || `Found ${upcoming.length} surebet(s).`
             : data.message || 'No surebets right now — try again closer to kickoff.'
         );
       } catch (e) {
@@ -103,8 +121,8 @@ export function ArbitragePanel({ onFlash }: Props) {
   }
 
   const bank = settings?.bankroll ?? 50000;
-  const bestProfit = opps.length
-    ? Math.max(...opps.map((o) => Number(o.profit_pct) || 0))
+  const bestProfit = visibleOpps.length
+    ? Math.max(...visibleOpps.map((o) => Number(o.profit_pct) || 0))
     : 0;
 
   return (
@@ -126,12 +144,12 @@ export function ArbitragePanel({ onFlash }: Props) {
 
       <View style={styles.statsRow}>
         <View style={styles.stat}>
-          <Text style={styles.statVal}>{opps.length}</Text>
+          <Text style={styles.statVal}>{visibleOpps.length}</Text>
           <Text style={styles.statLabel}>Found</Text>
         </View>
         <View style={styles.stat}>
-          <Text style={[styles.statVal, opps.length ? styles.statGood : null]}>
-            {opps.length ? `${bestProfit.toFixed(2)}%` : '—'}
+          <Text style={[styles.statVal, visibleOpps.length ? styles.statGood : null]}>
+            {visibleOpps.length ? `${bestProfit.toFixed(2)}%` : '—'}
           </Text>
           <Text style={styles.statLabel}>Best profit</Text>
         </View>
@@ -154,14 +172,14 @@ export function ArbitragePanel({ onFlash }: Props) {
       </Pressable>
       <Text style={styles.hint}>Pull down or tap Find surebets. Tap a card to copy stakes.</Text>
 
-      {!opps.length && !busy ? (
+      {!visibleOpps.length && !busy ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No surebets right now</Text>
           <Text style={styles.emptyText}>Try again closer to kickoff after refreshing Today.</Text>
         </View>
       ) : null}
 
-      {opps.map((o) => (
+      {visibleOpps.map((o) => (
         <ArbCard key={`${o.match_id}-${o.profit_pct}`} opp={o} onCopy={() => void onCopyPlan(o)} />
       ))}
     </ScrollView>
