@@ -44,6 +44,16 @@ export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-}"
 export EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${SUPABASE_URL:-}}"
 export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${SUPABASE_ANON_KEY:-}}"
 
+# Bake server APP_API_KEY into the static web client when not set explicitly.
+if [[ -z "${EXPO_PUBLIC_APP_API_KEY:-}" && -n "${APP_API_KEY:-}" ]]; then
+  export EXPO_PUBLIC_APP_API_KEY="$APP_API_KEY"
+fi
+if [[ -n "${EXPO_PUBLIC_APP_API_KEY:-}" ]]; then
+  echo "build_web: EXPO_PUBLIC_APP_API_KEY set for web export (Refresh/settle auth)."
+else
+  echo "build_web: WARNING — no EXPO_PUBLIC_APP_API_KEY / APP_API_KEY; web Refresh may 401 if Render has APP_API_KEY."
+fi
+
 if [[ -z "${EXPO_PUBLIC_SUPABASE_URL:-}" || -z "${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}" ]]; then
   echo "build_web: WARNING — Supabase keys missing; web login at / will be disabled."
   echo "  Add EXPO_PUBLIC_SUPABASE_URL + EXPO_PUBLIC_SUPABASE_ANON_KEY to mobile/.env"
