@@ -16,6 +16,7 @@ Flow:
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+import re
 import time
 
 import httpx
@@ -122,45 +123,56 @@ class OddsApiIoProvider:
         if len(query) < 3:
             return None
 
-        params = {
-            "apiKey": self.api_key,
-            "query": query[:80],
-            "sport": "football",
-            "from": _format_rfc3339(window_from),
-            "to": _format_rfc3339(window_to),
-        }
-        data = self._get("/historical/events/search", params)
-        if not isinstance(data, list):
-            return None
+        # Prefer the strongest team token ("Apollon L." → "Apollon") for search
+        tokens = [t for t in re.sub(r"[^\w\s]", " ", query).split() if len(t) >= 3]
+        search_queries = [query[:80]]
+        if tokens and tokens[0].lower() not in query[:80].lower():
+            search_queries.insert(0, tokens[0])
+        elif tokens and tokens[0] != query:
+            search_queries.append(tokens[0])
 
         best: FixtureMatch | None = None
         best_pair = 0.0
-        for event in data:
-            if not isinstance(event, dict):
+        for qtext in search_queries:
+            params = {
+                "apiKey": self.api_key,
+                "query": qtext[:80],
+                "sport": "football",
+                "from": _format_rfc3339(window_from),
+                "to": _format_rfc3339(window_to),
+            }
+            data = self._get("/historical/events/search", params)
+            if not isinstance(data, list):
                 continue
-            fx = _event_to_fixture(event)
-            if fx is None:
-                continue
-            direct = (
-                _team_name_score(home_team, fx.home_team)
-                + _team_name_score(away_team, fx.away_team)
-            ) / 2
-            swapped = (
-                _team_name_score(home_team, fx.away_team)
-                + _team_name_score(away_team, fx.home_team)
-            ) / 2
-            pair = max(direct, swapped)
-            if pair < 0.72:
-                continue
-            fx_ko = fx.kickoff_at
-            if fx_ko.tzinfo is None:
-                fx_ko = fx_ko.replace(tzinfo=timezone.utc)
-            hours = abs((ko - fx_ko.astimezone(timezone.utc)).total_seconds()) / 3600.0
-            if hours > 18:
-                continue
-            if pair > best_pair:
-                best_pair = pair
-                best = fx
+
+            for event in data:
+                if not isinstance(event, dict):
+                    continue
+                fx = _event_to_fixture(event)
+                if fx is None:
+                    continue
+                direct = (
+                    _team_name_score(home_team, fx.home_team)
+                    + _team_name_score(away_team, fx.away_team)
+                ) / 2
+                swapped = (
+                    _team_name_score(home_team, fx.away_team)
+                    + _team_name_score(away_team, fx.home_team)
+                ) / 2
+                pair = max(direct, swapped)
+                if pair < 0.72:
+                    continue
+                fx_ko = fx.kickoff_at
+                if fx_ko.tzinfo is None:
+                    fx_ko = fx_ko.replace(tzinfo=timezone.utc)
+                hours = abs((ko - fx_ko.astimezone(timezone.utc)).total_seconds()) / 3600.0
+                if hours > 18:
+                    continue
+                if pair > best_pair:
+                    best_pair = pair
+                    best = fx
+            if best is not None and best_pair >= 0.9:
+                break
         return best
 
     def fetch_pending_fixtures(self) -> list[FixtureMatch]:
@@ -603,7 +615,21 @@ def _team_name_score(a: str, b: str) -> float:
         return 1.0
     if al in bl or bl in al:
         return 0.92
-    return 0.0
+    # Token overlap without 1-char initials ("Apollon L." ↔ "Apollon Limassol")
+    def tokens(s: str) -> set[str]:
+        parts = re.sub(r"[^\w\s]", " ", s).split()
+        return {t for t in parts if len(t) >= 2}
+
+    ta, tb = tokens(al), tokens(bl)
+    if not ta or not tb:
+        return 0.0
+    inter = len(ta & tb)
+    if inter == 0:
+        for x in ta:
+            if any(y.startswith(x) or x.startswith(y) for y in tb if min(len(x), len(y)) >= 4):
+                return 0.85
+        return 0.0
+    return inter / min(len(ta), len(tb))
 
 
 def _event_to_fixture(event: dict) -> FixtureMatch | None:
