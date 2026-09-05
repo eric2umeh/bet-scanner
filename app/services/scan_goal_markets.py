@@ -83,6 +83,8 @@ def scan_goal_market_picks(
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(minutes=max_age)
     min_lean = float(getattr(settings, "goal_lean_min_confidence", 60.0))
+    tt_lean = float(getattr(settings, "goal_tt_min_confidence", 62.0))
+    tt_odds_rows = 0
 
     by_match: dict[int, dict[str, dict[str, dict]]] = {}
     for row in _latest_rows(db, GOAL_MARKETS):
@@ -161,6 +163,7 @@ def scan_goal_market_picks(
                     )
 
             if "tt_2_5" in wanted and "tt_2_5" in mkts:
+                tt_odds_rows += 1
                 for side in ("home", "away"):
                     over_k = f"{side}_over"
                     under_k = f"{side}_under"
@@ -182,7 +185,7 @@ def scan_goal_market_picks(
                     # Only show team scores 3+ when Over is the short side and lean is strong.
                     if pick["selection"] != "over":
                         continue
-                    if float(pick.get("confidence_pct") or 0) < max(min_lean, 66.0):
+                    if float(pick.get("confidence_pct") or 0) < max(min_lean, tt_lean):
                         continue
                     pick = {
                         **pick,
@@ -205,16 +208,32 @@ def scan_goal_market_picks(
         )
     )
 
+    tt_tips = sum(1 for p in picks if p.get("market") == "tt_2_5")
+    msg = (
+        f"Goal markets found {len(picks)} tip(s) on "
+        f"{bookmaker or 'all books'} (O/U 0.5·1.5·2.5, BTTS, team 3+)."
+    )
+    if "tt_2_5" in wanted:
+        if tt_odds_rows == 0:
+            msg += (
+                " No Team Totals (tt_2_5) prices in DB for this book — "
+                "odds-api may not send Team Totals for these leagues/books."
+            )
+        elif tt_tips == 0:
+            msg += (
+                f" Team Totals present on {tt_odds_rows} book·match row(s) "
+                f"but none cleared lean ≥{max(min_lean, tt_lean):.0f}% Over."
+            )
+
     return {
         "count": len(picks),
         "bankroll_ngn": bankroll_ngn,
         "unit_pct": unit,
         "bookmaker": bookmaker,
-        "message": (
-            f"Goal markets found {len(picks)} tip(s) on "
-            f"{bookmaker or 'all books'} (O/U 0.5·1.5·2.5, BTTS, team 3+)."
-        ),
+        "message": msg,
         "picks": picks,
+        "tt_odds_rows": tt_odds_rows,
+        "tt_tips": tt_tips,
     }
 
 
