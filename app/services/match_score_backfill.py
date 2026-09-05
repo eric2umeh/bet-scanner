@@ -42,8 +42,8 @@ _JUNK_TOKENS = {
     "ii",
 }
 
-_MAX_SEARCH_FALLBACK = 3
-_MAX_SETTLED_FETCH_DAYS = 14
+_MAX_SEARCH_FALLBACK = 40
+_MAX_SETTLED_FETCH_DAYS = 21
 
 
 def _fixture_could_match_need(match: Match, fx: FixtureMatch) -> bool:
@@ -80,7 +80,8 @@ def _clamp_date_window(dates: set[str]) -> tuple[datetime, datetime]:
 
 def _norm_tokens(name: str) -> set[str]:
     s = re.sub(r"[^\w\s]", " ", (name or "").lower())
-    return {t for t in s.split() if t and t not in _JUNK_TOKENS}
+    # Drop 1-char initials ("L.", "F.") — odds feeds often abbreviate clubs
+    return {t for t in s.split() if len(t) >= 2 and t not in _JUNK_TOKENS}
 
 
 def _team_score(a: str, b: str) -> float:
@@ -96,7 +97,13 @@ def _team_score(a: str, b: str) -> float:
         return 0.0
     inter = len(ta & tb)
     if inter == 0:
-        return 0.0
+        # Prefix match: "apollon" ↔ token starting with apollon
+        for x in ta:
+            if any(y.startswith(x) or x.startswith(y) for y in tb if min(len(x), len(y)) >= 4):
+                inter += 1
+                break
+        if inter == 0:
+            return 0.0
     return inter / min(len(ta), len(tb))
 
 
