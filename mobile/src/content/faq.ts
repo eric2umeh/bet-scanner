@@ -100,7 +100,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Account',
     question: 'What is the app access key?',
     answer:
-      'When the API on Render has APP_API_KEY set, paste that same value in Me → Settings → App access key, then Save. It is not your login password. API host: bet-scanner-znvg.onrender.com.',
+      'Developer-only. When APP_API_KEY is set on the server, sign in with the developer account → Me → Settings → App access key. Regular users never see this field. It is not your login password.',
     keywords: ['access', 'key', 'api key', 'password', 'render', 'app_api_key'],
   },
   {
