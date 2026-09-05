@@ -1,6 +1,9 @@
 import type { TipPick } from '../types/api';
 
-export function tipKey(p: TipPick): string {
+/** Stable id for selection / logged strikethrough (no odds — survives reload). */
+export function tipKey(
+  p: Pick<TipPick, 'match_id' | 'bookmaker' | 'market' | 'selection'>
+): string {
   return [
     p.match_id,
     String(p.bookmaker || '').toLowerCase(),
