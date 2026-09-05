@@ -34,7 +34,6 @@ import { useAppModal } from '../../src/components/modal';
 import { useDebouncedValue } from '../../src/hooks/useDebouncedValue';
 import { useNeedsSignIn } from '../../src/hooks/useTipsFeed';
 import { invalidateTipsCache } from '../../src/query/invalidate';
-import { markScoreRefreshRan, shouldRunScoreRefresh } from '../../src/store/autoSettle';
 import { queryKeys } from '../../src/query/client';
 import { bookLabel, marketLabel } from '../../src/lib/tipKey';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
@@ -77,19 +76,29 @@ const MARKET_CHIPS: { id: MarketFilter; label: string }[] = [
 function tipMatchesTeamSearch(t: TipOut, rawQ: string): boolean {
   const needle = rawQ.trim().toLowerCase();
   if (!needle) return true;
+  const tokens = needle.split(/\s+/).filter(Boolean);
+  if (!tokens.length) return true;
   const hay = [
     t.home_team,
     t.away_team,
+    `${t.home_team || ''} ${t.away_team || ''}`,
     t.competition_code,
     t.market,
     t.selection,
     t.bookmaker,
-    formatMatchTitle(t.home_team || '', t.away_team || ''),
+    formatMatchTitle(t.home_team || '', t.away_team || '', 40),
   ]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
-  return needle.split(/\s+/).every((tok) => hay.includes(tok));
+  if (hay.includes(needle)) return true;
+  if (tokens.every((tok) => hay.includes(tok))) return true;
+  return tokens.some((tok) => tok.length >= 3 && hay.includes(tok));
+}
+
+function cardMatchesSearch(legs: TipOut[], rawQ: string): boolean {
+  if (!rawQ.trim()) return true;
+  return legs.some((t) => tipMatchesTeamSearch(t, rawQ));
 }
 
 function resultColor(result: string) {
@@ -262,6 +271,7 @@ export default function TipsScreen() {
   const [status, setStatus] = useState('');
   const [settlingId, setSettlingId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const loadGen = useRef(0);
 
   const [searchQ, setSearchQ] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -301,22 +311,33 @@ export default function TipsScreen() {
   const loadPage = useCallback(
     async (page: number) => {
       if (needsSignIn) return;
+      const reqId = ++loadGen.current;
       setListBusy(true);
       try {
-        const data = await fetchTipsPage(fetchParams(page));
+        const searching = !!(debouncedQ || '').trim();
+        const data = await fetchTipsPage({
+          ...fetchParams(page),
+          // Search across a wide window; pagination resumes when search is cleared.
+          limit: searching ? 50 : pageSize,
+          offset: searching ? 0 : page * pageSize,
+        });
+        if (reqId !== loadGen.current) return;
         const items = data.items ?? [];
         setTips(items);
-        setTotalCount(data.total ?? 0);
+        setTotalCount(data.total ?? items.length);
         setStatus('');
       } catch (e) {
+        if (reqId !== loadGen.current) return;
         if (!isAuthError(e)) {
           setStatus(e instanceof Error ? e.message : String(e));
         }
+        // Clear spinner even on error so Tips never looks permanently stuck.
+        setTips((prev) => prev);
       } finally {
-        setListBusy(false);
+        if (reqId === loadGen.current) setListBusy(false);
       }
     },
-    [needsSignIn, fetchParams, pageSize, tab]
+    [needsSignIn, fetchParams, pageSize, debouncedQ]
   );
 
   useEffect(() => {
@@ -341,35 +362,29 @@ export default function TipsScreen() {
       if (needsSignIn) return;
       void statsQuery.refetch();
 
+      // Lightweight DB-only settle in background — NEVER refreshScores here.
+      // Score APIs can hang 30–60s+ and used to make Tips look stuck loading.
       let cancelled = false;
       (async () => {
         try {
-          let data = await autoSettleTips({ refreshScores: false });
+          const data = await autoSettleTips({ refreshScores: false });
           if (cancelled) return;
-          if (tab === 'active' && (await shouldRunScoreRefresh())) {
-            data = await autoSettleTips({ refreshScores: true });
-            await markScoreRefreshRan();
-          }
           const changed = (data.settled_count ?? 0) + (data.voided_count ?? 0);
           if (changed > 0) {
             await invalidateTipsCache();
             await statsQuery.refetch();
             await loadPage(pageIndex);
-            setStatus(
-              changed > 0
-                ? `${data.message || 'Tips settled'} — check History for results.`
-                : data.message || ''
-            );
+            setStatus(`${data.message || 'Tips settled'} — check History for results.`);
           }
         } catch {
-          /* background settle — manual button still available */
+          /* manual Settle button still available */
         }
       })();
 
       return () => {
         cancelled = true;
       };
-    }, [needsSignIn, tab, statsQuery, loadPage, pageIndex])
+    }, [needsSignIn, statsQuery, loadPage, pageIndex])
   );
 
   useEffect(() => {
@@ -389,23 +404,28 @@ export default function TipsScreen() {
   }, [tips, bookFilter]);
 
   const busy = listBusy;
+  const searchPending = !!(searchQ.trim() && searchQ.trim() !== (debouncedQ || '').trim());
 
   const { singles, multis } = useMemo(() => {
-    // Client-side team search too — works even if a page was loaded before debounce fired.
-    const visible = searchQ.trim()
-      ? tips.filter((t) => tipMatchesTeamSearch(t, searchQ))
-      : tips;
-    const singles: TipOut[] = [];
-    const multis: Record<string, TipOut[]> = {};
-    for (const t of visible) {
+    // Group first so multi slips stay intact, then filter whole cards by any leg match.
+    const singlesAll: TipOut[] = [];
+    const multisAll: Record<string, TipOut[]> = {};
+    for (const t of tips) {
       if (t.slip_id) {
-        (multis[t.slip_id] || (multis[t.slip_id] = [])).push(t);
+        (multisAll[t.slip_id] || (multisAll[t.slip_id] = [])).push(t);
       } else {
-        singles.push(t);
+        singlesAll.push(t);
       }
     }
-    for (const legs of Object.values(multis)) {
+    for (const legs of Object.values(multisAll)) {
       legs.sort((a, b) => a.id - b.id);
+    }
+
+    const q = searchQ.trim();
+    const singles = q ? singlesAll.filter((t) => tipMatchesTeamSearch(t, q)) : singlesAll;
+    const multis: Record<string, TipOut[]> = {};
+    for (const [sid, legs] of Object.entries(multisAll)) {
+      if (!q || cardMatchesSearch(legs, q)) multis[sid] = legs;
     }
     return { singles, multis };
   }, [tips, searchQ]);
@@ -529,6 +549,7 @@ export default function TipsScreen() {
 
   const showEmpty =
     !busy &&
+    !searchPending &&
     !needsSignIn &&
     ((totalCount === 0 && !tips.length) ||
       (tips.length > 0 && !singles.length && !Object.keys(multis).length));
@@ -546,6 +567,7 @@ export default function TipsScreen() {
                 : 28 + Math.max(insets.bottom, 8) + 56,
           },
         ]}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={busy} onRefresh={() => reloadAll()} tintColor={colors.accent} />
         }
@@ -592,16 +614,17 @@ export default function TipsScreen() {
 
         {!needsSignIn ? (
           <>
+            <TextInput
+              style={styles.searchInputFull}
+              value={searchQ}
+              onChangeText={setSearchQ}
+              placeholder="Search teams, market, book…"
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+            />
             <View style={styles.filterTools}>
-              <TextInput
-                style={styles.searchInput}
-                value={searchQ}
-                onChangeText={setSearchQ}
-                placeholder="Search teams"
-                placeholderTextColor={colors.muted}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
               <DatePickerField value={dateFilter} onChange={setDateFilter} placeholder="Date" />
               <BookLeanFilters
                 books={availableBooks}
@@ -644,10 +667,18 @@ export default function TipsScreen() {
               <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
             ) : null}
 
+            {searchPending && !singles.length && !Object.keys(multis).length ? (
+              <Text style={styles.muted}>Searching…</Text>
+            ) : null}
+
             {showEmpty ? (
               <View style={styles.empty}>
                 <Text style={styles.emptyTitle}>No tips match</Text>
-                <Text style={styles.muted}>Log from Today or change filters.</Text>
+                <Text style={styles.muted}>
+                  {searchQ.trim()
+                    ? 'Try another team spelling, clear the date filter, or switch Active/History.'
+                    : 'Log from Today or change filters.'}
+                </Text>
               </View>
             ) : null}
 
@@ -812,9 +843,9 @@ const styles = StyleSheet.create({
   filters: { marginTop: 8, marginBottom: 4, maxHeight: 44 },
   filterTools: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
+    flexWrap: 'wrap',
     gap: 6,
-    marginTop: 12,
+    marginTop: 8,
     alignItems: 'center',
   },
   filterRow: {
@@ -834,6 +865,18 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     color: colors.ink,
     fontSize: 13,
+  },
+  searchInputFull: {
+    width: '100%',
+    marginTop: 12,
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.ink,
+    fontSize: 14,
   },
   chip: {
     marginRight: 8,
