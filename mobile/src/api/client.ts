@@ -1,5 +1,5 @@
 /**
- * FastAPI client for Bet Scanner.
+ * FastAPI client for Bet Scout.
  *
  * Set EXPO_PUBLIC_API_URL in mobile/.env:
  *   Physical phone (tunnel / any network):  https://bet-scanner-znvg.onrender.com

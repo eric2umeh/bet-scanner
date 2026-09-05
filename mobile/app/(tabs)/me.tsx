@@ -309,7 +309,7 @@ export default function AccountScreen() {
               subtitle={SUPPORT_EMAIL}
               onPress={() =>
                 void Linking.openURL(
-                  `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Bet Scanner support')}`
+                  `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Bet Scout support')}`
                 )
               }
             />

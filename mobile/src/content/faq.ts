@@ -10,9 +10,9 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'start-what',
     category: 'Getting started',
-    question: 'What is Bet Scanner?',
+    question: 'What is Bet Scout?',
     answer:
-      'Bet Scanner helps you scan today’s football matches, find Safe picks, compare SportyBet and Bet9ja prices, log tips, track hit rate, and use advanced tools like value bets and arbitrage when you want them.',
+      'Bet Scout helps you scan today’s football matches, find Safe picks, compare SportyBet and Bet9ja prices, log tips, track hit rate, and use advanced tools like value bets and arbitrage when you want them.',
     keywords: ['what', 'about', 'intro', 'purpose'],
   },
   {
@@ -140,7 +140,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Today',
     question: 'Why does SportyBet only allow singles on some games?',
     answer:
-      'Youth, reserve, and academy fixtures (U19, U23, etc.) are often singles-only on SportyBet — no accumulator and sometimes O/U or BTTS markets are disabled live even if our feed still had a price. Bet Scanner now hides most youth/reserve O/U and BTTS picks after you refresh odds on Today. For first-team leagues you can usually combine legs in a multi; bet builder is a separate product on the book app.',
+      'Youth, reserve, and academy fixtures (U19, U23, etc.) are often singles-only on SportyBet — no accumulator and sometimes O/U or BTTS markets are disabled live even if our feed still had a price. Bet Scout now hides most youth/reserve O/U and BTTS picks after you refresh odds on Today. For first-team leagues you can usually combine legs in a multi; bet builder is a separate product on the book app.',
     keywords: ['u19', 'u23', 'youth', 'single', 'multi', 'accumulator', 'bet builder', 'disabled'],
   },
   {
