@@ -5,12 +5,19 @@ Learning note:
 - Engine = connection pool to Postgres
 - Session = one "unit of work" (usually one request or one job run)
 - Base = parent class for all SQLAlchemy models (tables)
+
+Supabase pooler note:
+- Session mode (:5432) allows ~15 clients TOTAL across laptop + Render.
+  SQLAlchemy's default pool (5 + 10 overflow) alone can exhaust it →
+  "max clients reached" and the app looks "down" even when the DB is healthy.
+- Prefer Transaction mode (:6543) + NullPool when possible.
 """
 
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
 
@@ -20,14 +27,25 @@ class Base(DeclarativeBase):
 
 
 settings = get_settings()
+_db_url = settings.sqlalchemy_database_url
+_use_null_pool = ":6543" in _db_url  # Supabase transaction pooler
 
-engine = create_engine(
-    settings.sqlalchemy_database_url,
-    # Set DEBUG=true in .env only when you want to see every SQL statement.
-    # With Supabase, echo makes syncs look hung and slows learning a lot.
-    echo=False,
-    pool_pre_ping=True,
-)
+_engine_kwargs: dict = {
+    "echo": False,
+    "pool_pre_ping": True,
+}
+if _use_null_pool:
+    _engine_kwargs["poolclass"] = NullPool
+else:
+    # Session pooler / direct Postgres — keep a tiny pool so local + Render fit.
+    _engine_kwargs.update(
+        pool_size=2,
+        max_overflow=0,
+        pool_recycle=280,
+        pool_timeout=30,
+    )
+
+engine = create_engine(_db_url, **_engine_kwargs)
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
@@ -45,6 +63,21 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def ping_db() -> bool:
+    """True if a trivial query succeeds (releases the connection immediately)."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def dispose_engine() -> None:
+    """Drop pooled connections (call on shutdown / reload)."""
+    engine.dispose()
 
 
 def init_db() -> None:
@@ -65,6 +98,8 @@ def init_db() -> None:
             "WARNING: init_db could not reach the database.\n"
             f"  {type(exc).__name__}: {exc}\n"
             "  Check internet/DNS and DATABASE_URL (Supabase host).\n"
+            "  If you see 'max clients reached', close extra apps using the DB\n"
+            "  or switch DATABASE_URL to the Transaction pooler (port 6543).\n"
             "  Server will start, but match/odds/tips calls will fail until DB is reachable."
         )
 
