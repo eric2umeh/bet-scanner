@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -28,6 +29,7 @@ import { LeanBar } from '../../src/components/LeanBar';
 import { PaginationBar } from '../../src/components/PaginationBar';
 import { SyncHeaderButton } from '../../src/components/SyncHeaderButton';
 import { BetSlipFab } from '../../src/components/BetSlipFab';
+import { useWebPullRefresh, WebPullHint } from '../../src/components/useWebPullRefresh';
 import { useAppModal } from '../../src/components/modal';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
@@ -128,6 +130,8 @@ export default function TodayScreen() {
   const [selectedN, setSelectedN] = useState(0);
   const [asMulti, setAsMulti] = useState(true);
   const [loggedRev, setLoggedRev] = useState(0);
+  const { width: windowWidth } = useWindowDimensions();
+  const narrowWeb = isWeb && windowWidth < 560;
 
   useEffect(() => {
     void Promise.all([initSelection(), initLoggedTips()]);
@@ -293,6 +297,12 @@ export default function TodayScreen() {
     void refresh({ withOdds: true });
   }, [refresh]);
 
+  const webPull = useWebPullRefresh({
+    enabled: isWeb,
+    refreshing: busy,
+    onRefresh: onSyncOdds,
+  });
+
   useLayoutEffect(() => {
     if (isWeb) return;
     navigation.setOptions({
@@ -368,24 +378,44 @@ export default function TodayScreen() {
           isWeb && { paddingBottom: webScrollBottom(20) },
           selectedN > 0 && { paddingBottom: webScrollBottom(88) },
         ]}
+        {...webPull.scrollProps}
         refreshControl={
-          <RefreshControl
-            refreshing={busy}
-            onRefresh={onSyncOdds}
-            tintColor={colors.accent}
-          />
+          isWeb ? undefined : (
+            <RefreshControl
+              refreshing={busy}
+              onRefresh={onSyncOdds}
+              tintColor={colors.accent}
+            />
+          )
         }
       >
+        <WebPullHint pullPx={webPull.pullPx} refreshing={busy} />
         <View style={[styles.topbar, isWeb && styles.topbarWeb]}>
           <View style={styles.hero}>
-            <BrandLogo size="md" showWordmark tagline={status} />
+            <BrandLogo
+              size={narrowWeb ? 'sm' : 'md'}
+              showWordmark
+              tagline={status}
+              hideTagline={isWeb}
+              style={styles.heroBrand}
+            />
             {isWeb ? (
               <View style={styles.headerActions}>
-                <SyncHeaderButton onPress={onSyncOdds} disabled={busy} busy={busy} />
+                <SyncHeaderButton
+                  onPress={onSyncOdds}
+                  disabled={busy}
+                  busy={busy}
+                  showLabel={narrowWeb}
+                />
                 <HelpHeaderButton />
               </View>
             ) : null}
           </View>
+          {isWeb ? (
+            <Text style={styles.statusLine} numberOfLines={2}>
+              {status}
+            </Text>
+          ) : null}
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
@@ -425,7 +455,11 @@ export default function TodayScreen() {
           />
         </View>
 
-        <Text style={styles.hint}>Pull down or tap ↻ to update · tap a pick for your slip.</Text>
+        <Text style={styles.hint}>
+          {isWeb
+            ? 'Tap Refresh (or pull down) to update · tap a pick for your slip.'
+            : 'Pull down or tap ↻ to update · tap a pick for your slip.'}
+        </Text>
 
         {busy && !matches.length ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
@@ -568,18 +602,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 8,
+    width: '100%',
+  },
+  heroBrand: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 4,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 6,
+    flexShrink: 0,
   },
   statusLine: {
     color: colors.muted,
     marginTop: 8,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
   },
   hint: {
     color: colors.muted,
