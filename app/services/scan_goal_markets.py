@@ -85,6 +85,8 @@ def scan_goal_market_picks(
     cutoff = now - timedelta(minutes=max_age)
     min_lean = float(getattr(settings, "goal_lean_min_confidence", 60.0))
     tt_lean = float(getattr(settings, "goal_tt_min_confidence", 62.0))
+    # O/U 2.5 hits ~45–55% in many leagues — need a real short price, not a soft lean.
+    ou25_lean = float(getattr(settings, "goal_ou25_min_confidence", 70.0))
     tt_odds_rows = 0
 
     by_match: dict[int, dict[str, dict[str, dict]]] = {}
@@ -140,10 +142,21 @@ def scan_goal_market_picks(
                     profile=f"market_lean_{market_key}",
                     max_odds=max_odds,
                 )
-                if pick and _keep_ou_pick(pick, market_key) and float(pick.get("confidence_pct") or 0) >= min_lean:
-                    picks.append(
-                        _pack_pick(mid, match, book, pick, stake, bankroll_ngn=bankroll_ngn)
-                    )
+                if not pick or not _keep_ou_pick(pick, market_key):
+                    continue
+                floor = ou25_lean if market_key == "ou_2_5" else min_lean
+                if float(pick.get("confidence_pct") or 0) < floor:
+                    continue
+                # O/U 2.5 at long-ish prices is coin-flip — only keep a clear short side.
+                if market_key == "ou_2_5":
+                    price = float(pick["odds"])
+                    if pick["selection"] == "over" and price > 1.65:
+                        continue
+                    if pick["selection"] == "under" and price > 1.78:
+                        continue
+                picks.append(
+                    _pack_pick(mid, match, book, pick, stake, bankroll_ngn=bankroll_ngn)
+                )
 
             if "btts" in wanted and "btts" in mkts:
                 pick = _lean_two_way(
@@ -291,12 +304,21 @@ def _lean_two_way(
 
 
 def _confidence(a: Decimal, b: Decimal) -> float:
-    """Display-only: bigger odds gap → higher lean score (not win probability)."""
-    lo, hi = (a, b) if a <= b else (b, a)
-    if lo <= 0:
+    """
+    De-vigged fair probability (%) of the shorter (favourite) side.
+
+    Old formula `52 + gap*40` capped at 78, so many O/U 2.5 Overs looked like
+    ~75% lean when true fair prob was only ~55–65% — filter at 75% was misleading.
+    """
+    pa, pb = float(a), float(b)
+    if pa <= 1 or pb <= 1:
         return 50.0
-    gap = float((hi - lo) / lo)
-    return round(min(78.0, 52.0 + gap * 40.0), 1)
+    ia, ib = 1.0 / pa, 1.0 / pb
+    total = ia + ib
+    if total <= 0:
+        return 50.0
+    fav_fair = max(ia, ib) / total
+    return round(min(92.0, max(50.0, fav_fair * 100.0)), 1)
 
 
 def _pack_pick(
