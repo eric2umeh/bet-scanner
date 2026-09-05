@@ -113,11 +113,32 @@ def sync_odds(db: Session, settings: Settings) -> dict:
         db.commit()
         inserted += len(batch)
 
+    by_market: dict[str, int] = {}
+    by_book: dict[str, int] = {}
+    for q in all_quotes:
+        by_market[q.market] = by_market.get(q.market, 0) + 1
+        by_book[q.bookmaker] = by_book.get(q.bookmaker, 0) + 1
+
     if inserted:
+        tt = by_market.get("tt_2_5", 0)
         message = (
             f"Updated prices for {len(match_ids)} match"
             f"{'es' if len(match_ids) != 1 else ''}."
         )
+        # Surface Team Totals coverage so we can tell if Team 3+ can ever appear.
+        message += (
+            f" Markets: DC {by_market.get('double_chance', 0)}, "
+            f"1X2 {by_market.get('1X2', 0)}, "
+            f"O/U0.5 {by_market.get('ou_0_5', 0)}, "
+            f"O/U1.5 {by_market.get('ou_1_5', 0)}, "
+            f"O/U2.5 {by_market.get('ou_2_5', 0)}, "
+            f"BTTS {by_market.get('btts', 0)}, "
+            f"Team3+ {tt}."
+        )
+        if tt == 0:
+            message += (
+                " No Team Totals from feed for this pull — Team 3+ tips need that market."
+            )
     else:
         message = "No live prices found. Pull to refresh again in a few minutes."
     if errors:
@@ -128,6 +149,8 @@ def sync_odds(db: Session, settings: Settings) -> dict:
         "matches_touched": len(match_ids),
         "message": message,
         "ok": True,
+        "by_market": by_market,
+        "by_book": by_book,
     }
 
 

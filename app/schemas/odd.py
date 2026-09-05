@@ -23,3 +23,5 @@ class OddsSyncResult(BaseModel):
     matches_touched: int
     message: str
     ok: bool = True
+    by_market: dict[str, int] = {}
+    by_book: dict[str, int] = {}
