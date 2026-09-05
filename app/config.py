@@ -112,6 +112,8 @@ class Settings(BaseSettings):
     safe_hide_weak_picks: bool = True
     # Goal-market lean must clear this display score (not a win %). Higher = fewer goal tips.
     goal_lean_min_confidence: float = 60.0
+    # Team 3+ (tt_2_5) longshot floor — slightly softer than older 66 default.
+    goal_tt_min_confidence: float = 62.0
 
     # --- Phase 4: Telegram alerts (optional) ---
     telegram_enabled: bool = False
