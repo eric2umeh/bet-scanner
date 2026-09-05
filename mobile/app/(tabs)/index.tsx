@@ -1,4 +1,5 @@
 import { useRouter, useNavigation } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -84,13 +85,26 @@ function kickoffLabel(iso?: string | null) {
 
 function loggedPickStyle(logged: boolean) {
   if (!logged) return null;
-  return isWeb
-    ? ({
-        color: colors.muted,
-        textDecorationLine: 'line-through',
-        textDecorationStyle: 'solid',
-      } as const)
-    : styles.tipTitleLogged;
+  // Same style on web + native — RN web needs an explicit textDecorationStyle.
+  return {
+    color: colors.muted,
+    textDecorationLine: 'line-through' as const,
+    textDecorationStyle: 'solid' as const,
+  };
+}
+
+async function syncLoggedStrikethroughFromServer() {
+  const page = await fetchTipsPage({ result: 'pending', limit: 200 });
+  await hydrateLoggedKeys(
+    (page.items || []).map((t) =>
+      tipKey({
+        match_id: t.match_id,
+        bookmaker: t.bookmaker || '',
+        market: t.market,
+        selection: t.selection,
+      })
+    )
+  );
 }
 
 function dedupePicks(picks: TipPick[]): TipPick[] {
@@ -204,6 +218,12 @@ export default function TodayScreen() {
   useEffect(() => subscribeSelection(() => setSelectedN(getSelectedCount())), []);
   useEffect(() => subscribeLoggedTips(() => setLoggedRev((n) => n + 1)), []);
 
+  // Re-pull pending tips whenever Today is focused (web log → phone strikethrough).
+  useFocusEffect(
+    useCallback(() => {
+      void syncLoggedStrikethroughFromServer().catch(() => null);
+    }, [])
+  );
   const availableBooks = useMemo(() => {
     const set = new Set<string>();
     for (const p of picks) {
@@ -347,17 +367,7 @@ export default function TodayScreen() {
         pruneSelection(new Set(merged.map((m) => m.id)));
         // Restore strikethrough from Tips you’ve already logged (server + local).
         try {
-          const page = await fetchTipsPage({ result: 'pending', limit: 200 });
-          await hydrateLoggedKeys(
-            (page.items || []).map((t) =>
-              tipKey({
-                match_id: t.match_id,
-                bookmaker: t.bookmaker || '',
-                market: t.market,
-                selection: t.selection,
-              })
-            )
-          );
+          await syncLoggedStrikethroughFromServer();
         } catch {
           /* optional — local logged keys still apply */
         }
@@ -919,7 +929,11 @@ const styles = StyleSheet.create({
   tipBody: { flex: 1, minWidth: 0 },
   tipTitle: { color: colors.ink, fontWeight: '700', fontSize: 14 },
   tipTitleCompact: { fontSize: 12, lineHeight: 16, fontWeight: '600' },
-  tipTitleLogged: { textDecorationLine: 'line-through', color: colors.muted },
+  tipTitleLogged: {
+    textDecorationLine: 'line-through',
+    textDecorationColor: colors.muted,
+    color: colors.muted,
+  },
   tipMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
   tipWarn: { color: colors.warn, fontSize: 11, marginTop: 4, lineHeight: 15 },
   empty: {
