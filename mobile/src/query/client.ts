@@ -20,4 +20,6 @@ export const asyncStoragePersister = createAsyncStoragePersister({
 export const queryKeys = {
   tipStats: ['tipStats'] as const,
   authStatus: ['authStatus'] as const,
+  /** Pending tips used for Today strikethrough — keep fetches rare. */
+  pendingLoggedTips: ['pendingLoggedTips'] as const,
 };
