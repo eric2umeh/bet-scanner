@@ -110,9 +110,12 @@ class Settings(BaseSettings):
     safe_pick_market: str = "double_chance"
     # Hide historically weak Safe picks from scans when enough history exists
     safe_hide_weak_picks: bool = True
-    # Goal-market lean must clear this display score (not a win %). Higher = fewer goal tips.
+    # Goal-market lean = de-vigged fair % of the short side (not a crystal ball).
+    # Higher = fewer tips. O/U 0.5 / 1.5 use this; O/U 2.5 uses GOAL_OU25_MIN_CONFIDENCE.
     goal_lean_min_confidence: float = 60.0
-    # Team 3+ (tt_2_5) longshot floor — slightly softer than older 66 default.
+    # O/U 2.5 is closer to a coin-flip — require a stronger short-side lean (~70% fair).
+    goal_ou25_min_confidence: float = 70.0
+    # Team 3+ (tt_2_5) longshot floor — slightly above goal lean.
     goal_tt_min_confidence: float = 62.0
 
     # --- Phase 4: Telegram alerts (optional) ---
