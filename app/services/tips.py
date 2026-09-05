@@ -588,7 +588,7 @@ def list_tips(
     up to 10 list items even when some are multi-leg slips.
     Returns { items, has_more, total, limit, offset } with flattened tip rows.
     """
-    page_size = max(1, min(int(limit), 50))
+    page_size = max(1, min(int(limit), 100))
     off = max(0, int(offset))
     needle = (q or "").strip()
     lean_floor = float(min_lean_pct) if min_lean_pct is not None else 0.0
