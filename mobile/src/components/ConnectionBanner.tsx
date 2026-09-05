@@ -3,10 +3,15 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { pingHealth } from '../api/client';
+import { getJson } from '../api/client';
 import { colors } from '../theme/colors';
 
-type Kind = 'offline' | 'server' | null;
+type Kind = 'offline' | 'server' | 'db' | null;
+
+type HealthPayload = {
+  status?: string;
+  db_ok?: boolean;
+};
 
 /**
  * Top banner when the phone has no internet, or Bet Scout's server
@@ -25,8 +30,14 @@ export function ConnectionBanner() {
         return;
       }
       try {
-        await pingHealth();
-        if (!cancelled) setKind(null);
+        // Short timeout — don't sit on the 55s Render wake used by data calls.
+        const health = await getJson<HealthPayload>('/health', { timeoutMs: 10000 });
+        if (cancelled) return;
+        if (health?.db_ok === false) {
+          setKind('db');
+        } else {
+          setKind(null);
+        }
       } catch {
         if (!cancelled) setKind('server');
       }
@@ -37,9 +48,10 @@ export function ConnectionBanner() {
     });
 
     NetInfo.fetch().then((state) => void check(state.isConnected));
+    // Retry faster while broken so the banner clears soon after wake / pool free.
     const timer = setInterval(() => {
       NetInfo.fetch().then((state) => void check(state.isConnected));
-    }, 45_000);
+    }, 15_000);
 
     return () => {
       cancelled = true;
@@ -53,7 +65,9 @@ export function ConnectionBanner() {
   const message =
     kind === 'offline'
       ? 'No internet connection. Tips and prices will not update until you are back online.'
-      : 'Cannot reach the Bet Scout server. It may be waking up — wait a minute and pull down to refresh.';
+      : kind === 'db'
+        ? 'Server is up but the database is busy or full (connection pool). Wait a minute, then pull down to refresh. Avoid running many local + Render copies at once.'
+        : 'Cannot reach the Bet Scout server. It may be waking up — wait a minute and pull down to refresh.';
 
   return (
     <View style={[styles.wrap, { paddingTop: Math.max(insets.top, 8) }]}>
