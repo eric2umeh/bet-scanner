@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models import Match
 from app.services.bankroll import potential_return, stake_for_profile
+from app.services.match_bettable import match_still_bettable
 from app.services.safe_builder import (
     MatchPrices,
     evaluate_match,
@@ -130,12 +131,8 @@ def scan_safe_picks(
     for mid, books in by_match.items():
         match = matches.get(mid)
         # Skip kickoffs already started/finished — not placeable as new bets
-        if match is not None and match.kickoff_at is not None:
-            ko = match.kickoff_at
-            if ko.tzinfo is None:
-                ko = ko.replace(tzinfo=timezone.utc)
-            if ko <= now:
-                continue
+        if not match_still_bettable(match, now=now):
+            continue
         if match is not None and is_youth_or_reserve_match(
             match.home_team,
             match.away_team,

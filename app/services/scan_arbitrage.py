@@ -26,6 +26,7 @@ from app.services.arbitrage_math import (
     is_arbitrage,
     looks_like_palpable_error,
 )
+from app.services.match_bettable import match_still_bettable
 
 
 def scan_1x2_arbs(
@@ -130,7 +131,7 @@ def scan_1x2_arbs(
             continue
 
         match = db.get(Match, match_id)
-        if match is None:
+        if match is None or not match_still_bettable(match, now=now):
             continue
 
         arb_legs = [

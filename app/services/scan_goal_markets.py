@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models import Match
 from app.services.bankroll import potential_return, unit_stake_ngn
+from app.services.match_bettable import match_still_bettable
 from app.services.ng_market_filters import is_youth_or_reserve_match, singles_only_hint
 
 GOAL_MARKETS = ("ou_0_5", "ou_1_5", "ou_2_5", "btts", "tt_2_5")
@@ -118,12 +119,8 @@ def scan_goal_market_picks(
     picks: list[dict] = []
     for mid, books in by_match.items():
         match = matches.get(mid)
-        if match is not None and match.kickoff_at is not None:
-            ko = match.kickoff_at
-            if ko.tzinfo is None:
-                ko = ko.replace(tzinfo=timezone.utc)
-            if ko <= now:
-                continue
+        if not match_still_bettable(match, now=now):
+            continue
         if match is not None and is_youth_or_reserve_match(
             match.home_team,
             match.away_team,
