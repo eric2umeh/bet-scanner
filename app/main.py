@@ -33,7 +33,7 @@ from app.api.tips import router as tips_router
 from app.api.tipsters import router as tipsters_router
 from app.api.value import router as value_router
 from app.config import get_settings
-from app.db import init_db
+from app.db import dispose_engine, init_db, ping_db
 from app.deps.auth import auth_verification_enabled
 from app.middleware.api_key import AppApiKeyMiddleware
 from app.middleware.expo_spa import ExpoSpaMiddleware
@@ -51,7 +51,11 @@ def expo_web_built() -> bool:
 async def lifespan(_: FastAPI):
     # On startup: make sure tables exist (matches, odds, tips)
     init_db()
-    yield
+    try:
+        yield
+    finally:
+        # Release Supabase pooler slots on reload/shutdown (avoids "max clients").
+        dispose_engine()
 
 
 settings = get_settings()
@@ -106,13 +110,16 @@ def delete_account_info() -> FileResponse:
 
 @app.get("/health")
 def health() -> dict[str, str | bool]:
-    """Lightweight liveness check for Render / load balancers."""
+    """Liveness check for Render / clients. Includes a cheap DB ping."""
+    db_ok = ping_db()
     return {
+        # Always "ok" so Render free-tier health checks stay green when only DB is busy.
         "status": "ok",
         "env": settings.app_env,
         "version": app.version,
         "auth_configured": auth_verification_enabled(settings),
         "expo_web_built": expo_web_built(),
+        "db_ok": db_ok,
     }
 
 
