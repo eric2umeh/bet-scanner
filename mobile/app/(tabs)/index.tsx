@@ -32,7 +32,7 @@ import { BetSlipFab } from '../../src/components/BetSlipFab';
 import { useWebPullRefresh, WebPullHint } from '../../src/components/useWebPullRefresh';
 import { useAppModal } from '../../src/components/modal';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
-import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
+import { bookLabel, marketLabel, tipKey, tipKeyLoose } from '../../src/lib/tipKey';
 import { setMatchCache } from '../../src/store/matchCache';
 import {
   hydrateLoggedKeys,
@@ -41,6 +41,8 @@ import {
   markTipsLogged,
   subscribeLoggedTips,
 } from '../../src/store/loggedTips';
+import { subscribeTipsList } from '../../src/store/tipsEvents';
+import { subscribeSession, getAccessToken } from '../../src/store/session';
 import {
   clearSelection,
   getSelectedCount,
@@ -95,16 +97,25 @@ function loggedPickStyle(logged: boolean) {
 
 async function syncLoggedStrikethroughFromServer() {
   const page = await fetchTipsPage({ result: 'pending', limit: 200 });
-  await hydrateLoggedKeys(
-    (page.items || []).map((t) =>
+  const keys: string[] = [];
+  for (const t of page.items || []) {
+    keys.push(
       tipKey({
         match_id: t.match_id,
         bookmaker: t.bookmaker || '',
         market: t.market,
         selection: t.selection,
       })
-    )
-  );
+    );
+    keys.push(
+      tipKeyLoose({
+        match_id: t.match_id,
+        market: t.market,
+        selection: t.selection,
+      })
+    );
+  }
+  await hydrateLoggedKeys(keys);
 }
 
 function dedupePicks(picks: TipPick[]): TipPick[] {
@@ -218,12 +229,39 @@ export default function TodayScreen() {
   useEffect(() => subscribeSelection(() => setSelectedN(getSelectedCount())), []);
   useEffect(() => subscribeLoggedTips(() => setLoggedRev((n) => n + 1)), []);
 
-  // Re-pull pending tips whenever Today is focused (web log → phone strikethrough).
+  // Re-pull pending tips whenever Today is focused (other origin / device logs).
   useFocusEffect(
     useCallback(() => {
       void syncLoggedStrikethroughFromServer().catch(() => null);
     }, [])
   );
+
+  // After Tips tab / log-batch invalidates cache, refresh strikethrough here too.
+  useEffect(() => {
+    return subscribeTipsList(() => {
+      void syncLoggedStrikethroughFromServer().catch(() => null);
+    });
+  }, []);
+
+  // Sign-in completes after first paint — hydrate again once we have a token.
+  useEffect(() => {
+    return subscribeSession(() => {
+      if (!getAccessToken()) return;
+      void syncLoggedStrikethroughFromServer().catch(() => null);
+    });
+  }, []);
+
+  // Desktop web: tab focus / return to the Render tab.
+  useEffect(() => {
+    if (!isWeb || typeof document === 'undefined') return;
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        void syncLoggedStrikethroughFromServer().catch(() => null);
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
   const availableBooks = useMemo(() => {
     const set = new Set<string>();
     for (const p of picks) {
