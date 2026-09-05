@@ -26,6 +26,11 @@ export const API_URL = resolveApiUrl();
 /** Render free tier can take 30–60s to wake from sleep. */
 const DEFAULT_TIMEOUT_MS = 55000;
 
+const TIMEOUT_USER_MSG =
+  'The server is taking too long to respond. Pull down to try again in a moment.';
+const NETWORK_USER_MSG =
+  'Could not connect to Bet Scout. Check your internet and try again.';
+
 let cachedAccessKey: string | null = null;
 
 /** Call after saving the access key on Me / setup. */
@@ -52,6 +57,29 @@ export class ApiError extends Error {
 
 export function isAuthError(e: unknown): boolean {
   return e instanceof ApiError && (e.status === 401 || e.status === 403);
+}
+
+/** Short copy for status lines / alerts — never dump env URLs or setup hints. */
+export function userFacingError(e: unknown): string {
+  if (isAuthError(e)) return 'Please sign in and try again.';
+  const msg = e instanceof Error ? e.message : String(e);
+  if (
+    msg === TIMEOUT_USER_MSG ||
+    msg.includes('Timed out') ||
+    (e instanceof Error && e.name === 'AbortError')
+  ) {
+    return TIMEOUT_USER_MSG;
+  }
+  if (
+    msg === NETWORK_USER_MSG ||
+    msg.includes('Network request failed') ||
+    msg.includes('Failed to fetch') ||
+    msg.includes('Load failed')
+  ) {
+    return NETWORK_USER_MSG;
+  }
+  if (msg.length > 140) return `${msg.slice(0, 120).trim()}…`;
+  return msg || 'Something went wrong. Try again.';
 }
 
 async function parseError(res: Response): Promise<string> {
@@ -91,11 +119,14 @@ async function fetchOnce<T>(path: string, init?: RequestInit, timeoutMs = DEFAUL
     return res.json() as Promise<T>;
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
-      throw new Error(
-        `Timed out reaching ${API_URL} (${Math.round(timeoutMs / 1000)}s). ` +
-          `If this is Render free tier, open the URL in a browser to wake it, wait ~1 min, then Refresh. ` +
-          `Or point EXPO_PUBLIC_API_URL at your Mac LAN IP while uvicorn --host 0.0.0.0 runs.`
-      );
+      throw new Error(TIMEOUT_USER_MSG);
+    }
+    if (
+      e instanceof TypeError ||
+      (e instanceof Error &&
+        (e.message.includes('Network request failed') || e.message.includes('Failed to fetch')))
+    ) {
+      throw new Error(NETWORK_USER_MSG);
     }
     throw e;
   } finally {
@@ -113,7 +144,7 @@ async function fetchJson<T>(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     // One retry — often the first call only woke the dyno
-    if (msg.includes('Timed out') || msg.includes('Network request failed')) {
+    if (msg === TIMEOUT_USER_MSG || msg === NETWORK_USER_MSG) {
       return fetchOnce<T>(path, init, timeoutMs);
     }
     throw e;
@@ -148,8 +179,9 @@ export type HealthResponse = {
   status: string;
   env?: string;
   version?: string;
+  db_ok?: boolean;
 };
 
 export function pingHealth() {
-  return getJson<HealthResponse>('/health');
+  return getJson<HealthResponse>('/health', { timeoutMs: 10000 });
 }
