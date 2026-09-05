@@ -785,7 +785,17 @@ def auto_settle_finished(
     if settled:
         parts.append(f"Auto-settled {len(settled)} tip(s) from finished matches.")
     if not voided and not settled:
-        parts.append("No tips settled — matches may still be in play or need scores.")
+        if unresolved:
+            sample = unresolved[0].get("reason") or "unknown"
+            parts.append(
+                f"No tips settled — {len(unresolved)} still pending "
+                f"(e.g. {sample}). Scores may still be missing; try again later "
+                "or mark Won/Lost manually."
+            )
+        else:
+            parts.append("No tips settled — matches may still be in play or need scores.")
+    elif unresolved:
+        parts.append(f"{len(unresolved)} tip(s) still pending (no score yet).")
     msg = " ".join(parts)
     return {
         "settled_count": len(settled),
