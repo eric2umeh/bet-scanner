@@ -32,7 +32,7 @@ export async function loadAccessKey(): Promise<string> {
   try {
     const stored = ((await storageGet()) || '').trim();
     if (stored) return stored;
-    // Baked into web/native builds so Render clients don't need Me → access key
+    // Baked into web/native builds so Render clients don't need Account → access key
     const fromEnv = (process.env.EXPO_PUBLIC_APP_API_KEY || '').trim();
     return fromEnv;
   } catch {

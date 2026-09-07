@@ -1,7 +1,7 @@
 """
 Serve Expo web index.html for browser navigations to client-side routes.
 
-Without this, GET /me (and refresh on /tips) hits StaticFiles or the JSON API
+Without this, GET /account (and refresh on /tips) hits StaticFiles or the JSON API
 and users see a raw 404 / JSON instead of the React app.
 """
 

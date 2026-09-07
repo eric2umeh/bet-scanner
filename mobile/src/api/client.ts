@@ -33,7 +33,7 @@ const NETWORK_USER_MSG =
 
 let cachedAccessKey: string | null = null;
 
-/** Call after saving the access key on Me / setup. */
+/** Call after saving the access key on Account / setup. */
 export function setCachedAccessKey(key: string | null) {
   cachedAccessKey = key?.trim() || null;
 }

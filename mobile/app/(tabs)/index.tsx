@@ -310,7 +310,7 @@ export default function TodayScreen() {
       bankroll_ngn: s.bankroll,
       unit_pct: s.unitPct,
     };
-    // Always load DC + Winner so Today chips work regardless of Me → Safe tip style.
+    // Always load DC + Winner so Today chips work regardless of Account → Safe tip style.
     const safeCalls = books.flatMap((bookmaker) => [
       scanSafeBuilder({ bookmaker, pick_market: 'double_chance', ...bankroll }).catch(
         () => ({ picks: [] as TipPick[] })
