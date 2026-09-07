@@ -30,6 +30,6 @@ export async function fetchBettableMatches(days = 21, bookmakers?: string): Prom
   }
 }
 
-export function syncFixtures() {
-  return postJson<SyncFixturesResult>('/matches/sync', {});
+export function syncFixtures(opts?: { signal?: AbortSignal }) {
+  return postJson<SyncFixturesResult>('/matches/sync', {}, { signal: opts?.signal });
 }
