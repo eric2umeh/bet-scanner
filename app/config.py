@@ -87,16 +87,25 @@ class Settings(BaseSettings):
 
     app_timezone: str = "Africa/Lagos"
 
-    # --- Phase 3A: Arbitrage / surebets ---
+    # --- Phase 3A–D: Arbitrage / surebets ---
     # Minimum theoretical profit % to show in /arbitrage/scan
     arb_min_profit_pct: float = 0.3
-    # Ignore odds older than this (minutes) — stale prices are dangerous
-    arb_max_odds_age_minutes: int = 180
+    # Ignore odds older than this (minutes) — Phase B tightened from 180
+    arb_max_odds_age_minutes: int = 90
+    # Reject opportunities where leg ages differ by more than this (stale mix)
+    arb_max_leg_age_spread_minutes: int = 40
+    # Cross-book surebets only
+    arb_min_distinct_books: int = 2
     # Filter palpable errors / typos
     arb_min_odds: float = 1.01
     arb_max_odds: float = 15.0
     # Round stakes to nearest ₦100 so they look recreational
     arb_stake_round_to: int = 100
+    # Phase C: include exclusive DC coverage pairs in /arbitrage/scan by default?
+    # Keep false — coverage is opt-in, not labeled as standard surebet.
+    arb_include_coverage_default: bool = False
+    # Phase D: pull match totals from the-odds-api (extra EU O/U books; costs credits)
+    odds_api_include_totals: bool = True
 
     # --- Phase 3C: Bankroll + Safe Builder ---
     # Default unit = this % of bankroll (1% of ₦50k = ₦500)
