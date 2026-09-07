@@ -100,7 +100,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'How do I use the Arb tab?',
     answer:
-      'Refresh prices on Today first (↻). Open Arb → Find surebets. The scan uses every book with fresh 1X2 odds; best Home/Draw/Away can come from different books. Copy the stake plan and place legs quickly. True arbs are rare — more books on odds-api.io help, but the free plan only allows 2 recreational books.',
+      'Refresh prices on Today first (↻). Open Arb → Find surebets. The scan covers 1X2, O/U 0.5/1.5/2.5, and BTTS across books with fresh odds — best price per outcome, always from ≥2 books. Copy the stake plan and place legs quickly. True arbs are rare; more books help, but the free odds-api plan only allows 2 recreational books.',
     keywords: ['arb', 'how', 'steps', 'stake', 'plan', 'surebet'],
   },
   {
@@ -108,7 +108,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'Why are there no surebets?',
     answer:
-      'True arbs are rare. Odds must be fresh, and tiny edges disappear fast. Refresh Today, then Find surebets closer to kickoff. With only one book in the scan you will not see cross-book arbs.',
+      'True arbs are rare. Odds must be fresh, and tiny edges disappear fast. Refresh Today, then Find surebets closer to kickoff. The scanner needs ≥2 books with overlapping O/U, BTTS, or 1X2 prices — one book alone will never show a cross-book surebet.',
     keywords: ['no', 'empty', 'rare', 'none', 'surebet'],
   },
   {
@@ -188,7 +188,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'What is arbitrage (surebet)?',
     answer:
-      'A surebet is when the combined implied probability across Home, Draw, and Away is below 100% across different bookmakers. If you stake the right amounts on each outcome, you lock in a small profit no matter who wins.',
+      'A surebet is when covering every mutually exclusive outcome of the same market (e.g. Over+Under 2.5, BTTS Yes+No, or Home+Draw+Away) costs less than 100% across different bookmakers. Stake the right amounts on each leg and you lock a small profit if all odds stay available.',
     keywords: ['arbitrage', 'surebet', 'arb', 'what', 'explain'],
   },
   {
