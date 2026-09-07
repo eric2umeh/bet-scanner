@@ -16,7 +16,7 @@ import Constants from 'expo-constants';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import { setCachedAccessKey } from '../../src/api/client';
-import { MIN_PASSWORD_LENGTH } from '../../src/lib/password';
+import { MIN_PASSWORD_LENGTH, assertPasswordsMatch } from '../../src/lib/password';
 import { loadAccessKey, saveAccessKey } from '../../src/store/accessKey';
 import {
   getSessionEmail,
@@ -37,7 +37,7 @@ import { PasswordInput } from '../../src/components/PasswordInput';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
-const SUPPORT_EMAIL = 'eric2umeh@gmail.com';
+const SUPPORT_EMAIL = 'betscout.tech@gmail.com';
 const DEVELOPER_EMAILS = new Set(['eric2umeh@gmail.com']);
 
 type Section = 'home' | 'details' | 'password' | 'settings';
@@ -53,6 +53,7 @@ export default function AccountScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [pulling, setPulling] = useState(false);
@@ -175,8 +176,10 @@ export default function AccountScreen() {
   async function onChangePassword() {
     setAuthBusy(true);
     try {
-      await updatePassword(newPassword);
+      const pwd = assertPasswordsMatch(newPassword, confirmPassword);
+      await updatePassword(pwd);
       setNewPassword('');
+      setConfirmPassword('');
       flash('Password updated.');
       setSection('home');
     } catch (e) {
@@ -367,6 +370,13 @@ export default function AccountScreen() {
             value={newPassword}
             onChangeText={setNewPassword}
             placeholder={`at least ${MIN_PASSWORD_LENGTH} characters`}
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Confirm new password</Text>
+          <PasswordInput
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder="re-enter new password"
             placeholderTextColor={colors.muted}
           />
           <Pressable
