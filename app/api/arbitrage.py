@@ -18,15 +18,29 @@ from app.schemas.arbitrage import (
     CalculateResponse,
     ScanResponse,
 )
+from app.services.bookmakers import configured_odds_books, normalize_book_key
 from app.services.scan_arbitrage import calculate_from_request, scan_arbs
 
 router = APIRouter(prefix="/arbitrage", tags=["arbitrage"])
 
 
+def _resolve_scan_books(bookmakers: str | None, settings: Settings) -> set[str] | None:
+    """
+    Default: configured NG books (ODDS_API_IO_BOOKMAKERS).
+    Pass bookmakers=all to scan every book in the DB (incl. EU the-odds-api).
+    """
+    if bookmakers is None or not str(bookmakers).strip():
+        return set(configured_odds_books(settings))
+    raw = str(bookmakers).strip().lower()
+    if raw in {"all", "*", "any"}:
+        return None
+    return {normalize_book_key(b) for b in raw.split(",") if b.strip()}
+
+
 @router.get(
     "/scan",
     response_model=ScanResponse,
-    summary="Scan surebets across all synced bookmakers",
+    summary="Scan surebets across synced bookmakers",
 )
 def scan_arbitrage(
     min_profit_pct: Decimal | None = Query(
@@ -47,8 +61,9 @@ def scan_arbitrage(
     bookmakers: str | None = Query(
         default=None,
         description=(
-            "Optional comma list to limit books, e.g. sportybet,melbet. "
-            "Omit to scan every bookmaker with fresh 1X2 / O/U / BTTS odds."
+            "Comma list e.g. sportybet,melbet. "
+            "Omit = configured ODDS_API_IO_BOOKMAKERS. "
+            "Pass all to include every book in the DB (Pinnacle, Unibet, …)."
         ),
     ),
     db: Session = Depends(get_db),
@@ -60,9 +75,7 @@ def scan_arbitrage(
     Best price per outcome across books; requires ≥2 distinct books and a complete
     mutually exclusive outcome set for the same event + market + line.
     """
-    allowed = None
-    if bookmakers:
-        allowed = {b.strip().lower() for b in bookmakers.split(",") if b.strip()}
+    allowed = _resolve_scan_books(bookmakers, settings)
     result = scan_arbs(
         db,
         settings,
