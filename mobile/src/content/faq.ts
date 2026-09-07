@@ -108,7 +108,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Account',
     question: 'What is the app access key?',
     answer:
-      'Not shown to regular users. When APP_API_KEY is set on Render, the web/app build should include EXPO_PUBLIC_APP_API_KEY (same value) so Refresh works automatically. Developers can also paste it under Me → Settings. It is not your login password. Or just sign in — a valid login also unlocks sync/settle.',
+      'Not shown to regular users. When APP_API_KEY is set on Render, the web/app build should include EXPO_PUBLIC_APP_API_KEY (same value) so Refresh works automatically. Developers can also paste it under Account → Settings. It is not your login password. Or just sign in — a valid login also unlocks sync/settle.',
     keywords: ['access', 'key', 'api key', 'password', 'render', 'app_api_key'],
   },
   {
@@ -196,7 +196,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Value',
     question: 'How do I use Value picks?',
     answer:
-      'Open Tools → Value picks. Tap Scan value (syncs odds + scans) using your bankroll and unit % from Me. Review EV % and suggested stake, then log from Today if you placed a pick.',
+      'Open Tools → Value picks. Tap Scan value (syncs odds + scans) using your bankroll and unit % from Account → Settings. Review EV % and suggested stake, then log from Today if you placed a pick.',
     keywords: ['value', 'scan', 'log', 'stake'],
   },
   {
