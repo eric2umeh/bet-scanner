@@ -135,7 +135,7 @@ export function formatSurebetPlan(opp: ArbOpportunity): string {
     : '';
   return [
     `${opp.home_team} vs ${opp.away_team}`,
-    `Profit ~${opp.profit_pct}% · sample ₦${opp.sample_profit_ngn} on ₦${opp.sample_total_stake_ngn}`,
+    `Market ${opp.market || '1X2'} · Profit ~${opp.profit_pct}% · sample ₦${opp.sample_profit_ngn} on ₦${opp.sample_total_stake_ngn}`,
     books,
     ...legs,
     opp.warning ? `Note: ${opp.warning}` : '',
