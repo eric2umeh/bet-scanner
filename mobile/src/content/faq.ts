@@ -36,7 +36,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Today',
     question: 'How do I open a match in my bookmaker app?',
     answer:
-      'On Today, tap the book name with ↗ under a match (e.g. “SportyBet ↗” or “MelBet ↗”), or “Open in …” on the match screen. The label follows the book filter you picked, or the tip’s bookmaker. Bet Scout opens a team search — books rarely publish exact match links, so pick the right fixture if several appear.',
+      'On Today, tap the book name with ↗ under a match (e.g. “SportyBet ↗” or “MelBet ↗”), or “Open in …” on the match screen. The label follows the book filter you picked, or the tip’s bookmaker. Bet Scout copies a team name and opens the book’s football page — paste into Search in the book app/site. Books rarely publish exact match links, and their search URLs often open the app without the keyword.',
     keywords: ['sportybet', 'melbet', '1xbet', 'open', 'app', 'deep', 'link', 'search', 'place', 'bookmaker'],
   },
   {
