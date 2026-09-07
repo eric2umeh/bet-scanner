@@ -79,7 +79,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="me"
+        name="account"
         options={{
           title: 'Account',
           ...(isWeb ? webSubHeader : null),
