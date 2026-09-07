@@ -1,7 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { bookLabel } from '../lib/tipKey';
+import { WEB_APP_MAX_WIDTH } from '../theme/layout';
 import { colors } from '../theme/colors';
 import { LeanPctPanel } from './LeanPctPanel';
 
@@ -103,7 +112,7 @@ export function BookLeanFilters({
   hideLean,
   forceCombined,
 }: Props) {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const combined = forceCombined ?? width < WIDE_MIN;
   const showLogged = loggedValue != null && onLoggedChange != null;
   const showLean = !hideLean;
@@ -111,6 +120,8 @@ export function BookLeanFilters({
   const [openLean, setOpenLean] = useState(false);
   const [openLogged, setOpenLogged] = useState(false);
   const [openAll, setOpenAll] = useState(false);
+  const sheetMaxW = Math.min(WEB_APP_MAX_WIDTH, Math.max(280, width - 32));
+  const scrollMaxH = Math.min(420, Math.max(200, height * 0.55));
 
   const bookOptions = useMemo(
     () => [
@@ -151,7 +162,10 @@ export function BookLeanFilters({
 
         <Modal visible={openAll} transparent animationType="fade" onRequestClose={() => setOpenAll(false)}>
           <Pressable style={styles.backdrop} onPress={() => setOpenAll(false)}>
-            <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View
+              style={[styles.sheet, { maxWidth: sheetMaxW }]}
+              onStartShouldSetResponder={() => true}
+            >
               <View style={styles.sheetHead}>
                 <Text style={styles.titleInline}>Filters</Text>
                 <View style={styles.sheetHeadRight}>
@@ -171,54 +185,65 @@ export function BookLeanFilters({
                 </View>
               </View>
 
-              {books.length > 0 ? (
-                <>
-                  <Text style={styles.section}>Bookmaker</Text>
-                  {bookOptions.map((o) => {
-                    const on = o.key === bookValue;
-                    return (
-                      <Pressable
-                        key={o.key}
-                        style={[styles.option, on && styles.optionOn]}
-                        onPress={() => {
-                          onBookChange(o.key);
-                          setOpenAll(false);
-                        }}
-                      >
-                        <Text style={[styles.optionText, on && styles.optionTextOn]}>{o.label}</Text>
-                      </Pressable>
-                    );
-                  })}
-                  <View style={styles.divider} />
-                </>
-              ) : null}
+              <ScrollView
+                style={[styles.sheetScroll, { maxHeight: scrollMaxH }]}
+                contentContainerStyle={styles.sheetScrollContent}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                bounces={false}
+              >
+                {books.length > 0 ? (
+                  <>
+                    <Text style={styles.section}>Bookmaker</Text>
+                    {bookOptions.map((o) => {
+                      const on = o.key === bookValue;
+                      return (
+                        <Pressable
+                          key={o.key}
+                          style={[styles.option, on && styles.optionOn]}
+                          onPress={() => {
+                            onBookChange(o.key);
+                            setOpenAll(false);
+                          }}
+                        >
+                          <Text style={[styles.optionText, on && styles.optionTextOn]}>{o.label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                    {(showLean || showLogged) ? <View style={styles.divider} /> : null}
+                  </>
+                ) : (
+                  <Text style={styles.emptyBooks}>No bookmakers in current results.</Text>
+                )}
 
-              {showLean ? (
-                <>
-                  <Text style={styles.section}>Lean %</Text>
-                  <LeanPctPanel
-                    value={leanValue}
-                    onChange={onLeanChange}
-                    onCommit={(v) => {
-                      onLeanChange(v);
-                      setOpenAll(false);
-                    }}
-                  />
-                </>
-              ) : null}
+                {showLean ? (
+                  <>
+                    <Text style={styles.section}>Lean %</Text>
+                    <LeanPctPanel
+                      value={leanValue}
+                      onChange={onLeanChange}
+                      onCommit={(v) => {
+                        onLeanChange(v);
+                        setOpenAll(false);
+                      }}
+                    />
+                  </>
+                ) : null}
 
-              {showLogged ? (
-                <>
-                  {showLean ? <View style={styles.divider} /> : null}
-                  <Text style={styles.section}>Logged</Text>
-                  <LoggedOptions
-                    value={loggedValue}
-                    onChange={onLoggedChange}
-                    onDone={() => setOpenAll(false)}
-                  />
-                </>
-              ) : null}
-            </Pressable>
+                {showLogged ? (
+                  <>
+                    {showLean ? <View style={styles.divider} /> : null}
+                    <Text style={styles.section}>Logged</Text>
+                    <LoggedOptions
+                      value={loggedValue}
+                      onChange={onLoggedChange}
+                      onDone={() => setOpenAll(false)}
+                    />
+                  </>
+                ) : null}
+              </ScrollView>
+            </View>
           </Pressable>
         </Modal>
       </>
@@ -245,27 +270,36 @@ export function BookLeanFilters({
           </Pressable>
           <Modal visible={openBook} transparent animationType="fade" onRequestClose={() => setOpenBook(false)}>
             <Pressable style={styles.backdrop} onPress={() => setOpenBook(false)}>
-              <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+              <View style={[styles.sheet, { maxWidth: sheetMaxW }]} onStartShouldSetResponder={() => true}>
                 <View style={styles.sheetHead}>
                   <Text style={styles.titleInline}>Bookmaker</Text>
                   <SheetClose onClose={() => setOpenBook(false)} />
                 </View>
-                {bookOptions.map((o) => {
-                  const on = o.key === bookValue;
-                  return (
-                    <Pressable
-                      key={o.key}
-                      style={[styles.option, on && styles.optionOn]}
-                      onPress={() => {
-                        onBookChange(o.key);
-                        setOpenBook(false);
-                      }}
-                    >
-                      <Text style={[styles.optionText, on && styles.optionTextOn]}>{o.label}</Text>
-                    </Pressable>
-                  );
-                })}
-              </Pressable>
+                <ScrollView
+                  style={[styles.sheetScroll, { maxHeight: scrollMaxH }]}
+                  contentContainerStyle={styles.sheetScrollContent}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                  bounces={false}
+                >
+                  {bookOptions.map((o) => {
+                    const on = o.key === bookValue;
+                    return (
+                      <Pressable
+                        key={o.key}
+                        style={[styles.option, on && styles.optionOn]}
+                        onPress={() => {
+                          onBookChange(o.key);
+                          setOpenBook(false);
+                        }}
+                      >
+                        <Text style={[styles.optionText, on && styles.optionTextOn]}>{o.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
             </Pressable>
           </Modal>
         </>
@@ -290,7 +324,7 @@ export function BookLeanFilters({
 
           <Modal visible={openLean} transparent animationType="fade" onRequestClose={() => setOpenLean(false)}>
             <Pressable style={styles.backdrop} onPress={() => setOpenLean(false)}>
-              <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+              <View style={[styles.sheet, { maxWidth: sheetMaxW }]} onStartShouldSetResponder={() => true}>
                 <View style={styles.sheetHead}>
                   <Text style={styles.titleInline}>Lean %</Text>
                   <SheetClose onClose={() => setOpenLean(false)} />
@@ -303,7 +337,7 @@ export function BookLeanFilters({
                     setOpenLean(false);
                   }}
                 />
-              </Pressable>
+              </View>
             </Pressable>
           </Modal>
         </>
@@ -332,7 +366,7 @@ export function BookLeanFilters({
             onRequestClose={() => setOpenLogged(false)}
           >
             <Pressable style={styles.backdrop} onPress={() => setOpenLogged(false)}>
-              <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+              <View style={[styles.sheet, { maxWidth: sheetMaxW }]} onStartShouldSetResponder={() => true}>
                 <View style={styles.sheetHead}>
                   <Text style={styles.titleInline}>Logged</Text>
                   <SheetClose onClose={() => setOpenLogged(false)} />
@@ -342,7 +376,7 @@ export function BookLeanFilters({
                   onChange={onLoggedChange}
                   onDone={() => setOpenLogged(false)}
                 />
-              </Pressable>
+              </View>
             </Pressable>
           </Modal>
         </>
@@ -382,15 +416,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
-    padding: 28,
+    alignItems: 'center',
+    padding: 16,
   },
   sheet: {
     backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: 14,
+    paddingTop: 14,
+    paddingHorizontal: 14,
+    paddingBottom: 8,
+    width: '100%',
+    maxWidth: WEB_APP_MAX_WIDTH,
     maxHeight: '80%',
+    overflow: 'hidden',
+  },
+  sheetScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+    maxHeight: 420,
+  },
+  sheetScrollContent: {
+    paddingBottom: 12,
+  },
+  emptyBooks: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 8,
   },
   sheetHead: {
     flexDirection: 'row',
