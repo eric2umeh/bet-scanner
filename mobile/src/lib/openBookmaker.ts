@@ -9,48 +9,61 @@ type BookOpenConfig = {
   key: string;
   homeUrl: string;
   /**
-   * Stable landing page (football line / sports). Book “search” URLs often 404
-   * or open the native app without applying the keyword — so we land here and
-   * rely on a clipboard paste into in-app search.
+   * Best URL for this book. Prefer a real search route when the SPA reads
+   * `keyword` / `q` on load; otherwise a stable football landing.
    */
-  landingUrl: string;
+  openUrl: (q: string) => string;
+  /** True when openUrl should run the book’s own search UI. */
+  hasSearch: boolean;
 };
 
 const BOOK_OPEN: Record<string, BookOpenConfig> = {
   sportybet: {
     key: 'sportybet',
     homeUrl: 'https://www.sportybet.com/ng/m',
-    landingUrl: 'https://www.sportybet.com/ng/m/sport/football',
+    // SportyBet WAP route `/m/search` reads `keyword` and runs firstSearch on mount.
+    // Do NOT use `/m/sport/football` — that lands on live/football, not search.
+    openUrl: (q) =>
+      `https://www.sportybet.com/ng/m/search?keyword=${encodeURIComponent(q)}`,
+    hasSearch: true,
   },
   melbet: {
     key: 'melbet',
     homeUrl: 'https://melbet.com/en',
-    landingUrl: 'https://melbet.com/en/line/football',
+    // MelBet `/en/search` 404s; football line is the stable hand-off.
+    openUrl: () => 'https://melbet.com/en/line/football',
+    hasSearch: false,
   },
   onexbet: {
     key: 'onexbet',
     homeUrl: 'https://1xbet.com/en',
-    landingUrl: 'https://1xbet.com/en/line/football',
+    openUrl: () => 'https://1xbet.com/en/line/football',
+    hasSearch: false,
   },
   '1xbet': {
     key: 'onexbet',
     homeUrl: 'https://1xbet.com/en',
-    landingUrl: 'https://1xbet.com/en/line/football',
+    openUrl: () => 'https://1xbet.com/en/line/football',
+    hasSearch: false,
   },
   bet9ja: {
     key: 'bet9ja',
     homeUrl: 'https://shop.bet9ja.com/',
-    landingUrl: 'https://shop.bet9ja.com/',
+    openUrl: (q) =>
+      `https://www.google.com/search?q=${encodeURIComponent(`Bet9ja ${q} football`)}`,
+    hasSearch: true,
   },
   betwinner: {
     key: 'betwinner',
     homeUrl: 'https://betwinner.com/',
-    landingUrl: 'https://betwinner.com/en/line/football',
+    openUrl: () => 'https://betwinner.com/en/line/football',
+    hasSearch: false,
   },
   megapari: {
     key: 'megapari',
     homeUrl: 'https://megapari.com/',
-    landingUrl: 'https://megapari.com/en/line/football',
+    openUrl: () => 'https://megapari.com/en/line/football',
+    hasSearch: false,
   },
 };
 
@@ -68,7 +81,9 @@ export function resolveBookOpenConfig(bookmaker: string): BookOpenConfig {
   return {
     key: key || 'book',
     homeUrl: 'https://www.google.com/',
-    landingUrl: `https://www.google.com/search?q=${encodeURIComponent(`${label} football bet`)}`,
+    openUrl: (q) =>
+      `https://www.google.com/search?q=${encodeURIComponent(`${label} ${q} football bet`)}`,
+    hasSearch: true,
   };
 }
 
@@ -112,15 +127,22 @@ export function bookmakerMatchUrl(
   bookmaker: string,
   home: string,
   away: string
-): { url: string; searchFor: string; label: string; homeUrl: string } {
+): {
+  url: string;
+  searchFor: string;
+  label: string;
+  homeUrl: string;
+  hasSearch: boolean;
+} {
   const cfg = resolveBookOpenConfig(bookmaker);
   const searchFor = bookmakerSearchQuery(home, away);
   const label = bookLabel(bookmaker) || bookLabel(cfg.key);
   return {
-    url: cfg.landingUrl,
+    url: cfg.openUrl(searchFor),
     searchFor,
     label,
     homeUrl: cfg.homeUrl,
+    hasSearch: cfg.hasSearch,
   };
 }
 
@@ -129,22 +151,22 @@ export type OpenBookmakerResult = {
   searchFor: string;
   url: string;
   label: string;
-  /** True when the team name was copied for paste into book search. */
+  hasSearch: boolean;
+  /** True when the team name was copied as a paste backup. */
   copied: boolean;
   error?: string;
 };
 
 /**
- * Open a bookmaker football page and copy a team name for in-app search.
- * Exact event deep links are rarely public; search URLs often 404 or open the
- * native app without applying the keyword.
+ * Open the bookmaker to a search (when supported) or football landing.
+ * Always copies the team name as a backup — native apps sometimes ignore query params.
  */
 export async function openBookmakerMatch(opts: {
   bookmaker: string;
   home: string;
   away: string;
 }): Promise<OpenBookmakerResult> {
-  const { url, searchFor, label, homeUrl } = bookmakerMatchUrl(
+  const { url, searchFor, label, homeUrl, hasSearch } = bookmakerMatchUrl(
     opts.bookmaker,
     opts.home,
     opts.away
@@ -161,21 +183,22 @@ export async function openBookmakerMatch(opts: {
   try {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.open(url, '_blank', 'noopener,noreferrer');
-      return { ok: true, searchFor, url, label, copied };
+      return { ok: true, searchFor, url, label, hasSearch, copied };
     }
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);
-      return { ok: true, searchFor, url, label, copied };
+      return { ok: true, searchFor, url, label, hasSearch, copied };
     }
     await Linking.openURL(homeUrl);
-    return { ok: true, searchFor, url: homeUrl, label, copied };
+    return { ok: true, searchFor, url: homeUrl, label, hasSearch, copied };
   } catch (e) {
     return {
       ok: false,
       searchFor,
       url,
       label,
+      hasSearch,
       copied,
       error: e instanceof Error ? e.message : String(e),
     };
