@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.services.ai_explain import explain_pick
-from app.services.scan_arbitrage import scan_1x2_arbs
+from app.services.scan_arbitrage import scan_arbs
 from app.services.scan_safe_builder import scan_safe_picks
 from app.services.scan_value import scan_value_1x2
 from app.services.tip_learning import build_learning_model, learning_to_dict
@@ -50,7 +50,7 @@ def build_decision_brief(
         unit_pct=unit,
         allowed_bookmakers={"sportybet", "bet9ja"},
     )
-    arbs = scan_1x2_arbs(
+    arbs = scan_arbs(
         db,
         settings,
         min_profit_pct=Decimal("0.01"),
