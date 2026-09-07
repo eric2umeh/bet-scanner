@@ -8,3 +8,11 @@ export function assertPassword(password: string): string {
   }
   return value;
 }
+
+export function assertPasswordsMatch(password: string, confirm: string): string {
+  const pwd = assertPassword(password);
+  if (pwd !== (confirm ?? '')) {
+    throw new Error('Passwords do not match. Re-enter both fields.');
+  }
+  return pwd;
+}
