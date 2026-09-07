@@ -33,7 +33,7 @@ export default function OnboardingScreen() {
         pickMarket,
       };
       await saveSettings(next);
-      // Access key is developer-only (Me → Settings when signed in as developer).
+      // Access key is developer-only (Account → Settings when signed in as developer).
       await markOnboardingDone();
       router.replace('/(tabs)');
     } catch (e) {
@@ -58,7 +58,7 @@ export default function OnboardingScreen() {
       <BrandLogo size="xl" showWordmark stacked style={{ marginBottom: 16 }} />
       <Text style={styles.title}>Quick setup</Text>
       <Text style={styles.muted}>
-        Set your bankroll and how you like Safe tips. You can change everything later under Me.
+        Set your bankroll and how you like Safe tips. You can change everything later under Account.
       </Text>
       <Text style={styles.muted}>Server · {API_URL.replace(/^https?:\/\//, '')}</Text>
 
