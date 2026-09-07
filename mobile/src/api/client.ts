@@ -55,18 +55,31 @@ export class ApiError extends Error {
   }
 }
 
+/** User tapped Cancel — not a timeout / network failure. */
+export class RequestCancelledError extends Error {
+  constructor(message = 'Cancelled') {
+    super(message);
+    this.name = 'RequestCancelledError';
+  }
+}
+
+export function isRequestCancelled(e: unknown): boolean {
+  return e instanceof RequestCancelledError || (e instanceof Error && e.name === 'RequestCancelledError');
+}
+
 export function isAuthError(e: unknown): boolean {
   return e instanceof ApiError && (e.status === 401 || e.status === 403);
 }
 
 /** Short copy for status lines / alerts — never dump env URLs or setup hints. */
 export function userFacingError(e: unknown): string {
+  if (isRequestCancelled(e)) return 'Cancelled.';
   if (isAuthError(e)) return 'Please sign in and try again.';
   const msg = e instanceof Error ? e.message : String(e);
   if (
     msg === TIMEOUT_USER_MSG ||
     msg.includes('Timed out') ||
-    (e instanceof Error && e.name === 'AbortError')
+    (e instanceof Error && e.name === 'AbortError' && msg !== 'Cancelled')
   ) {
     return TIMEOUT_USER_MSG;
   }
@@ -104,10 +117,26 @@ async function authHeaders(): Promise<Record<string, string>> {
 
 async function fetchOnce<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
   const ctrl = new AbortController();
+  const external = init?.signal;
+  let userCancelled = false;
+
+  const onExternalAbort = () => {
+    userCancelled = true;
+    ctrl.abort();
+  };
+
+  if (external) {
+    if (external.aborted) {
+      throw new RequestCancelledError();
+    }
+    external.addEventListener('abort', onExternalAbort);
+  }
+
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
+    const { signal: _ignored, ...rest } = init || {};
     const res = await fetch(`${API_URL}${path}`, {
-      ...init,
+      ...rest,
       signal: ctrl.signal,
       headers: {
         Accept: 'application/json',
@@ -119,6 +148,7 @@ async function fetchOnce<T>(path: string, init?: RequestInit, timeoutMs = DEFAUL
     return res.json() as Promise<T>;
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
+      if (userCancelled || external?.aborted) throw new RequestCancelledError();
       throw new Error(TIMEOUT_USER_MSG);
     }
     if (
@@ -131,6 +161,7 @@ async function fetchOnce<T>(path: string, init?: RequestInit, timeoutMs = DEFAUL
     throw e;
   } finally {
     clearTimeout(timer);
+    external?.removeEventListener('abort', onExternalAbort);
   }
 }
 
@@ -143,6 +174,7 @@ async function fetchJson<T>(
   try {
     return await fetchOnce<T>(path, init, timeoutMs);
   } catch (e) {
+    if (isRequestCancelled(e)) throw e;
     const msg = e instanceof Error ? e.message : String(e);
     // One retry — often the first call only woke the dyno
     if (retry && (msg === TIMEOUT_USER_MSG || msg === NETWORK_USER_MSG)) {
@@ -154,15 +186,20 @@ async function fetchJson<T>(
 
 export async function getJson<T>(
   path: string,
-  opts?: { timeoutMs?: number; retry?: boolean }
+  opts?: { timeoutMs?: number; retry?: boolean; signal?: AbortSignal }
 ): Promise<T> {
-  return fetchJson<T>(path, undefined, opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS, opts?.retry !== false);
+  return fetchJson<T>(
+    path,
+    opts?.signal ? { signal: opts.signal } : undefined,
+    opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    opts?.retry !== false
+  );
 }
 
 export async function postJson<T>(
   path: string,
   body: unknown = {},
-  opts?: { timeoutMs?: number; retry?: boolean }
+  opts?: { timeoutMs?: number; retry?: boolean; signal?: AbortSignal }
 ): Promise<T> {
   return fetchJson<T>(
     path,
@@ -170,6 +207,7 @@ export async function postJson<T>(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: opts?.signal,
     },
     opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     opts?.retry !== false
