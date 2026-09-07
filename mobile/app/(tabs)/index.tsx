@@ -119,9 +119,28 @@ const CHIP_LABELS: { id: MarketFilter; label: string }[] = [
   { id: 'tt_2_5', label: 'Team 3+' },
 ];
 
+type LoggedFilter = 'all' | 'logged' | 'unlogged';
+
+function cycleLoggedFilter(v: LoggedFilter): LoggedFilter {
+  if (v === 'all') return 'logged';
+  if (v === 'logged') return 'unlogged';
+  return 'all';
+}
+
+function loggedFilterLabel(v: LoggedFilter): string {
+  if (v === 'logged') return 'Logged';
+  if (v === 'unlogged') return 'Unlogged';
+  return 'Logged';
+}
+
 function emptyStateForFilter(
   filter: MarketFilter,
-  opts: { minLeanPct: number; searchQ: string; totalTips: number }
+  opts: {
+    minLeanPct: number;
+    searchQ: string;
+    totalTips: number;
+    loggedFilter: LoggedFilter;
+  }
 ): { title: string; body: string } {
   const leanHint =
     opts.minLeanPct > 0
@@ -130,6 +149,12 @@ function emptyStateForFilter(
   const searchHint = opts.searchQ.trim()
     ? ' Clear search if you narrowed the list.'
     : '';
+  const loggedHint =
+    opts.loggedFilter === 'logged'
+      ? ' Turn off Logged (or cycle to Unlogged / all) if you want tips you have not logged yet.'
+      : opts.loggedFilter === 'unlogged'
+        ? ' Cycle the Logged filter off if you want to see tips you already logged.'
+        : '';
 
   if (opts.totalTips === 0) {
     return {
@@ -141,31 +166,31 @@ function emptyStateForFilter(
   const map: Record<MarketFilter, { title: string; body: string }> = {
     all: {
       title: 'No matches match your filters',
-      body: `Tips exist, but search/book/lean hid them.${searchHint}${leanHint}`,
+      body: `Tips exist, but search/book/lean/logged hid them.${searchHint}${leanHint}${loggedHint}`,
     },
     double_chance: {
       title: 'No Double chance tips',
-      body: `No 1X/X2 Safe tips for this view.${leanHint}${searchHint}`,
+      body: `No 1X/X2 Safe tips for this view.${leanHint}${searchHint}${loggedHint}`,
     },
     '1x2': {
       title: 'No Winner tips',
-      body: `No 1X2 favourite tips right now — needs a clear favourite.${leanHint}${searchHint}`,
+      body: `No 1X2 favourite tips right now — needs a clear favourite.${leanHint}${searchHint}${loggedHint}`,
     },
     ou_0_5: {
       title: 'No O/U 0.5 leans',
-      body: `No Over 0.5 tips in this view — try Load matches / lower Lean %.${searchHint}`,
+      body: `No Over 0.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}`,
     },
     ou_1_5: {
       title: 'No O/U 1.5 leans',
-      body: `No Over 1.5 tips in this view — try Load matches / lower Lean %.${searchHint}`,
+      body: `No Over 1.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}`,
     },
     ou_2_5: {
       title: 'No O/U 2.5 leans',
-      body: `No O/U 2.5 tips in this view — try Load matches / lower Lean %.${searchHint}`,
+      body: `No O/U 2.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}`,
     },
     btts: {
       title: 'No BTTS leans',
-      body: `No BTTS Yes/No tips in this view — try Load matches / lower Lean %.${searchHint}`,
+      body: `No BTTS Yes/No tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}`,
     },
     tt_2_5: {
       title: 'No Team 3+ tips',
@@ -189,6 +214,7 @@ export default function TodayScreen() {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
   const [minLeanPct, setMinLeanPct] = useState(0);
+  const [loggedFilter, setLoggedFilter] = useState<LoggedFilter>('all');
   const [status, setStatus] = useState('Pull down to refresh odds & Safe picks');
   const [busy, setBusy] = useState(false);
   const [selectedN, setSelectedN] = useState(0);
@@ -266,11 +292,13 @@ export default function TodayScreen() {
         const lean = Number(p.confidence_pct);
         if (!Number.isFinite(lean) || lean < minLeanPct) continue;
       }
+      if (loggedFilter === 'logged' && !pickIsLogged(p)) continue;
+      if (loggedFilter === 'unlogged' && pickIsLogged(p)) continue;
       if (!map[p.match_id]) map[p.match_id] = [];
       map[p.match_id].push(p);
     }
     return map;
-  }, [filteredPicks, filter, minLeanPct, matches, clockTick]);
+  }, [filteredPicks, filter, minLeanPct, matches, clockTick, loggedFilter, pickIsLogged]);
 
   const visibleMatches = useMemo(() => {
     void clockTick;
@@ -297,7 +325,7 @@ export default function TodayScreen() {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [searchQ, bookFilter, filter, pageSize, minLeanPct]);
+  }, [searchQ, bookFilter, filter, pageSize, minLeanPct, loggedFilter]);
 
   useEffect(() => {
     if (totalPages > 0 && pageIndex > totalPages - 1) {
@@ -500,12 +528,20 @@ export default function TodayScreen() {
   }
 
   const leanAwarePicks = useMemo(() => {
-    if (minLeanPct <= 0) return filteredPicks;
-    return filteredPicks.filter((p) => {
-      const lean = Number(p.confidence_pct);
-      return Number.isFinite(lean) && lean >= minLeanPct;
-    });
-  }, [filteredPicks, minLeanPct]);
+    let list = filteredPicks;
+    if (minLeanPct > 0) {
+      list = list.filter((p) => {
+        const lean = Number(p.confidence_pct);
+        return Number.isFinite(lean) && lean >= minLeanPct;
+      });
+    }
+    if (loggedFilter === 'logged') {
+      list = list.filter((p) => pickIsLogged(p));
+    } else if (loggedFilter === 'unlogged') {
+      list = list.filter((p) => !pickIsLogged(p));
+    }
+    return list;
+  }, [filteredPicks, minLeanPct, loggedFilter, pickIsLogged]);
 
   const chipCounts = useMemo(() => {
     const counts: Partial<Record<MarketFilter, number>> = {
@@ -523,6 +559,7 @@ export default function TodayScreen() {
     minLeanPct,
     searchQ,
     totalTips: picks.length,
+    loggedFilter,
   });
 
   const showNoTipsBanner = !busy && matches.length > 0 && picks.length === 0;
@@ -613,6 +650,43 @@ export default function TodayScreen() {
             leanValue={minLeanPct}
             onLeanChange={setMinLeanPct}
           />
+          <Pressable
+            style={[
+              styles.loggedFilter,
+              loggedFilter !== 'all' && styles.loggedFilterOn,
+            ]}
+            onPress={() => setLoggedFilter((v) => cycleLoggedFilter(v))}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: loggedFilter !== 'all' }}
+            accessibilityLabel={
+              loggedFilter === 'all'
+                ? 'Logged filter off. Shows all tips.'
+                : loggedFilter === 'logged'
+                  ? 'Showing logged tips only. Tap for unlogged.'
+                  : 'Showing unlogged tips only. Tap to clear.'
+            }
+            accessibilityHint="Cycles all, logged only, then unlogged only"
+          >
+            <View
+              style={[
+                styles.loggedCheck,
+                loggedFilter !== 'all' && styles.loggedCheckOn,
+              ]}
+            >
+              {loggedFilter !== 'all' ? (
+                <Text style={styles.loggedCheckMark}>✓</Text>
+              ) : null}
+            </View>
+            <Text
+              style={[
+                styles.loggedFilterText,
+                loggedFilter !== 'all' && styles.loggedFilterTextOn,
+              ]}
+              numberOfLines={1}
+            >
+              {loggedFilterLabel(loggedFilter)}
+            </Text>
+          </Pressable>
         </View>
 
         {isWeb && !narrowWeb ? (
@@ -849,6 +923,43 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 13,
   },
+  loggedFilter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    flexShrink: 0,
+  },
+  loggedFilterOn: {
+    borderColor: 'rgba(45, 212, 168, 0.45)',
+    backgroundColor: colors.accentDim,
+  },
+  loggedCheck: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: colors.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loggedCheckOn: {
+    borderColor: colors.accent,
+    backgroundColor: 'rgba(45, 212, 168, 0.2)',
+  },
+  loggedCheckMark: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 12,
+  },
+  loggedFilterText: { color: colors.ink, fontSize: 12, fontWeight: '600' },
+  loggedFilterTextOn: { color: colors.accent },
   btn: {
     backgroundColor: colors.accent,
     borderRadius: 12,
