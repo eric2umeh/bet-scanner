@@ -43,7 +43,7 @@ from app.services.arb_ops import (
     format_stake_plan_text,
     log_arbitrage_opportunities,
 )
-from app.services.scan_arbitrage import scan_1x2_arbs
+from app.services.scan_arbitrage import scan_arbs
 from app.services.scan_goal_markets import scan_goal_market_picks
 from app.services.scan_safe_builder import scan_safe_picks
 from app.services.scan_value import scan_value_1x2
@@ -232,7 +232,7 @@ def log_arbitrage_scan(
     optionally save each as a tip and ping Telegram.
     """
     allowed = {b.strip().lower() for b in body.bookmakers.split(",") if b.strip()} if body.bookmakers.strip() else None
-    scan = scan_1x2_arbs(
+    scan = scan_arbs(
         db,
         settings,
         min_profit_pct=body.min_profit_pct,
