@@ -43,8 +43,7 @@ type MarketChip =
   | 'ou_1_5'
   | 'ou_2_5'
   | 'btts'
-  | 'tt_2_5'
-  | 'coverage';
+  | 'tt_2_5';
 type TabId = 'scan' | 'history';
 
 const MARKET_CHIPS: { id: MarketChip; label: string }[] = [
@@ -55,7 +54,6 @@ const MARKET_CHIPS: { id: MarketChip; label: string }[] = [
   { id: 'ou_2_5', label: 'O/U 2.5' },
   { id: 'btts', label: 'BTTS' },
   { id: 'tt_2_5', label: 'Team 3+' },
-  { id: 'coverage', label: 'DC cover' },
 ];
 
 const PAGE_SIZE_DEFAULT = 10;
@@ -80,7 +78,6 @@ function marketMatchesChip(market: string, chip: MarketChip): boolean {
   if (chip === 'all') return true;
   const m = String(market || '');
   if (chip === 'tt_2_5') return m.startsWith('tt_2_5');
-  if (chip === 'coverage') return m.startsWith('coverage_');
   return m === chip;
 }
 
@@ -159,8 +156,6 @@ export function ArbitragePanel({ onFlash }: Props) {
   const [histPageSize, setHistPageSize] = useState(PAGE_SIZE_DEFAULT);
   /** When true, scan every book in DB (EU + NG). Default false = configured NG only. */
   const [scanAllBooks, setScanAllBooks] = useState(false);
-  /** Phase C: exclusive DC coverage pairs (off by default — not standard surebets). */
-  const [includeCoverage, setIncludeCoverage] = useState(false);
   const scanAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -215,19 +210,17 @@ export function ArbitragePanel({ onFlash }: Props) {
   }, [booksForFilter, bookFilter]);
 
   const findSurebets = useCallback(
-    async (opts?: { allBooks?: boolean; includeCoverage?: boolean }) => {
+    async (opts?: { allBooks?: boolean }) => {
       scanAbortRef.current?.abort();
       const ctrl = new AbortController();
       scanAbortRef.current = ctrl;
       setBusy(true);
       try {
         const useAll = opts?.allBooks ?? scanAllBooks;
-        const coverage = opts?.includeCoverage ?? includeCoverage;
         const data = await scanSurebets({
           sample_stake_ngn: stakeN,
           bookmakers: useAll ? 'all' : configuredBooks.join(','),
           min_profit_pct: 0.01,
-          include_coverage: coverage,
           signal: ctrl.signal,
         });
         if (ctrl.signal.aborted) return;
@@ -252,7 +245,7 @@ export function ArbitragePanel({ onFlash }: Props) {
         setBusy(false);
       }
     },
-    [stakeN, scanAllBooks, configuredBooks, includeCoverage]
+    [stakeN, scanAllBooks, configuredBooks]
   );
 
   const onToggleInternational = useCallback(() => {
@@ -359,8 +352,6 @@ export function ArbitragePanel({ onFlash }: Props) {
       const m = String(o.market || '');
       if (m.startsWith('tt_2_5')) {
         counts.tt_2_5 = (counts.tt_2_5 || 0) + 1;
-      } else if (m.startsWith('coverage_')) {
-        counts.coverage = (counts.coverage || 0) + 1;
       } else {
         const key = m as MarketChip;
         counts[key] = (counts[key] || 0) + 1;
@@ -554,26 +545,6 @@ export function ArbitragePanel({ onFlash }: Props) {
               forceCombined
             />
           </View>
-
-          <Pressable
-            style={[styles.coverageToggle, includeCoverage && styles.coverageToggleOn]}
-            disabled={busy}
-            onPress={() => {
-              const next = !includeCoverage;
-              setIncludeCoverage(next);
-              void findSurebets({ includeCoverage: next });
-            }}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: includeCoverage }}
-            accessibilityLabel="Include DC coverage pairs"
-          >
-            <Text style={[styles.coverageToggleText, includeCoverage && styles.coverageToggleTextOn]}>
-              {includeCoverage ? 'DC coverage on' : 'DC coverage off'}
-            </Text>
-            <Text style={styles.coverageHint}>
-              Exclusive DC vs opposite 1X2 — not a standard surebet
-            </Text>
-          </Pressable>
 
           {!filteredOpps.length && !busy ? (
             <View style={styles.empty}>
@@ -873,22 +844,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   dateField: { flexShrink: 0 },
-  coverageToggle: {
-    marginBottom: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.card,
-  },
-  coverageToggleOn: {
-    borderColor: 'rgba(45, 212, 168, 0.45)',
-    backgroundColor: colors.accentDim,
-  },
-  coverageToggleText: { color: colors.ink, fontWeight: '700', fontSize: 13 },
-  coverageToggleTextOn: { color: colors.accent },
-  coverageHint: { color: colors.muted, fontSize: 11, marginTop: 2, lineHeight: 15 },
   btnSecondaryInline: {
     backgroundColor: colors.surface,
     borderRadius: 10,
