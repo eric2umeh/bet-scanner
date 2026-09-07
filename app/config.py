@@ -115,8 +115,9 @@ class Settings(BaseSettings):
     goal_lean_min_confidence: float = 60.0
     # O/U 2.5 is closer to a coin-flip — require a stronger short-side lean (~70% fair).
     goal_ou25_min_confidence: float = 70.0
-    # Team 3+ (tt_2_5) longshot floor — slightly above goal lean.
-    goal_tt_min_confidence: float = 62.0
+    # Team 3+ (tt_2_5): lean = de-vig fair % of Over (Under is almost always shorter).
+    # ~30 means Over has roughly a 30%+ fair shot — usable longshots, not 10% no-hopers.
+    goal_tt_min_confidence: float = 30.0
 
     # --- Phase 4: Telegram alerts (optional) ---
     telegram_enabled: bool = False
