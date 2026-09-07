@@ -20,8 +20,8 @@ type Props = {
 };
 
 /**
- * Opens the selected bookmaker (app or site) on football, with team name copied
- * for paste into the book’s search (deep-link search is unreliable).
+ * Opens the selected bookmaker. SportyBet uses /m/search?keyword=…;
+ * other books get a football page + clipboard paste backup.
  */
 export function OpenBookmakerButton({
   home,
@@ -39,19 +39,21 @@ export function OpenBookmakerButton({
     if (busy) return;
     setBusy(true);
     try {
-      // Explain paste first — opening the book often leaves Bet Scout immediately.
       const preview = bookmakerMatchUrl(bookKey, home, away);
-      await modal.alert({
-        title: `Open ${preview.label}`,
-        message: `We’ll copy “${preview.searchFor}” and open ${preview.label} football. Paste into Search there to find the match.`,
-      });
+      // Paste hint before leaving — only when the book has no real search URL.
+      if (!preview.hasSearch) {
+        await modal.alert({
+          title: `Open ${preview.label}`,
+          message: `We’ll copy “${preview.searchFor}” and open ${preview.label} football. Paste into Search there.`,
+        });
+      }
 
       const result = await openBookmakerMatch({ bookmaker: bookKey, home, away });
       if (!result.ok) {
         await modal.alert({
           title: `Could not open ${result.label}`,
           message: result.copied
-            ? `“${result.searchFor}” is still on your clipboard — open ${result.label} yourself and paste it in Search.`
+            ? `“${result.searchFor}” is on your clipboard — open ${result.label} and paste it in Search.`
             : `Open the ${result.label} app and search for “${result.searchFor}”.`,
         });
       }
@@ -64,7 +66,7 @@ export function OpenBookmakerButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Open ${home} vs ${away} in ${label}`}
-      accessibilityHint={`Copies a team name and opens ${label} football`}
+      accessibilityHint={`Opens ${label} search for this match`}
       style={[compact ? styles.compact : styles.btn, busy && styles.busy, style]}
       onPress={(e) => {
         // @ts-expect-error RN web / nested Pressable
