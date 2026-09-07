@@ -209,7 +209,7 @@ export function ArbitragePanel({ onFlash }: Props) {
             : data.message ||
                 (useAll
                   ? 'No surebets right now — try closer to kickoff.'
-                  : 'No surebets on your configured books. Try All books, or sync Today first.')
+                  : 'No surebets on your configured books. Try International, or sync Today first.')
         );
       } catch (e) {
         if (isRequestCancelled(e)) return;
@@ -440,7 +440,7 @@ export function ArbitragePanel({ onFlash }: Props) {
               {busy ? (
                 <Text style={styles.btnCancelText}>Cancel</Text>
               ) : (
-                <Text style={styles.btnPrimaryText}>Find surebets</Text>
+                <Text style={styles.btnPrimaryText}>Find Nigeria surebets</Text>
               )}
             </Pressable>
             <Pressable
@@ -452,10 +452,10 @@ export function ArbitragePanel({ onFlash }: Props) {
                 void findSurebets({ allBooks: next });
               }}
               accessibilityRole="button"
-              accessibilityLabel={scanAllBooks ? 'Use NG books only' : 'Scan all books'}
+              accessibilityLabel={scanAllBooks ? 'Use Nigeria books only' : 'Scan international books'}
             >
               <Text style={[styles.btnSideText, scanAllBooks && styles.btnSideTextOn]}>
-                {scanAllBooks ? 'NG books' : 'All books'}
+                {scanAllBooks ? 'Nigeria' : 'International'}
               </Text>
             </Pressable>
           </View>
@@ -508,8 +508,8 @@ export function ArbitragePanel({ onFlash }: Props) {
               <Text style={styles.emptyTitle}>No surebets for this view</Text>
               <Text style={styles.emptyText}>
                 {dateFilter
-                  ? `Nothing for ${dateFilter}. Clear the date (×) to see other days, or Find surebets again.`
-                  : 'True arbs are rare on SportyBet/MelBet. Sync Today first, then Find surebets. “All books” includes European books from the-odds-api (not SportyBet).'}
+                  ? `Nothing for ${dateFilter}. Clear the date (×) to see other days, or Find Nigeria surebets again.`
+                  : 'True arbs are rare on SportyBet/MelBet. Sync Today first, then Find Nigeria surebets. International includes European books from the-odds-api (not SportyBet).'}
               </Text>
             </View>
           ) : null}
@@ -541,7 +541,7 @@ export function ArbitragePanel({ onFlash }: Props) {
         </>
       ) : (
         <>
-          <Text style={styles.hint}>Logged surebets (source: arbitrage). Tap Find surebets on Scan, then Log.</Text>
+          <Text style={styles.hint}>Logged surebets (source: arbitrage). Tap Find Nigeria surebets on Scan, then Log.</Text>
           <View style={styles.filterTools}>
             <DatePickerField
               value={dateFilter}
