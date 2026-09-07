@@ -17,18 +17,33 @@ import {
   type ArbOpportunity,
 } from '../api/edge';
 import { syncOdds } from '../api/odds';
-import { bookLabel } from '../lib/tipKey';
+import { bookLabel, marketLabel } from '../lib/tipKey';
 import { isKickoffUpcoming } from '../lib/matchBettable';
 import { shareOrCopyText } from '../lib/shareText';
 import { loadSettings, type AppSettings } from '../store/settings';
 import { colors } from '../theme/colors';
 import { webScrollBottom } from '../theme/webScroll';
 
-function selLabel(sel: string) {
+function selLabel(sel: string, market?: string) {
   const s = (sel || '').toLowerCase();
+  const m = (market || '').toLowerCase();
   if (s === 'home') return 'Home';
   if (s === 'draw') return 'Draw';
   if (s === 'away') return 'Away';
+  if (s === 'over') {
+    if (m === 'ou_0_5') return 'Over 0.5';
+    if (m === 'ou_1_5') return 'Over 1.5';
+    if (m === 'ou_2_5') return 'Over 2.5';
+    return 'Over';
+  }
+  if (s === 'under') {
+    if (m === 'ou_0_5') return 'Under 0.5';
+    if (m === 'ou_1_5') return 'Under 1.5';
+    if (m === 'ou_2_5') return 'Under 2.5';
+    return 'Under';
+  }
+  if (s === 'yes') return m === 'btts' ? 'BTTS Yes' : 'Yes';
+  if (s === 'no') return m === 'btts' ? 'BTTS No' : 'No';
   return sel;
 }
 
@@ -170,17 +185,26 @@ export function ArbitragePanel({ onFlash }: Props) {
           <Text style={styles.btnPrimaryText}>Find surebets</Text>
         )}
       </Pressable>
-      <Text style={styles.hint}>Pull down or tap Find surebets. Tap a card to copy stakes.</Text>
+      <Text style={styles.hint}>
+        Pull down or tap Find surebets (1X2 · O/U · BTTS). Tap a card to copy stakes.
+      </Text>
 
       {!visibleOpps.length && !busy ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No surebets right now</Text>
-          <Text style={styles.emptyText}>Try again closer to kickoff after refreshing Today.</Text>
+          <Text style={styles.emptyText}>
+            Scans 1X2, O/U, and BTTS across your books. True arbs are rare — refresh
+            Today, then try again closer to kickoff.
+          </Text>
         </View>
       ) : null}
 
       {visibleOpps.map((o) => (
-        <ArbCard key={`${o.match_id}-${o.profit_pct}`} opp={o} onCopy={() => void onCopyPlan(o)} />
+        <ArbCard
+          key={`${o.match_id}-${o.market}-${o.profit_pct}-${(o.books_used || []).join(',')}`}
+          opp={o}
+          onCopy={() => void onCopyPlan(o)}
+        />
       ))}
     </ScrollView>
   );
@@ -201,7 +225,7 @@ function ArbCard({ opp, onCopy }: { opp: ArbOpportunity; onCopy: () => void }) {
             {opp.home_team} vs {opp.away_team}
           </Text>
           <Text style={styles.cardMeta}>
-            {opp.competition_code}
+            {marketLabel(opp.market || '1X2')} · {opp.competition_code}
             {opp.kickoff_at ? ` · ${new Date(opp.kickoff_at).toLocaleString()}` : ''}
           </Text>
           {booksUsed.length ? (
@@ -217,7 +241,7 @@ function ArbCard({ opp, onCopy }: { opp: ArbOpportunity; onCopy: () => void }) {
       {legs.map((leg: ArbLeg, i: number) => (
         <View key={`${leg.bookmaker}-${leg.selection}-${i}`} style={styles.legRow}>
           <View style={styles.legMain}>
-            <Text style={styles.legSel}>{selLabel(leg.selection)}</Text>
+            <Text style={styles.legSel}>{selLabel(leg.selection, leg.market || opp.market)}</Text>
             <Text style={styles.legBookPill}>{bookLabel(leg.bookmaker)}</Text>
           </View>
           <Text style={styles.legOdds}>@{leg.odds}</Text>
