@@ -24,6 +24,7 @@ import { logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { BookLeanFilters } from '../../src/components/BookLeanFilters';
+import { HorizontalChipScroll } from '../../src/components/HorizontalChipScroll';
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
 import { LeanBar } from '../../src/components/LeanBar';
 import { OpenBookmakerButton } from '../../src/components/OpenBookmakerButton';
@@ -120,18 +121,6 @@ const CHIP_LABELS: { id: MarketFilter; label: string }[] = [
 ];
 
 type LoggedFilter = 'all' | 'logged' | 'unlogged';
-
-function cycleLoggedFilter(v: LoggedFilter): LoggedFilter {
-  if (v === 'all') return 'logged';
-  if (v === 'logged') return 'unlogged';
-  return 'all';
-}
-
-function loggedFilterLabel(v: LoggedFilter): string {
-  if (v === 'logged') return 'Logged';
-  if (v === 'unlogged') return 'Unlogged';
-  return 'Logged';
-}
 
 function emptyStateForFilter(
   filter: MarketFilter,
@@ -615,7 +604,7 @@ export default function TodayScreen() {
           ) : null}
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
+        <HorizontalChipScroll>
           {CHIP_LABELS.map((c) => {
             const n = chipCounts[c.id] ?? 0;
             const label = c.id === 'all' ? `${c.label} · ${n}` : `${c.label} · ${n}`;
@@ -631,7 +620,7 @@ export default function TodayScreen() {
               </Pressable>
             );
           })}
-        </ScrollView>
+        </HorizontalChipScroll>
 
         <View style={styles.filterTools}>
           <TextInput
@@ -649,44 +638,9 @@ export default function TodayScreen() {
             onBookChange={setBookFilter}
             leanValue={minLeanPct}
             onLeanChange={setMinLeanPct}
+            loggedValue={loggedFilter}
+            onLoggedChange={setLoggedFilter}
           />
-          <Pressable
-            style={[
-              styles.loggedFilter,
-              loggedFilter !== 'all' && styles.loggedFilterOn,
-            ]}
-            onPress={() => setLoggedFilter((v) => cycleLoggedFilter(v))}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: loggedFilter !== 'all' }}
-            accessibilityLabel={
-              loggedFilter === 'all'
-                ? 'Logged filter off. Shows all tips.'
-                : loggedFilter === 'logged'
-                  ? 'Showing logged tips only. Tap for unlogged.'
-                  : 'Showing unlogged tips only. Tap to clear.'
-            }
-            accessibilityHint="Cycles all, logged only, then unlogged only"
-          >
-            <View
-              style={[
-                styles.loggedCheck,
-                loggedFilter !== 'all' && styles.loggedCheckOn,
-              ]}
-            >
-              {loggedFilter !== 'all' ? (
-                <Text style={styles.loggedCheckMark}>✓</Text>
-              ) : null}
-            </View>
-            <Text
-              style={[
-                styles.loggedFilterText,
-                loggedFilter !== 'all' && styles.loggedFilterTextOn,
-              ]}
-              numberOfLines={1}
-            >
-              {loggedFilterLabel(loggedFilter)}
-            </Text>
-          </Pressable>
         </View>
 
         {isWeb && !narrowWeb ? (
@@ -923,43 +877,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 13,
   },
-  loggedFilter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    flexShrink: 0,
-  },
-  loggedFilterOn: {
-    borderColor: 'rgba(45, 212, 168, 0.45)',
-    backgroundColor: colors.accentDim,
-  },
-  loggedCheck: {
-    width: 16,
-    height: 16,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: colors.muted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loggedCheckOn: {
-    borderColor: colors.accent,
-    backgroundColor: 'rgba(45, 212, 168, 0.2)',
-  },
-  loggedCheckMark: {
-    color: colors.accent,
-    fontSize: 11,
-    fontWeight: '800',
-    lineHeight: 12,
-  },
-  loggedFilterText: { color: colors.ink, fontSize: 12, fontWeight: '600' },
-  loggedFilterTextOn: { color: colors.accent },
   btn: {
     backgroundColor: colors.accent,
     borderRadius: 12,
@@ -979,7 +896,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnSecondaryText: { color: colors.ink, fontWeight: '600', fontSize: 13, textAlign: 'center' },
-  chips: { marginTop: 4, marginBottom: 2, maxHeight: 44 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
