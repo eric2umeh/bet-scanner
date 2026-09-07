@@ -590,6 +590,7 @@ export default function TodayScreen() {
           isWeb && { paddingBottom: webScrollBottom(20) },
           selectedN > 0 && { paddingBottom: webScrollBottom(88) },
         ]}
+        showsVerticalScrollIndicator={false}
         {...webPull.scrollProps}
         refreshControl={
           isWeb ? undefined : (
