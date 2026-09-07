@@ -21,10 +21,11 @@ const BOOK_OPEN: Record<string, BookOpenConfig> = {
   sportybet: {
     key: 'sportybet',
     homeUrl: 'https://www.sportybet.com/ng/m',
-    // SportyBet WAP route `/m/search` reads `keyword` and runs firstSearch on mount.
+    // SportyBet reads query param `key` (not `keyword`) and runs firstSearch on mount.
     // Do NOT use `/m/sport/football` — that lands on live/football, not search.
+    // We cannot type into their input from Bet Scout (cross-origin); `key=` is the auto-fill.
     openUrl: (q) =>
-      `https://www.sportybet.com/ng/m/search?keyword=${encodeURIComponent(q)}`,
+      `https://www.sportybet.com/ng/m/search?key=${encodeURIComponent(q)}`,
     hasSearch: true,
   },
   melbet: {
@@ -87,12 +88,17 @@ export function resolveBookOpenConfig(bookmaker: string): BookOpenConfig {
   };
 }
 
-/** Strip noise so bookmaker search hits the club name. */
+/** Strip noise so bookmaker search hits the club name. SportyBet needs ≥3 chars. */
 export function bookmakerSearchQuery(home: string, away: string): string {
   const h = cleanTeam(home);
   const a = cleanTeam(away);
-  const primary = preferSearchName(h, a);
-  return primary.slice(0, 48);
+  let primary = preferSearchName(h, a).slice(0, 48);
+  // SportyBet rejects searches under 3 non-space characters.
+  if (primary.replace(/\s/g, '').length < 3) {
+    const fallback = `${significantWords(h) || h} ${significantWords(a) || a}`.trim();
+    primary = (fallback || primary || 'football').slice(0, 48);
+  }
+  return primary;
 }
 
 function cleanTeam(name: string): string {
