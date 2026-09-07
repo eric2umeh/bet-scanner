@@ -26,6 +26,7 @@ import { BrandLogo } from '../../src/components/BrandLogo';
 import { BookLeanFilters } from '../../src/components/BookLeanFilters';
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
 import { LeanBar } from '../../src/components/LeanBar';
+import { OpenBookmakerButton } from '../../src/components/OpenBookmakerButton';
 import { PaginationBar } from '../../src/components/PaginationBar';
 import { SyncHeaderButton } from '../../src/components/SyncHeaderButton';
 import { BetSlipFab } from '../../src/components/BetSlipFab';
@@ -674,6 +675,17 @@ export default function TodayScreen() {
                     {formatMatchTitle(m.home_team, m.away_team, twoColWeb ? 14 : 18)}
                   </Text>
                 </Pressable>
+                <OpenBookmakerButton
+                  home={m.home_team}
+                  away={m.away_team}
+                  bookmaker={
+                    bookFilter !== 'all'
+                      ? bookFilter
+                      : tips.find((t) => t.bookmaker)?.bookmaker || 'sportybet'
+                  }
+                  compact
+                  style={!twoColWeb ? { marginBottom: 4 } : undefined}
+                />
                 {!tips.length ? (
                   <Pressable onPress={() => router.push(`/match/${m.id}`)}>
                     <Text style={styles.noTip}>No tip — open for odds</Text>
