@@ -361,13 +361,21 @@ export default function TodayScreen() {
     async (opts?: { withOdds?: boolean }) => {
       const withOdds = opts?.withOdds ?? false;
       setBusy(true);
+      let syncSlow = false;
       try {
         const s = settings || (await loadSettings());
         if (!settings) setSettings(s);
         if (withOdds) {
           setStatus('Updating matches & prices…');
           await syncFixtures().catch(() => null);
-          await syncOdds();
+          try {
+            await syncOdds();
+          } catch {
+            // Odds often land in the DB even when the HTTP response times out on
+            // Render — still load Today so the phone/web UI updates without a full reload.
+            syncSlow = true;
+            setStatus('Sync is slow — loading what is saved…');
+          }
         }
         const cfg = await fetchPublicAppConfig();
         const books = cfg.odds_bookmakers?.length
@@ -379,18 +387,42 @@ export default function TodayScreen() {
         ]);
         const { n, picks: all } = await loadScans(s, books);
         const merged = enrichMatchesFromPicks(bettable, all);
+        setPageIndex(0);
         setMatches(merged);
         setMatchCache(merged, all);
         pruneSelection(new Set(merged.map((m) => m.id)));
         refetchLoggedTipsIfStale();
-        setStatus(
-          merged.length
-            ? `${merged.length} match${merged.length === 1 ? '' : 'es'} · ${n} tip${n === 1 ? '' : 's'}${withOdds ? ' · updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
-            : withOdds
-              ? 'Updated — no matches with tips yet. Try again closer to kickoff.'
-              : 'No matches yet — tap Load matches to sync.'
-        );
+        const base = merged.length
+          ? `${merged.length} match${merged.length === 1 ? '' : 'es'} · ${n} tip${n === 1 ? '' : 's'}${withOdds ? ' · updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
+          : withOdds
+            ? 'Updated — no matches with tips yet. Try again closer to kickoff.'
+            : 'No matches yet — tap Load matches to sync.';
+        setStatus(syncSlow ? `${base} · sync still catching up` : base);
       } catch (e) {
+        // Always try to paint whatever is already in the DB so Load matches
+        // never requires a browser reload to show results.
+        try {
+          const s = settings || (await loadSettings());
+          const cfg = await fetchPublicAppConfig().catch(() => null);
+          const books = cfg?.odds_bookmakers?.length
+            ? cfg.odds_bookmakers
+            : ['sportybet', 'onexbet'];
+          const bettable = await loadMatchList(books);
+          const { n, picks: all } = await loadScans(s, books);
+          const merged = enrichMatchesFromPicks(bettable, all);
+          if (merged.length) {
+            setPageIndex(0);
+            setMatches(merged);
+            setMatchCache(merged, all);
+            pruneSelection(new Set(merged.map((m) => m.id)));
+            setStatus(
+              `${merged.length} match${merged.length === 1 ? '' : 'es'} · ${n} tip${n === 1 ? '' : 's'} · ${userFacingError(e)}`
+            );
+            return;
+          }
+        } catch {
+          /* fall through to plain error */
+        }
         setStatus(userFacingError(e));
       } finally {
         setBusy(false);
