@@ -34,6 +34,7 @@ import { useAppModal } from '../../src/components/modal';
 import { useDebouncedValue } from '../../src/hooks/useDebouncedValue';
 import { useNeedsSignIn } from '../../src/hooks/useTipsFeed';
 import { invalidateTipsCache } from '../../src/query/invalidate';
+import { markScoreRefreshRan } from '../../src/store/autoSettle';
 import { queryKeys } from '../../src/query/client';
 import { bookLabel, marketLabel } from '../../src/lib/tipKey';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
@@ -444,7 +445,7 @@ export default function TipsScreen() {
     } catch (e) {
       await modal.alert({
         title: 'Settle failed',
-        message: e instanceof Error ? e.message : String(e),
+        message: userFacingError(e),
       });
     } finally {
       setSettlingId(null);
@@ -465,7 +466,7 @@ export default function TipsScreen() {
     } catch (e) {
       await modal.alert({
         title: 'Delete failed',
-        message: e instanceof Error ? e.message : String(e),
+        message: userFacingError(e),
       });
     }
   }
@@ -487,7 +488,7 @@ export default function TipsScreen() {
     } catch (e) {
       await modal.alert({
         title: 'Delete failed',
-        message: e instanceof Error ? e.message : String(e),
+        message: userFacingError(e),
       });
     }
   }
@@ -496,8 +497,12 @@ export default function TipsScreen() {
     setStatus('Settling finished tips…');
     try {
       const data = await autoSettleTips({ refreshScores: true });
-      await markScoreRefreshRan();
-      setStatus(data.message);
+      try {
+        await markScoreRefreshRan();
+      } catch {
+        /* storage optional — settle already succeeded */
+      }
+      setStatus(data.message || 'Tips settled.');
       await reloadAll();
     } catch (e) {
       const msg = userFacingError(e);
