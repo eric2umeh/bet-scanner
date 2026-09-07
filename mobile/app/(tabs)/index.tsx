@@ -170,7 +170,7 @@ function emptyStateForFilter(
     tt_2_5: {
       title: 'No Team 3+ tips',
       body:
-        'Team scores 3+ is rare (needs Team Totals from the feed + strong Over lean). Tap Load matches; if sync says Team3+ 0, this book/league may not offer that market.',
+        'Team scores 3+ needs Team Totals prices and Over fair ≥ ~30% in a 1.55–4.00 band. Tap Load matches; try MelBet / All books; lower Lean %.',
     },
   };
   return map[filter];
