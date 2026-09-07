@@ -16,20 +16,22 @@ type Props = {
   contentContainerStyle?: StyleProp<ViewStyle>;
 };
 
-const DRAG_THRESHOLD = 6;
+const DRAG_THRESHOLD = 8;
 
 /**
  * Market chips that scroll horizontally on phone and laptop web.
- * On web, pointer-drag and shift/horizontal wheel pan the row.
+ * On web: drag-to-pan without stealing pill taps; scrollbar hidden.
  */
 export function HorizontalChipScroll({ children, style, contentContainerStyle }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const drag = useRef({
-    active: false,
-    moved: false,
+    pointerId: null as number | null,
+    dragging: false,
     startX: 0,
     startOffset: 0,
     offset: 0,
+    /** Suppress the click that follows a drag. */
+    suppressClick: false,
   });
 
   function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -45,29 +47,52 @@ export function HorizontalChipScroll({ children, style, contentContainerStyle }:
   if (Platform.OS === 'web') {
     const webHandlers = {
       onPointerDown: (e: any) => {
-        drag.current.active = true;
-        drag.current.moved = false;
+        // Do not capture yet — let Pressable receive a real click when the user taps.
+        drag.current.pointerId = e.pointerId ?? e.nativeEvent?.pointerId ?? null;
+        drag.current.dragging = false;
+        drag.current.suppressClick = false;
         drag.current.startX = e.clientX ?? e.nativeEvent?.clientX ?? 0;
         drag.current.startOffset = drag.current.offset;
-        try {
-          e.currentTarget?.setPointerCapture?.(e.pointerId ?? e.nativeEvent?.pointerId);
-        } catch {
-          /* ignore */
-        }
       },
       onPointerMove: (e: any) => {
-        if (!drag.current.active) return;
+        if (drag.current.pointerId == null) return;
         const clientX = e.clientX ?? e.nativeEvent?.clientX ?? 0;
         const dx = clientX - drag.current.startX;
-        if (!drag.current.moved && Math.abs(dx) < DRAG_THRESHOLD) return;
-        drag.current.moved = true;
+        if (!drag.current.dragging) {
+          if (Math.abs(dx) < DRAG_THRESHOLD) return;
+          drag.current.dragging = true;
+          drag.current.suppressClick = true;
+          try {
+            e.currentTarget?.setPointerCapture?.(drag.current.pointerId);
+          } catch {
+            /* ignore */
+          }
+        }
+        e.preventDefault?.();
         scrollToX(drag.current.startOffset - dx);
       },
-      onPointerUp: () => {
-        drag.current.active = false;
+      onPointerUp: (e: any) => {
+        if (drag.current.dragging) {
+          e.preventDefault?.();
+          try {
+            e.currentTarget?.releasePointerCapture?.(drag.current.pointerId);
+          } catch {
+            /* ignore */
+          }
+        }
+        drag.current.pointerId = null;
+        drag.current.dragging = false;
       },
       onPointerCancel: () => {
-        drag.current.active = false;
+        drag.current.pointerId = null;
+        drag.current.dragging = false;
+      },
+      onClickCapture: (e: any) => {
+        if (drag.current.suppressClick) {
+          e.preventDefault?.();
+          e.stopPropagation?.();
+          drag.current.suppressClick = false;
+        }
       },
       onWheel: (e: any) => {
         const deltaX = e.deltaX ?? e.nativeEvent?.deltaX ?? 0;
@@ -87,11 +112,11 @@ export function HorizontalChipScroll({ children, style, contentContainerStyle }:
           ref={scrollRef}
           horizontal
           nestedScrollEnabled
-          showsHorizontalScrollIndicator
+          showsHorizontalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onScroll={onScroll}
           scrollEventThrottle={16}
-          style={styles.innerScroll}
+          style={[styles.innerScroll, styles.hideScrollbar]}
           contentContainerStyle={[styles.content, contentContainerStyle]}
         >
           {children}
@@ -132,6 +157,12 @@ const styles = StyleSheet.create({
   innerScroll: {
     width: '100%',
     maxHeight: 48,
+  },
+  hideScrollbar: {
+    // @ts-expect-error web CSS
+    scrollbarWidth: 'none',
+    // @ts-expect-error web CSS
+    msOverflowStyle: 'none',
   },
   content: {
     flexDirection: 'row',
