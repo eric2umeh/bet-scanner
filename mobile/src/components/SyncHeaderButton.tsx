@@ -11,6 +11,8 @@ type Props = {
   busy?: boolean;
   /** Show text label (default true on callers that pass it). */
   showLabel?: boolean;
+  /** Show leading icon (download). Set false for non-sync actions. */
+  showIcon?: boolean;
   /** Button label — default “Load matches” (not browser refresh). */
   label?: string;
   cancelLabel?: string;
@@ -22,6 +24,7 @@ export function SyncHeaderButton({
   disabled,
   busy,
   showLabel = true,
+  showIcon = true,
   label = 'Load matches',
   cancelLabel = 'Cancel',
 }: Props) {
@@ -55,7 +58,9 @@ export function SyncHeaderButton({
         <ActivityIndicator size="small" color={colors.accent} />
       ) : (
         <View style={styles.inner}>
-          <FontAwesome name="download" size={showLabel ? 15 : 18} color={colors.accent} />
+          {showIcon ? (
+            <FontAwesome name="download" size={showLabel ? 15 : 18} color={colors.accent} />
+          ) : null}
           {showLabel ? <Text style={styles.label}>{label}</Text> : null}
         </View>
       )}
