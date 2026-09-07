@@ -134,7 +134,7 @@ export function ValuePanel({ onFlash }: Props) {
         <Text style={styles.heroTitle}>Value (+EV) scanner</Text>
         <Text style={styles.heroText}>
           Compares SportyBet and Bet9ja to find prices above fair odds. Uses bankroll ₦
-          {bank.toLocaleString()} and {unit}% unit from Me → Settings.
+          {bank.toLocaleString()} and {unit}% unit from Account → Settings.
         </Text>
       </View>
 
