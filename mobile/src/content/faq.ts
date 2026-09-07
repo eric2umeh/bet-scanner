@@ -36,8 +36,16 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Today',
     question: 'How do I open a match in my bookmaker app?',
     answer:
-      'On Today, tap the book name with ↗ under a match (e.g. “SportyBet ↗” or “MelBet ↗”), or “Open in …” on the match screen. The label follows the book filter you picked, or the tip’s bookmaker. SportyBet opens their search page with a team keyword. Other books (MelBet, 1xBet, …) often lack a public search URL, so we open football and copy the team name for you to paste into Search. If several fixtures appear, pick the right one on the book.',
+      'On Today, tap the book name with ↗ under a match (e.g. “SportyBet ↗” or “MelBet ↗”), or “Open in …” on the match screen. The label follows the book filter you picked, or the tip’s bookmaker. SportyBet opens /m/search?key=… so their site runs the search itself (browsers block us from typing into another site). Other books often lack a public search URL — we open football and copy the team name for paste. If several fixtures appear, pick the right one on the book.',
     keywords: ['sportybet', 'melbet', '1xbet', 'open', 'app', 'deep', 'link', 'search', 'place', 'bookmaker'],
+  },
+  {
+    id: 'today-logged-filter',
+    category: 'Today',
+    question: 'What does the Logged checkbox do?',
+    answer:
+      'On Today, next to Filters, tap Logged to cycle: all tips → only tips you already logged (struck through) → only tips you have not logged yet → all again. Use Unlogged when you want fresh picks to place.',
+    keywords: ['logged', 'unlogged', 'filter', 'checkbox', 'struck', 'tips'],
   },
   {
     id: 'today-log',
