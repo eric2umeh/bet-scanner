@@ -142,7 +142,7 @@ export function BookLeanFilters({
     if (showLean && leanValue > 0) parts.push(`≥${leanValue}%`);
     if (showLogged && loggedValue === 'logged') parts.push('Logged');
     if (showLogged && loggedValue === 'unlogged') parts.push('Unlogged');
-    return parts.length ? parts.join(' · ') : 'Filters';
+    return parts.length ? parts.join(' · ') : showLean || showLogged ? 'Filters' : 'All books';
   }, [bookValue, leanValue, loggedValue, showLean, showLogged]);
 
   if (combined) {
