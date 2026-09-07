@@ -81,12 +81,19 @@ export type LogScanResponse = {
   stake_plans?: string[];
 };
 
-/** Scan all bookmakers with fresh 1X2 odds in the DB (no book filter). */
-export function scanSurebets(opts: { sample_stake_ngn: number }) {
+/** Scan surebets. Default books = configured NG list; pass bookmakers: 'all' for every DB book. */
+export function scanSurebets(opts: {
+  sample_stake_ngn: number;
+  bookmakers?: string | null;
+  min_profit_pct?: number | string;
+}) {
   const q = new URLSearchParams({
-    min_profit_pct: '0.01',
+    min_profit_pct: String(opts.min_profit_pct ?? '0.01'),
     sample_stake_ngn: String(opts.sample_stake_ngn),
   });
+  if (opts.bookmakers != null && String(opts.bookmakers).trim()) {
+    q.set('bookmakers', String(opts.bookmakers).trim());
+  }
   return getJson<ArbScanResponse>(`/arbitrage/scan?${q}`);
 }
 

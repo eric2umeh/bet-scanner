@@ -21,6 +21,7 @@ export type TipOut = {
   risk_profile: string;
   source?: string;
   confidence_pct?: number | null;
+  rationale?: string | null;
   created_at?: string | null;
 };
 
@@ -38,6 +39,7 @@ export type FetchTipsParams = {
   result?: string;
   market?: string;
   bookmaker?: string;
+  source?: string;
   min_lean_pct?: number;
   q?: string;
   date_from?: string;
@@ -53,6 +55,7 @@ function tipsQuery(params: FetchTipsParams): string {
   if (params.result) q.set('result', params.result);
   if (params.market && params.market !== 'all') q.set('market', params.market);
   if (params.bookmaker && params.bookmaker !== 'all') q.set('bookmaker', params.bookmaker);
+  if (params.source) q.set('source', params.source);
   if (params.min_lean_pct != null && params.min_lean_pct > 0) {
     q.set('min_lean_pct', String(params.min_lean_pct));
   }
@@ -109,6 +112,20 @@ export function logTipBatch(opts: {
       };
     }),
   });
+}
+
+export function createTip(body: {
+  match_id: number;
+  risk_profile: string;
+  market: string;
+  selection: string;
+  bookmaker?: string | null;
+  stake_ngn?: number | null;
+  source?: string;
+  rationale?: string | null;
+  confidence_pct?: number | null;
+}) {
+  return postJson<TipOut>('/tips', body);
 }
 
 export function fetchTipsPage(params: FetchTipsParams = {}) {
