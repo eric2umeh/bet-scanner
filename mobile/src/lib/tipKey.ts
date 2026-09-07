@@ -56,5 +56,21 @@ export function bookLabel(book: string): string {
   if (b === 'ivibet') return 'Ivibet';
   if (b === 'rabona') return 'Rabona';
   if (b === 'stake') return 'Stake';
+  if (b === 'pinnacle') return 'Pinnacle';
+  if (b === 'matchbook') return 'Matchbook';
+  if (b === 'betfair_sb_uk' || b === 'betfair_ex_eu' || b.startsWith('betfair')) return 'Betfair';
+  if (b === 'unibet_nl' || b === 'unibet_se' || b.startsWith('unibet')) return 'Unibet';
+  if (b === 'leovegas_se' || b.startsWith('leovegas')) return 'LeoVegas';
+  if (b === 'tipico_de' || b.startsWith('tipico')) return 'Tipico';
+  if (b === 'casumo') return 'Casumo';
+  if (b === 'coolbet') return 'Coolbet';
+  if (b === 'multi') return 'Multi-book';
+  // Fallback: turn unibet_nl → Unibet Nl
+  if (b.includes('_')) {
+    return b
+      .split('_')
+      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+      .join(' ');
+  }
   return book || '—';
 }
