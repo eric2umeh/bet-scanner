@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchLatestOdds, type OddRow } from '../../src/api/odds';
+import { OpenBookmakerButton } from '../../src/components/OpenBookmakerButton';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
 import {
   compareCell,
@@ -134,6 +135,10 @@ export default function MatchDetailScreen() {
   }, [panel, loadOdds]);
 
   const primary = tips[0] || null;
+  const openBook =
+    tips.find((t) => t.bookmaker)?.bookmaker ||
+    primary?.bookmaker ||
+    'sportybet';
 
   const oddsBlocks = useMemo(() => {
     const markets = [
@@ -283,6 +288,11 @@ export default function MatchDetailScreen() {
           {match.home_team} vs {match.away_team}
         </Text>
         <Text style={styles.muted}>{kickoffLabel(match.kickoff_at)}</Text>
+        <OpenBookmakerButton
+          home={match.home_team}
+          away={match.away_team}
+          bookmaker={openBook}
+        />
         {selectedN > 0 ? (
           <Text style={styles.selectHint}>{selectedN} in selection · Log on Today</Text>
         ) : null}
