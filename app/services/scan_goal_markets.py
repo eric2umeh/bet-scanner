@@ -84,7 +84,7 @@ def scan_goal_market_picks(
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(minutes=max_age)
     min_lean = float(getattr(settings, "goal_lean_min_confidence", 60.0))
-    tt_lean = float(getattr(settings, "goal_tt_min_confidence", 62.0))
+    tt_lean = float(getattr(settings, "goal_tt_min_confidence", 30.0))
     # O/U 2.5 hits ~45–55% in many leagues — need a real short price, not a soft lean.
     ou25_lean = float(getattr(settings, "goal_ou25_min_confidence", 70.0))
     tt_odds_rows = 0
@@ -181,32 +181,38 @@ def scan_goal_market_picks(
                         continue
                     over_price = mkts["tt_2_5"][over_k]["price"]
                     under_price = mkts["tt_2_5"][under_k]["price"]
-                    # Team 3+ only: Over must be the shorter (favoured) side.
-                    if over_price > under_price:
+                    if over_price <= 1 or under_price <= 1:
                         continue
-                    pick = _lean_two_way(
-                        {
-                            "over": mkts["tt_2_5"][over_k],
-                            "under": mkts["tt_2_5"][under_k],
-                        },
-                        market="tt_2_5",
-                        label_a="over",
-                        label_b="under",
-                        profile="market_lean_tt",
-                        max_odds=max_odds,
+                    if over_price > max_odds:
+                        continue
+                    # Team 3+ is almost never the short price (Under is fav). Requiring
+                    # Over < Under wiped the market. Keep Over in a usable band and
+                    # score lean as de-vig fair % of Over.
+                    if over_price < Decimal("1.55") or over_price > Decimal("4.00"):
+                        continue
+                    conf = _fair_pct(over_price, under_price)
+                    if conf < tt_lean:
+                        continue
+                    captured = max(
+                        mkts["tt_2_5"][over_k]["captured_at"],
+                        mkts["tt_2_5"][under_k]["captured_at"],
                     )
-                    if not pick or pick["selection"] != "over":
-                        continue
-                    # Soft floor for longshot team totals (env GOAL_TT_MIN_CONFIDENCE).
-                    if float(pick.get("confidence_pct") or 0) < tt_lean:
-                        continue
                     pick = {
-                        **pick,
+                        "profile": "market_lean_tt",
+                        "market": "tt_2_5",
                         "selection": over_k,
+                        "odds": over_price,
+                        "other_selection": under_k,
+                        "other_odds": under_price,
                         "rationale": (
                             f"Team totals: {side} Over 2.5 (scores 3+) @"
-                            f"{pick['odds']} looks shorter than Under. Longshot — verify live."
+                            f"{over_price} (fair ~{conf:.0f}% vs Under @{under_price}). "
+                            f"Longshot — verify live."
                         ),
+                        "odds_captured_at": captured,
+                        "pick_market": "tt_2_5",
+                        "confidence_pct": conf,
+                        "confidence_label": "team 3+ lean",
                     }
                     picks.append(
                         _pack_pick(mid, match, book, pick, stake, bankroll_ngn=bankroll_ngn)
@@ -235,7 +241,7 @@ def scan_goal_market_picks(
         elif tt_tips == 0:
             msg += (
                 f" Team Totals present on {tt_odds_rows} book·match row(s) "
-                f"but none cleared Over lean ≥{tt_lean:.0f}%."
+                f"but none cleared Over fair ≥{tt_lean:.0f}% in the 1.55–4.00 band."
             )
 
     return {
@@ -319,6 +325,18 @@ def _confidence(a: Decimal, b: Decimal) -> float:
         return 50.0
     fav_fair = max(ia, ib) / total
     return round(min(92.0, max(50.0, fav_fair * 100.0)), 1)
+
+
+def _fair_pct(side: Decimal, other: Decimal) -> float:
+    """De-vigged fair probability (%) of `side` vs `other` (not necessarily the favourite)."""
+    pa, pb = float(side), float(other)
+    if pa <= 1 or pb <= 1:
+        return 0.0
+    ia, ib = 1.0 / pa, 1.0 / pb
+    total = ia + ib
+    if total <= 0:
+        return 0.0
+    return round(min(92.0, max(0.0, (ia / total) * 100.0)), 1)
 
 
 def _pack_pick(
