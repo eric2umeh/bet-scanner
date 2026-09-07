@@ -1,5 +1,5 @@
 """
-Arbitrage endpoints (Phase 3A).
+Arbitrage endpoints (Phases 3A–D).
 
 Try in http://127.0.0.1:8000/docs
   GET  /arbitrage/scan
@@ -66,16 +66,32 @@ def scan_arbitrage(
             "Pass all to include every book in the DB (Pinnacle, Unibet, …)."
         ),
     ),
+    include_coverage: bool | None = Query(
+        default=None,
+        description=(
+            "Phase C: include exclusive DC vs 1X2 coverage pairs. "
+            "Default from ARB_INCLUDE_COVERAGE_DEFAULT (false). "
+            "Not labeled as standard same-market surebets."
+        ),
+    ),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> ScanResponse:
     """
-    Scan stored odds for surebets: 1X2 (3-way), O/U 0.5/1.5/2.5 and BTTS (2-way).
+    Scan stored odds for surebets:
+      Phase A — 1X2, O/U 0.5/1.5/2.5, BTTS
+      Phase B — team totals 2.5 (home/away) when both Over+Under exist
+      Phase C — optional exclusive DC coverage pairs
 
-    Best price per outcome across books; requires ≥2 distinct books and a complete
-    mutually exclusive outcome set for the same event + market + line.
+    Best price per outcome; ≥2 distinct books; complete exclusive set;
+    freshness + max leg age-spread checks.
     """
     allowed = _resolve_scan_books(bookmakers, settings)
+    coverage = (
+        bool(include_coverage)
+        if include_coverage is not None
+        else bool(getattr(settings, "arb_include_coverage_default", False))
+    )
     result = scan_arbs(
         db,
         settings,
@@ -83,6 +99,7 @@ def scan_arbitrage(
         max_age_minutes=max_odds_age_minutes,
         sample_stake_ngn=sample_stake_ngn,
         allowed_bookmakers=allowed,
+        include_coverage=coverage,
     )
     return ScanResponse(**result)
 
