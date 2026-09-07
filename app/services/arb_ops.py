@@ -15,13 +15,14 @@ def format_stake_plan_text(opp: dict, *, title: str | None = None) -> str:
     """Human-readable stake plan for copy / Telegram / tip rationale."""
     home = opp.get("home_team", "?")
     away = opp.get("away_team", "?")
+    market = opp.get("market") or "1X2"
     profit_pct = opp.get("profit_pct", "?")
     total = opp.get("sample_total_stake_ngn", "?")
     profit = opp.get("sample_profit_ngn", "?")
     legs = opp.get("sample_legs") or []
 
     lines = [
-        title or f"Surebet: {home} vs {away}",
+        title or f"Surebet ({market}): {home} vs {away}",
         f"Profit ~{profit_pct}% | total stake ₦{total} → profit ~₦{profit}",
         "",
     ]
