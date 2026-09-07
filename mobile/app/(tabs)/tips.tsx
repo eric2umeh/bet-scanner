@@ -620,17 +620,17 @@ export default function TipsScreen() {
 
         {!needsSignIn ? (
           <>
-            <TextInput
-              style={styles.searchInputFull}
-              value={searchQ}
-              onChangeText={setSearchQ}
-              placeholder="Search teams, market, book…"
-              placeholderTextColor={colors.muted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              clearButtonMode="while-editing"
-            />
             <View style={styles.filterTools}>
+              <TextInput
+                style={styles.searchInput}
+                value={searchQ}
+                onChangeText={setSearchQ}
+                placeholder="Search teams, market, book…"
+                placeholderTextColor={colors.muted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                clearButtonMode="while-editing"
+              />
               <DatePickerField value={dateFilter} onChange={setDateFilter} placeholder="Date" />
               <BookLeanFilters
                 books={availableBooks}
@@ -843,9 +843,10 @@ const styles = StyleSheet.create({
   filters: { marginTop: 8, marginBottom: 4, maxHeight: 44 },
   filterTools: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     gap: 6,
     marginTop: 8,
+    marginBottom: 4,
     alignItems: 'center',
   },
   filterRow: {
@@ -856,27 +857,15 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    minWidth: 120,
+    minWidth: 80,
     backgroundColor: colors.surface,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 10,
-    paddingVertical: 9,
+    paddingVertical: 8,
     color: colors.ink,
     fontSize: 13,
-  },
-  searchInputFull: {
-    width: '100%',
-    marginTop: 12,
-    backgroundColor: colors.surface,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: colors.ink,
-    fontSize: 14,
   },
   chip: {
     marginRight: 8,
@@ -897,8 +886,8 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
     alignItems: 'center',
   },
   statVal: { color: colors.ink, fontWeight: '800', fontSize: 14 },
