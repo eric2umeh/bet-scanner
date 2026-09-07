@@ -430,13 +430,30 @@ export function ArbitragePanel({ onFlash }: Props) {
         Platform.OS === 'web' ? { paddingBottom: webScrollBottom(20) } : null,
       ]}
     >
-      <Text style={styles.statusLine} numberOfLines={2}>
-        {tab === 'scan'
-          ? `${filteredOpps.length} found · best ${
-              filteredOpps.length ? `${bestProfit.toFixed(2)}%` : '—'
-            }`
-          : `${histFilteredCount} logged`}
-      </Text>
+      <View style={styles.statusRow}>
+        <Text style={styles.statusLine} numberOfLines={2}>
+          {tab === 'scan'
+            ? `${filteredOpps.length} found · best ${
+                filteredOpps.length ? `${bestProfit.toFixed(2)}%` : '—'
+              }`
+            : `${histFilteredCount} logged`}
+        </Text>
+        {tab === 'scan' ? (
+          <View style={styles.stakeField}>
+            <Text style={styles.stakeLabel}>Enter your sample stake ₦</Text>
+            <TextInput
+              style={styles.stakeInput}
+              value={sampleStake}
+              onChangeText={setSampleStake}
+              keyboardType="numeric"
+              placeholder="e.g. 50000"
+              placeholderTextColor={colors.muted}
+              accessibilityLabel="Enter your sample stake in Naira"
+              selectTextOnFocus
+            />
+          </View>
+        ) : null}
+      </View>
 
       <View style={styles.tabs}>
         <Pressable
@@ -455,20 +472,6 @@ export function ArbitragePanel({ onFlash }: Props) {
 
       {tab === 'scan' ? (
         <>
-          <View style={styles.stakeField}>
-            <Text style={styles.stakeLabel}>Enter your sample stake ₦</Text>
-            <TextInput
-              style={styles.stakeInput}
-              value={sampleStake}
-              onChangeText={setSampleStake}
-              keyboardType="numeric"
-              placeholder="e.g. 50000"
-              placeholderTextColor={colors.muted}
-              accessibilityLabel="Enter your sample stake in Naira"
-              selectTextOnFocus
-            />
-          </View>
-
           <HorizontalChipScroll>
             {MARKET_CHIPS.map((c) => {
               const n = chipCounts[c.id] ?? 0;
@@ -722,11 +725,19 @@ const styles = StyleSheet.create({
   },
   headerSideText: { color: colors.ink, fontWeight: '800', fontSize: 12 },
   headerSideTextOn: { color: colors.accent },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+    flexWrap: 'wrap',
+  },
   statusLine: {
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
-    marginBottom: 10,
+    flexShrink: 1,
+    minWidth: 120,
   },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   tab: {
@@ -747,23 +758,28 @@ const styles = StyleSheet.create({
   stakeField: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
+    gap: 8,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 200,
+    maxWidth: 360,
+    marginLeft: 'auto',
     backgroundColor: colors.card,
     borderColor: 'rgba(45, 212, 168, 0.35)',
     borderWidth: 1,
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  stakeLabel: { color: colors.muted, fontSize: 12, fontWeight: '600', flexShrink: 0 },
+  stakeLabel: { color: colors.muted, fontSize: 11, fontWeight: '600', flexShrink: 1 },
   stakeInput: {
     flex: 1,
     color: colors.ink,
     fontWeight: '700',
-    fontSize: 15,
-    paddingVertical: 4,
-    minWidth: 80,
+    fontSize: 14,
+    paddingVertical: 2,
+    minWidth: 64,
+    textAlign: 'right',
   },
   btnSecondary: {
     backgroundColor: colors.surface,
