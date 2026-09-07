@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -17,6 +17,7 @@ import {
   type ArbOpportunity,
 } from '../api/edge';
 import { fetchPublicAppConfig } from '../api/appConfig';
+import { isRequestCancelled, userFacingError } from '../api/client';
 import { createTip, fetchTipsPage, type TipOut } from '../api/tips';
 import { BookLeanFilters } from './BookLeanFilters';
 import { DatePickerField } from './DatePickerField';
@@ -129,10 +130,14 @@ export function ArbitragePanel({ onFlash }: Props) {
   const [histPageSize, setHistPageSize] = useState(PAGE_SIZE_DEFAULT);
   /** When true, scan every book in DB (EU + NG). Default false = configured NG only. */
   const [scanAllBooks, setScanAllBooks] = useState(false);
+  const scanAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setClockTick((n) => n + 1), 60_000);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      scanAbortRef.current?.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -148,22 +153,41 @@ export function ArbitragePanel({ onFlash }: Props) {
     onFlash?.(msg, bad);
   }
 
+  function cancelScan() {
+    scanAbortRef.current?.abort();
+    scanAbortRef.current = null;
+    setBusy(false);
+    flash('Cancelled.');
+  }
+
   const stakeN = useMemo(() => {
     const n = Number(String(sampleStake).replace(/,/g, ''));
     return Number.isFinite(n) && n > 0 ? n : 10000;
   }, [sampleStake]);
 
+  /** Only books that appear in the current scan results (empty when none). */
   const booksForFilter = useMemo(() => {
-    const set = new Set<string>(configuredBooks.map((b) => b.toLowerCase()));
+    const set = new Set<string>();
     for (const o of opps) {
       for (const b of o.books_used || []) set.add(String(b).toLowerCase());
-      for (const l of o.legs || []) set.add(String(l.bookmaker).toLowerCase());
+      for (const l of o.legs || []) {
+        if (l.bookmaker) set.add(String(l.bookmaker).toLowerCase());
+      }
     }
     return [...set].sort();
-  }, [configuredBooks, opps]);
+  }, [opps]);
+
+  useEffect(() => {
+    if (bookFilter !== 'all' && !booksForFilter.includes(bookFilter)) {
+      setBookFilter('all');
+    }
+  }, [booksForFilter, bookFilter]);
 
   const findSurebets = useCallback(
     async (opts?: { allBooks?: boolean }) => {
+      scanAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      scanAbortRef.current = ctrl;
       setBusy(true);
       try {
         const useAll = opts?.allBooks ?? scanAllBooks;
@@ -171,7 +195,9 @@ export function ArbitragePanel({ onFlash }: Props) {
           sample_stake_ngn: stakeN,
           bookmakers: useAll ? 'all' : configuredBooks.join(','),
           min_profit_pct: 0.01,
+          signal: ctrl.signal,
         });
+        if (ctrl.signal.aborted) return;
         const upcoming = (data.opportunities || []).filter((o) =>
           isKickoffUpcoming(o.kickoff_at)
         );
@@ -183,11 +209,13 @@ export function ArbitragePanel({ onFlash }: Props) {
             : data.message ||
                 (useAll
                   ? 'No surebets right now — try closer to kickoff.'
-                  : 'No surebets on your configured books. Try All books below, or sync Today first.')
+                  : 'No surebets on your configured books. Try All books, or sync Today first.')
         );
       } catch (e) {
-        flash(e instanceof Error ? e.message : String(e), true);
+        if (isRequestCancelled(e)) return;
+        flash(userFacingError(e), true);
       } finally {
+        if (scanAbortRef.current === ctrl) scanAbortRef.current = null;
         setBusy(false);
       }
     },
@@ -398,22 +426,39 @@ export function ArbitragePanel({ onFlash }: Props) {
             </View>
           </View>
 
-          <Pressable
-            style={[styles.btnPrimary, busy && styles.disabled]}
-            disabled={busy}
-            onPress={() => void findSurebets()}
-          >
-            {busy ? (
-              <ActivityIndicator color="#06241c" />
-            ) : (
-              <Text style={styles.btnPrimaryText}>Find surebets</Text>
-            )}
-          </Pressable>
-          <Text style={styles.hint}>
-            Scans 1X2 · O/U · BTTS on{' '}
-            {scanAllBooks ? 'all synced books' : configuredBooks.map(bookLabel).join(' · ') || 'configured books'}
-            . Tap a book name on a leg to open it. Change sample stake anytime — stakes update instantly.
-          </Text>
+          <View style={styles.actionRow}>
+            <Pressable
+              style={[styles.btnPrimary, styles.btnPrimaryFlex, busy && styles.btnPrimaryCancel]}
+              onPress={() => {
+                if (busy) {
+                  cancelScan();
+                  return;
+                }
+                void findSurebets();
+              }}
+            >
+              {busy ? (
+                <Text style={styles.btnCancelText}>Cancel</Text>
+              ) : (
+                <Text style={styles.btnPrimaryText}>Find surebets</Text>
+              )}
+            </Pressable>
+            <Pressable
+              style={[styles.btnSide, scanAllBooks && styles.btnSideOn, busy && styles.disabled]}
+              disabled={busy}
+              onPress={() => {
+                const next = !scanAllBooks;
+                setScanAllBooks(next);
+                void findSurebets({ allBooks: next });
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={scanAllBooks ? 'Use NG books only' : 'Scan all books'}
+            >
+              <Text style={[styles.btnSideText, scanAllBooks && styles.btnSideTextOn]}>
+                {scanAllBooks ? 'NG books' : 'All books'}
+              </Text>
+            </Pressable>
+          </View>
 
           <HorizontalChipScroll>
             {MARKET_CHIPS.map((c) => {
@@ -457,23 +502,6 @@ export function ArbitragePanel({ onFlash }: Props) {
               forceCombined
             />
           </View>
-
-          <Pressable
-            style={[styles.allBooksToggle, scanAllBooks && styles.allBooksToggleOn]}
-            onPress={() => {
-              const next = !scanAllBooks;
-              setScanAllBooks(next);
-              void findSurebets({ allBooks: next });
-            }}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: scanAllBooks }}
-          >
-            <Text style={[styles.allBooksText, scanAllBooks && styles.allBooksTextOn]}>
-              {scanAllBooks
-                ? 'Scanning all books (incl. EU). Tap to use configured NG books only.'
-                : 'Using configured books only. Tap to include all synced books (Pinnacle, Unibet, …).'}
-            </Text>
-          </Pressable>
 
           {!filteredOpps.length && !busy ? (
             <View style={styles.empty}>
@@ -683,39 +711,67 @@ const styles = StyleSheet.create({
   },
   tabText: { color: colors.muted, fontWeight: '700', fontSize: 13 },
   tabTextOn: { color: colors.accent },
-  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  statsRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
   stat: {
     flex: 1,
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    borderRadius: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
     alignItems: 'center',
   },
-  statVal: { color: colors.ink, fontWeight: '800', fontSize: 15 },
+  statVal: { color: colors.ink, fontWeight: '800', fontSize: 14 },
   stakeInput: {
     color: colors.ink,
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
-    minWidth: 64,
+    minWidth: 56,
     paddingVertical: 0,
     width: '100%',
   },
   statGood: { color: colors.accent },
-  statLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
+  statLabel: { color: colors.muted, fontSize: 10, marginTop: 1 },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
   btnPrimary: {
     backgroundColor: colors.accent,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
-    marginBottom: 8,
     minHeight: 44,
     justifyContent: 'center',
   },
+  btnPrimaryFlex: { flex: 1 },
+  btnPrimaryCancel: {
+    backgroundColor: 'rgba(248, 113, 113, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(248, 113, 113, 0.55)',
+  },
   btnPrimaryText: { color: '#06241c', fontWeight: '800', fontSize: 15 },
+  btnCancelText: { color: '#fecaca', fontWeight: '800', fontSize: 15 },
+  btnSide: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  btnSideOn: {
+    borderColor: 'rgba(45, 212, 168, 0.45)',
+    backgroundColor: colors.accentDim,
+  },
+  btnSideText: { color: colors.ink, fontWeight: '700', fontSize: 13 },
+  btnSideTextOn: { color: colors.accent },
   btnSecondary: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -729,6 +785,7 @@ const styles = StyleSheet.create({
   hint: { color: colors.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 },
   filterTools: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     gap: 6,
     marginTop: 8,
@@ -736,7 +793,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    minWidth: 100,
+    minWidth: 80,
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
@@ -756,20 +813,6 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     alignItems: 'center',
   },
-  allBooksToggle: {
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.card,
-  },
-  allBooksToggleOn: {
-    borderColor: 'rgba(45, 212, 168, 0.45)',
-    backgroundColor: colors.accentDim,
-  },
-  allBooksText: { color: colors.muted, fontSize: 12, lineHeight: 17 },
-  allBooksTextOn: { color: colors.accent },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
