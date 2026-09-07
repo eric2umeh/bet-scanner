@@ -77,7 +77,7 @@ class ArbOpportunityOut(BaseModel):
     legs: list[ScanLegOut]
     books_used: list[str] = Field(
         default_factory=list,
-        description="Bookmakers used for the best home/draw/away prices",
+        description="Bookmakers used across the surebet legs (≥2 required)",
     )
     # Sample stake plan for ₦10,000 so the UI can show numbers immediately
     sample_total_stake_ngn: Decimal
@@ -92,7 +92,7 @@ class ScanResponse(BaseModel):
     max_odds_age_minutes: int
     books_scanned: list[str] = Field(
         default_factory=list,
-        description="All bookmakers with fresh 1X2 odds included in this scan",
+        description="Bookmakers with fresh 1X2 / O/U / BTTS odds included in this scan",
     )
     opportunities: list[ArbOpportunityOut]
     message: str
