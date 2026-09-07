@@ -86,6 +86,7 @@ export function scanSurebets(opts: {
   sample_stake_ngn: number;
   bookmakers?: string | null;
   min_profit_pct?: number | string;
+  signal?: AbortSignal;
 }) {
   const q = new URLSearchParams({
     min_profit_pct: String(opts.min_profit_pct ?? '0.01'),
@@ -94,7 +95,7 @@ export function scanSurebets(opts: {
   if (opts.bookmakers != null && String(opts.bookmakers).trim()) {
     q.set('bookmakers', String(opts.bookmakers).trim());
   }
-  return getJson<ArbScanResponse>(`/arbitrage/scan?${q}`);
+  return getJson<ArbScanResponse>(`/arbitrage/scan?${q}`, { signal: opts.signal });
 }
 
 export async function scanValue(opts: { bankroll_ngn: number; unit_pct: number }) {
