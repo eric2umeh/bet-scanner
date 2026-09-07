@@ -127,7 +127,6 @@ export function ArbitragePanel({ onFlash }: Props) {
   const [dateFilter, setDateFilter] = useState(() => toLocalIsoDate());
   const [marketFilter, setMarketFilter] = useState<MarketChip>('all');
   const [bookFilter, setBookFilter] = useState('all');
-  const [minProfitPct, setMinProfitPct] = useState(0);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
   const [histPageIndex, setHistPageIndex] = useState(0);
@@ -307,7 +306,6 @@ export function ArbitragePanel({ onFlash }: Props) {
       if (!isKickoffUpcoming(o.kickoff_at)) return false;
       if (!kickoffOnDate(o.kickoff_at, dateFilter)) return false;
       if (marketFilter !== 'all' && String(o.market) !== marketFilter) return false;
-      if (minProfitPct > 0 && Number(o.profit_pct) < minProfitPct) return false;
       if (bookFilter !== 'all') {
         const books = (o.books_used || []).map((b) => String(b).toLowerCase());
         if (!books.includes(bookFilter)) return false;
@@ -318,7 +316,7 @@ export function ArbitragePanel({ onFlash }: Props) {
       }
       return true;
     });
-  }, [opps, marketFilter, bookFilter, minProfitPct, searchQ, dateFilter, clockTick]);
+  }, [opps, marketFilter, bookFilter, searchQ, dateFilter, clockTick]);
 
   const chipCounts = useMemo(() => {
     const base = opps.filter(
@@ -334,7 +332,7 @@ export function ArbitragePanel({ onFlash }: Props) {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [searchQ, marketFilter, bookFilter, minProfitPct, dateFilter, pageSize]);
+  }, [searchQ, marketFilter, bookFilter, dateFilter, pageSize]);
 
   useEffect(() => {
     setHistPageIndex(0);
@@ -458,7 +456,7 @@ export function ArbitragePanel({ onFlash }: Props) {
       {tab === 'scan' ? (
         <>
           <View style={styles.stakeField}>
-            <Text style={styles.stakeLabel}>Sample stake ₦</Text>
+            <Text style={styles.stakeLabel}>Enter your sample stake ₦</Text>
             <TextInput
               style={styles.stakeInput}
               value={sampleStake}
@@ -466,7 +464,7 @@ export function ArbitragePanel({ onFlash }: Props) {
               keyboardType="numeric"
               placeholder="e.g. 50000"
               placeholderTextColor={colors.muted}
-              accessibilityLabel="Sample stake in Naira"
+              accessibilityLabel="Enter your sample stake in Naira"
               selectTextOnFocus
             />
           </View>
@@ -508,8 +506,9 @@ export function ArbitragePanel({ onFlash }: Props) {
               books={booksForFilter}
               bookValue={bookFilter}
               onBookChange={setBookFilter}
-              leanValue={minProfitPct}
-              onLeanChange={setMinProfitPct}
+              leanValue={0}
+              onLeanChange={() => {}}
+              hideLean
               forceCombined
             />
           </View>
