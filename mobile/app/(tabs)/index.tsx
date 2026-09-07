@@ -24,6 +24,7 @@ import { logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { BookLeanFilters } from '../../src/components/BookLeanFilters';
+import { DatePickerField } from '../../src/components/DatePickerField';
 import { HorizontalChipScroll } from '../../src/components/HorizontalChipScroll';
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
 import { LeanBar } from '../../src/components/LeanBar';
@@ -73,6 +74,22 @@ type MarketFilter =
 const isWeb = Platform.OS === 'web';
 const UPCOMING_DAYS = 21;
 const PAGE_SIZE_DEFAULT = 10;
+
+function toLocalIsoDate(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Match kickoff to a local calendar day (YYYY-MM-DD). Empty filter = any day. */
+function kickoffOnDate(kickoffAt: string | null | undefined, isoDate: string): boolean {
+  if (!isoDate) return true;
+  if (!kickoffAt) return false;
+  const d = new Date(kickoffAt);
+  if (Number.isNaN(d.getTime())) return false;
+  return toLocalIsoDate(d) === isoDate;
+}
 
 function kickoffLabel(iso?: string | null) {
   if (!iso) return '—';
@@ -129,14 +146,25 @@ function emptyStateForFilter(
     searchQ: string;
     totalTips: number;
     loggedFilter: LoggedFilter;
+    dateFilter: string;
+    tipsOnSelectedDate: number;
   }
 ): { title: string; body: string } {
+  if (opts.dateFilter && opts.tipsOnSelectedDate === 0) {
+    return {
+      title: 'No bets for this date',
+      body: `Nothing with tips on ${opts.dateFilter}. Pick another day, clear the date (×) to see all upcoming, or Load matches closer to kickoff.`,
+    };
+  }
   const leanHint =
     opts.minLeanPct > 0
       ? ` Lower Lean % (now ≥${opts.minLeanPct}) or tap Clear in Filters.`
       : ' Try Load matches.';
   const searchHint = opts.searchQ.trim()
     ? ' Clear search if you narrowed the list.'
+    : '';
+  const dateHint = opts.dateFilter
+    ? ` Or clear the date filter (×) if tips sit on another day.`
     : '';
   const loggedHint =
     opts.loggedFilter === 'logged'
@@ -155,31 +183,31 @@ function emptyStateForFilter(
   const map: Record<MarketFilter, { title: string; body: string }> = {
     all: {
       title: 'No matches match your filters',
-      body: `Tips exist, but search/book/lean/logged hid them.${searchHint}${leanHint}${loggedHint}`,
+      body: `Tips exist, but search/book/lean/logged hid them.${searchHint}${leanHint}${loggedHint}${dateHint}`,
     },
     double_chance: {
       title: 'No Double chance tips',
-      body: `No 1X/X2 Safe tips for this view.${leanHint}${searchHint}${loggedHint}`,
+      body: `No 1X/X2 Safe tips for this view.${leanHint}${searchHint}${loggedHint}${dateHint}`,
     },
     '1x2': {
       title: 'No Winner tips',
-      body: `No 1X2 favourite tips right now — needs a clear favourite.${leanHint}${searchHint}${loggedHint}`,
+      body: `No 1X2 favourite tips for this view.${leanHint}${searchHint}${loggedHint}${dateHint}`,
     },
     ou_0_5: {
       title: 'No O/U 0.5 leans',
-      body: `No Over 0.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}`,
+      body: `No Over 0.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}${dateHint}`,
     },
     ou_1_5: {
       title: 'No O/U 1.5 leans',
-      body: `No Over 1.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}`,
+      body: `No Over 1.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}${dateHint}`,
     },
     ou_2_5: {
       title: 'No O/U 2.5 leans',
-      body: `No O/U 2.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}`,
+      body: `No O/U 2.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}${dateHint}`,
     },
     btts: {
       title: 'No BTTS leans',
-      body: `No BTTS Yes/No tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}`,
+      body: `No BTTS Yes/No tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}${dateHint}`,
     },
     tt_2_5: {
       title: 'No Team 3+ tips',
@@ -200,6 +228,8 @@ export default function TodayScreen() {
   const [filter, setFilter] = useState<MarketFilter>('all');
   const [bookFilter, setBookFilter] = useState<string>('all');
   const [searchQ, setSearchQ] = useState('');
+  /** Default today; clear (×) = all upcoming days in the sync window. */
+  const [dateFilter, setDateFilter] = useState(() => toLocalIsoDate());
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
   const [minLeanPct, setMinLeanPct] = useState(0);
@@ -257,9 +287,15 @@ export default function TodayScreen() {
   }, [availableBooks, bookFilter]);
 
   const filteredPicks = useMemo(() => {
-    if (bookFilter === 'all') return picks;
-    return picks.filter((p) => String(p.bookmaker).toLowerCase() === bookFilter);
-  }, [picks, bookFilter]);
+    let list = picks;
+    if (bookFilter !== 'all') {
+      list = list.filter((p) => String(p.bookmaker).toLowerCase() === bookFilter);
+    }
+    if (dateFilter) {
+      list = list.filter((p) => kickoffOnDate(p.kickoff_at, dateFilter));
+    }
+    return list;
+  }, [picks, bookFilter, dateFilter]);
 
   const picksByMatch = useMemo(() => {
     void clockTick;
@@ -269,6 +305,7 @@ export default function TodayScreen() {
       const m = matchById.get(p.match_id);
       if (m) {
         if (!isMatchBettable(m)) continue;
+        if (dateFilter && !kickoffOnDate(m.kickoff_at, dateFilter)) continue;
       } else if (
         !isMatchBettable({
           kickoff_at: p.kickoff_at,
@@ -288,13 +325,16 @@ export default function TodayScreen() {
       map[p.match_id].push(p);
     }
     return map;
-  }, [filteredPicks, filter, minLeanPct, matches, clockTick, loggedFilter, pickIsLogged]);
+  }, [filteredPicks, filter, minLeanPct, matches, clockTick, loggedFilter, pickIsLogged, dateFilter]);
 
   const visibleMatches = useMemo(() => {
     void clockTick;
     const q = searchQ.trim().toLowerCase();
     let withTips = matches.filter(
-      (m) => isMatchBettable(m) && (picksByMatch[m.id] || []).length > 0
+      (m) =>
+        isMatchBettable(m) &&
+        kickoffOnDate(m.kickoff_at, dateFilter) &&
+        (picksByMatch[m.id] || []).length > 0
     );
     if (q) {
       withTips = withTips.filter((m) => {
@@ -303,7 +343,7 @@ export default function TodayScreen() {
       });
     }
     return withTips;
-  }, [matches, picksByMatch, searchQ, clockTick]);
+  }, [matches, picksByMatch, searchQ, clockTick, dateFilter]);
 
   const totalPages = visibleMatches.length
     ? Math.max(1, Math.ceil(visibleMatches.length / pageSize))
@@ -315,7 +355,7 @@ export default function TodayScreen() {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [searchQ, bookFilter, filter, pageSize, minLeanPct, loggedFilter]);
+  }, [searchQ, bookFilter, filter, pageSize, minLeanPct, loggedFilter, dateFilter]);
 
   useEffect(() => {
     if (totalPages > 0 && pageIndex > totalPages - 1) {
@@ -571,14 +611,21 @@ export default function TodayScreen() {
     return counts;
   }, [leanAwarePicks]);
 
+  const tipsOnSelectedDate = useMemo(() => {
+    if (!dateFilter) return picks.length;
+    return picks.filter((p) => kickoffOnDate(p.kickoff_at, dateFilter)).length;
+  }, [picks, dateFilter]);
+
   const filterEmpty = emptyStateForFilter(filter, {
     minLeanPct,
     searchQ,
     totalTips: picks.length,
     loggedFilter,
+    dateFilter,
+    tipsOnSelectedDate,
   });
 
-  const showNoTipsBanner = !busy && matches.length > 0 && picks.length === 0;
+  const showNoTipsBanner = !busy && matches.length > 0 && picks.length === 0 && !dateFilter;
   const showFilterEmpty = !busy && !visibleMatches.length && !showNoTipsBanner;
 
   return (
@@ -660,6 +707,12 @@ export default function TodayScreen() {
             placeholderTextColor={colors.muted}
             autoCapitalize="none"
             autoCorrect={false}
+          />
+          <DatePickerField
+            value={dateFilter}
+            onChange={setDateFilter}
+            placeholder="Date"
+            style={styles.dateField}
           />
           <BookLeanFilters
             books={availableBooks}
@@ -896,7 +949,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    minWidth: 120,
+    minWidth: 80,
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
@@ -906,6 +959,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 13,
   },
+  dateField: { flexShrink: 0 },
   btn: {
     backgroundColor: colors.accent,
     borderRadius: 12,
