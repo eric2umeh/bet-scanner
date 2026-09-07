@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
 
 import { useAppModal } from './modal';
-import { openBookmakerMatch } from '../lib/openBookmaker';
+import {
+  bookmakerMatchUrl,
+  openBookmakerMatch,
+} from '../lib/openBookmaker';
 import { bookLabel } from '../lib/tipKey';
 import { colors } from '../theme/colors';
 
@@ -17,7 +20,8 @@ type Props = {
 };
 
 /**
- * Opens the selected bookmaker (app or site) with a team keyword search.
+ * Opens the selected bookmaker (app or site) on football, with team name copied
+ * for paste into the book’s search (deep-link search is unreliable).
  */
 export function OpenBookmakerButton({
   home,
@@ -35,11 +39,20 @@ export function OpenBookmakerButton({
     if (busy) return;
     setBusy(true);
     try {
+      // Explain paste first — opening the book often leaves Bet Scout immediately.
+      const preview = bookmakerMatchUrl(bookKey, home, away);
+      await modal.alert({
+        title: `Open ${preview.label}`,
+        message: `We’ll copy “${preview.searchFor}” and open ${preview.label} football. Paste into Search there to find the match.`,
+      });
+
       const result = await openBookmakerMatch({ bookmaker: bookKey, home, away });
       if (!result.ok) {
         await modal.alert({
           title: `Could not open ${result.label}`,
-          message: `Open the ${result.label} app and search for “${result.searchFor}”.`,
+          message: result.copied
+            ? `“${result.searchFor}” is still on your clipboard — open ${result.label} yourself and paste it in Search.`
+            : `Open the ${result.label} app and search for “${result.searchFor}”.`,
         });
       }
     } finally {
@@ -51,7 +64,7 @@ export function OpenBookmakerButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Open ${home} vs ${away} in ${label}`}
-      accessibilityHint={`Opens ${label} with a search for this match`}
+      accessibilityHint={`Copies a team name and opens ${label} football`}
       style={[compact ? styles.compact : styles.btn, busy && styles.busy, style]}
       onPress={(e) => {
         // @ts-expect-error RN web / nested Pressable
