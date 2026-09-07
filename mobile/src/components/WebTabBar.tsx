@@ -12,6 +12,7 @@ const ICONS: Record<string, ComponentProps<typeof FontAwesome>['name']> = {
   arb: 'balance-scale',
   tools: 'th-large',
   me: 'user',
+  account: 'user',
 };
 
 /**
