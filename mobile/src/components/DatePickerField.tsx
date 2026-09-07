@@ -1,13 +1,14 @@
-import { createElement, useMemo, useState } from 'react';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useMemo, useState } from 'react';
 import {
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
+import { WEB_APP_MAX_WIDTH } from '../theme/layout';
 import { colors } from '../theme/colors';
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -43,6 +44,9 @@ function formatLabel(iso: string) {
   });
 }
 
+/**
+ * Dark in-app calendar. Entire field opens the modal (web + native).
+ */
 export function DatePickerField({
   value,
   onChange,
@@ -75,6 +79,11 @@ export function DatePickerField({
     year: 'numeric',
   });
 
+  function openCalendar() {
+    setCursor(selected || new Date());
+    setOpen(true);
+  }
+
   function pick(iso: string) {
     onChange(iso);
     setOpen(false);
@@ -85,47 +94,32 @@ export function DatePickerField({
     setOpen(false);
   }
 
-  // Web: native date input; show "Date" instead of browser dd/mm/yyyy when empty
-  if (Platform.OS === 'web') {
-    return (
-      <View style={[styles.webWrap, style]}>
-        <View style={styles.webField}>
-          {!value ? <Text style={styles.webPlaceholder}>{placeholder}</Text> : null}
-          {createElement('input', {
-            type: 'date',
-            value: value || '',
-            onChange: (e: { target: { value: string } }) => onChange(e.target.value || ''),
-            style: {
-              ...webInputStyle,
-              color: value ? colors.ink : 'transparent',
-            },
-            'aria-label': placeholder,
-            title: placeholder,
-          })}
-        </View>
-        {value ? (
-          <Pressable onPress={() => onChange('')} hitSlop={8} accessibilityLabel="Clear date">
-            <Text style={styles.clearText}>×</Text>
-          </Pressable>
-        ) : null}
-      </View>
-    );
-  }
-
   return (
     <>
       <Pressable
-        style={[styles.trigger, style]}
-        onPress={() => {
-          setCursor(selected || new Date());
-          setOpen(true);
-        }}
+        style={[styles.trigger, value ? styles.triggerOn : null, style]}
+        onPress={openCalendar}
         accessibilityRole="button"
         accessibilityLabel={value ? `Date ${formatLabel(value)}` : placeholder}
       >
+        <FontAwesome name="calendar" size={12} color={value ? colors.accent : colors.muted} />
         <Text style={[styles.triggerText, !value && styles.placeholder]} numberOfLines={1}>
           {value ? formatLabel(value) : placeholder}
         </Text>
+        {value ? (
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation?.();
+              clear();
+            }}
+            hitSlop={8}
+            accessibilityLabel="Clear date"
+          >
+            <Text style={styles.clearX}>×</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.chevron}>▾</Text>
+        )}
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -188,13 +182,13 @@ export function DatePickerField({
             </View>
 
             <View style={styles.footer}>
-              <Pressable onPress={clear}>
+              <Pressable onPress={clear} hitSlop={8}>
                 <Text style={styles.clearText}>Clear</Text>
               </Pressable>
-              <Pressable onPress={() => pick(toIso(new Date()))}>
+              <Pressable onPress={() => pick(toIso(new Date()))} hitSlop={8}>
                 <Text style={styles.todayText}>Today</Text>
               </Pressable>
-              <Pressable onPress={() => setOpen(false)}>
+              <Pressable onPress={() => setOpen(false)} hitSlop={8}>
                 <Text style={styles.doneText}>Done</Text>
               </Pressable>
             </View>
@@ -205,66 +199,35 @@ export function DatePickerField({
   );
 }
 
-const webInputStyle = {
-  position: 'absolute' as const,
-  inset: 0,
-  width: '100%',
-  height: '100%',
-  backgroundColor: 'transparent',
-  border: 'none',
-  borderRadius: 10,
-  color: colors.ink,
-  padding: '0 8px',
-  fontSize: 12,
-  fontFamily: 'inherit',
-  boxSizing: 'border-box' as const,
-};
-
 const styles = StyleSheet.create({
-  webWrap: {
+  trigger: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    flexShrink: 0,
-  },
-  webField: {
-    width: 78,
-    height: 36,
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 10,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    // @ts-expect-error RN web
-    position: 'relative',
-  },
-  webPlaceholder: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    // @ts-expect-error RN web
-    pointerEvents: 'none',
-  },
-  trigger: {
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 8,
-    width: 64,
+    minWidth: 88,
+    maxWidth: 120,
     flexShrink: 0,
-    alignItems: 'center',
   },
-  triggerText: { color: colors.ink, fontSize: 12, fontWeight: '600' },
+  triggerOn: {
+    borderColor: 'rgba(45, 212, 168, 0.45)',
+    backgroundColor: colors.accentDim,
+  },
+  triggerText: { color: colors.ink, fontSize: 12, fontWeight: '600', flexShrink: 1 },
   placeholder: { color: colors.muted, fontWeight: '500' },
+  chevron: { color: colors.muted, fontSize: 11 },
+  clearX: { color: colors.muted, fontSize: 16, fontWeight: '600', paddingHorizontal: 2 },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
-    padding: 24,
+    alignItems: 'center',
+    padding: 16,
   },
   sheet: {
     backgroundColor: colors.surface,
@@ -272,6 +235,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     padding: 14,
+    width: '100%',
+    maxWidth: Math.min(WEB_APP_MAX_WIDTH, 360),
   },
   monthRow: {
     flexDirection: 'row',
