@@ -17,10 +17,14 @@ export type OddRow = {
   captured_at?: string;
 };
 
-export function syncOdds() {
+export function syncOdds(opts?: { signal?: AbortSignal }) {
   // Render + odds-api can be slow; don't double-retry a 2‑minute wait.
   // Load matches still refreshes the list if this times out after odds landed.
-  return postJson<OddsSyncResult>('/odds/sync', {}, { timeoutMs: 120_000, retry: false });
+  return postJson<OddsSyncResult>('/odds/sync', {}, {
+    timeoutMs: 120_000,
+    retry: false,
+    signal: opts?.signal,
+  });
 }
 
 export function fetchLatestOdds(opts: {
