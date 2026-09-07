@@ -43,6 +43,7 @@ from app.services.arb_ops import (
     format_stake_plan_text,
     log_arbitrage_opportunities,
 )
+from app.services.bookmakers import configured_odds_books, normalize_book_key
 from app.services.scan_arbitrage import scan_arbs
 from app.services.scan_goal_markets import scan_goal_market_picks
 from app.services.scan_safe_builder import scan_safe_picks
@@ -231,7 +232,13 @@ def log_arbitrage_scan(
     Scan SportyBet/Bet9ja surebets with your ₦ bankroll stake split,
     optionally save each as a tip and ping Telegram.
     """
-    allowed = {b.strip().lower() for b in body.bookmakers.split(",") if b.strip()} if body.bookmakers.strip() else None
+    raw_books = (body.bookmakers or "").strip()
+    if not raw_books:
+        allowed = set(configured_odds_books(settings))
+    elif raw_books.lower() in {"all", "*", "any"}:
+        allowed = None
+    else:
+        allowed = {normalize_book_key(b) for b in raw_books.split(",") if b.strip()}
     scan = scan_arbs(
         db,
         settings,
