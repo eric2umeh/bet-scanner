@@ -1,6 +1,6 @@
 import { useRouter, useNavigation } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 
-import { pingHealth, userFacingError } from '../../src/api/client';
+import { isRequestCancelled, pingHealth, userFacingError } from '../../src/api/client';
 import { fetchBettableMatches, syncFixtures } from '../../src/api/matches';
 import { fetchPublicAppConfig } from '../../src/api/appConfig';
 import { syncOdds } from '../../src/api/odds';
@@ -206,6 +206,7 @@ export default function TodayScreen() {
   const [loggedFilter, setLoggedFilter] = useState<LoggedFilter>('all');
   const [status, setStatus] = useState('Pull down to refresh odds & Safe picks');
   const [busy, setBusy] = useState(false);
+  const syncAbortRef = useRef<AbortController | null>(null);
   const [selectedN, setSelectedN] = useState(0);
   const [asMulti, setAsMulti] = useState(true);
   const [loggedRev, setLoggedRev] = useState(0);
@@ -375,9 +376,19 @@ export default function TodayScreen() {
     );
   }
 
+  const cancelSync = useCallback(() => {
+    syncAbortRef.current?.abort();
+    syncAbortRef.current = null;
+    setBusy(false);
+    setStatus('Cancelled.');
+  }, []);
+
   const refresh = useCallback(
     async (opts?: { withOdds?: boolean }) => {
       const withOdds = opts?.withOdds ?? false;
+      syncAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      syncAbortRef.current = ctrl;
       setBusy(true);
       let syncSlow = false;
       try {
@@ -385,16 +396,22 @@ export default function TodayScreen() {
         if (!settings) setSettings(s);
         if (withOdds) {
           setStatus('Updating matches & prices…');
-          await syncFixtures().catch(() => null);
+          await syncFixtures({ signal: ctrl.signal }).catch((e) => {
+            if (isRequestCancelled(e)) throw e;
+            return null;
+          });
+          if (ctrl.signal.aborted) return;
           try {
-            await syncOdds();
-          } catch {
+            await syncOdds({ signal: ctrl.signal });
+          } catch (e) {
+            if (isRequestCancelled(e)) throw e;
             // Odds often land in the DB even when the HTTP response times out on
             // Render — still load Today so the phone/web UI updates without a full reload.
             syncSlow = true;
             setStatus('Sync is slow — loading what is saved…');
           }
         }
+        if (ctrl.signal.aborted) return;
         const cfg = await fetchPublicAppConfig();
         const books = cfg.odds_bookmakers?.length
           ? cfg.odds_bookmakers
@@ -403,7 +420,9 @@ export default function TodayScreen() {
           pingHealth().catch(() => null),
           loadMatchList(books),
         ]);
+        if (ctrl.signal.aborted) return;
         const { n, picks: all } = await loadScans(s, books);
+        if (ctrl.signal.aborted) return;
         const merged = enrichMatchesFromPicks(bettable, all);
         setPageIndex(0);
         setMatches(merged);
@@ -417,6 +436,7 @@ export default function TodayScreen() {
             : 'No matches yet — tap Load matches to sync.';
         setStatus(syncSlow ? `${base} · sync still catching up` : base);
       } catch (e) {
+        if (isRequestCancelled(e) || ctrl.signal.aborted) return;
         // Always try to paint whatever is already in the DB so Load matches
         // never requires a browser reload to show results.
         try {
@@ -443,6 +463,7 @@ export default function TodayScreen() {
         }
         setStatus(userFacingError(e));
       } finally {
+        if (syncAbortRef.current === ctrl) syncAbortRef.current = null;
         setBusy(false);
       }
     },
@@ -464,12 +485,18 @@ export default function TodayScreen() {
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerActions}>
-          <SyncHeaderButton onPress={onSyncOdds} disabled={busy} busy={busy} label="Load matches" />
+          <SyncHeaderButton
+            onPress={onSyncOdds}
+            onCancel={cancelSync}
+            disabled={busy}
+            busy={busy}
+            label="Load matches"
+          />
           <HelpHeaderButton />
         </View>
       ),
     });
-  }, [navigation, onSyncOdds, busy]);
+  }, [navigation, onSyncOdds, cancelSync, busy]);
 
   useEffect(() => {
     void refresh({ withOdds: false });
@@ -588,6 +615,7 @@ export default function TodayScreen() {
               <View style={styles.headerActions}>
                 <SyncHeaderButton
                   onPress={onSyncOdds}
+                  onCancel={cancelSync}
                   disabled={busy}
                   busy={busy}
                   showLabel
