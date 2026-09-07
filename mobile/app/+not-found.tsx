@@ -21,9 +21,9 @@ export default function NotFoundScreen() {
           </Pressable>
         </Link>
 
-        <Link href="/(tabs)/me" asChild>
+        <Link href="/(tabs)/account" asChild>
           <Pressable style={styles.link}>
-            <Text style={styles.linkText}>Sign in on Me</Text>
+            <Text style={styles.linkText}>Sign in on Account</Text>
           </Pressable>
         </Link>
       </View>
