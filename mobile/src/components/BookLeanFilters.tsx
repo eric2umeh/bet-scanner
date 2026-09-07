@@ -5,12 +5,19 @@ import { bookLabel } from '../lib/tipKey';
 import { colors } from '../theme/colors';
 import { LeanPctPanel } from './LeanPctPanel';
 
+export type LoggedFilterValue = 'all' | 'logged' | 'unlogged';
+
 type Props = {
   books: string[];
   bookValue: string;
   onBookChange: (value: string) => void;
   leanValue: number;
   onLeanChange: (minPct: number) => void;
+  /** When set, Logged status is included in the Filters control. */
+  loggedValue?: LoggedFilterValue;
+  onLoggedChange?: (value: LoggedFilterValue) => void;
+  /** Hide Lean section (e.g. Arb uses profit filter separately). */
+  hideLean?: boolean;
   /** Force one combined Filters button (default: auto by width). */
   forceCombined?: boolean;
 };
@@ -24,6 +31,12 @@ function leanTriggerLabel(value: number) {
 function bookTriggerLabel(books: string[], value: string) {
   if (value === 'all' || !value) return 'All books';
   return bookLabel(value);
+}
+
+function loggedTriggerLabel(value: LoggedFilterValue) {
+  if (value === 'logged') return 'Logged';
+  if (value === 'unlogged') return 'Unlogged';
+  return 'Logged: all';
 }
 
 function SheetClose({ onClose }: { onClose: () => void }) {
@@ -40,8 +53,44 @@ function SheetClose({ onClose }: { onClose: () => void }) {
   );
 }
 
+function LoggedOptions({
+  value,
+  onChange,
+  onDone,
+}: {
+  value: LoggedFilterValue;
+  onChange: (v: LoggedFilterValue) => void;
+  onDone?: () => void;
+}) {
+  const opts: { key: LoggedFilterValue; label: string }[] = [
+    { key: 'all', label: 'All tips' },
+    { key: 'logged', label: 'Logged only' },
+    { key: 'unlogged', label: 'Unlogged only' },
+  ];
+  return (
+    <>
+      {opts.map((o) => {
+        const on = o.key === value;
+        return (
+          <Pressable
+            key={o.key}
+            style={[styles.option, on && styles.optionOn]}
+            onPress={() => {
+              onChange(o.key);
+              onDone?.();
+            }}
+          >
+            <Text style={[styles.optionText, on && styles.optionTextOn]}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </>
+  );
+}
+
 /**
- * Bookmaker + Lean filters on one row when wide; one Filters sheet when narrow.
+ * Bookmaker + Lean (+ optional Logged) filters.
+ * Narrow: one Filters sheet. Wide: separate triggers.
  */
 export function BookLeanFilters({
   books,
@@ -49,12 +98,18 @@ export function BookLeanFilters({
   onBookChange,
   leanValue,
   onLeanChange,
+  loggedValue,
+  onLoggedChange,
+  hideLean,
   forceCombined,
 }: Props) {
   const { width } = useWindowDimensions();
   const combined = forceCombined ?? width < WIDE_MIN;
+  const showLogged = loggedValue != null && onLoggedChange != null;
+  const showLean = !hideLean;
   const [openBook, setOpenBook] = useState(false);
   const [openLean, setOpenLean] = useState(false);
+  const [openLogged, setOpenLogged] = useState(false);
   const [openAll, setOpenAll] = useState(false);
 
   const bookOptions = useMemo(
@@ -65,13 +120,19 @@ export function BookLeanFilters({
     [books]
   );
 
-  const filtersActive = bookValue !== 'all' || leanValue > 0;
+  const filtersActive =
+    bookValue !== 'all' ||
+    (showLean && leanValue > 0) ||
+    (showLogged && loggedValue !== 'all');
+
   const combinedLabel = useMemo(() => {
     const parts: string[] = [];
     if (bookValue !== 'all') parts.push(bookLabel(bookValue));
-    if (leanValue > 0) parts.push(`≥${leanValue}%`);
+    if (showLean && leanValue > 0) parts.push(`≥${leanValue}%`);
+    if (showLogged && loggedValue === 'logged') parts.push('Logged');
+    if (showLogged && loggedValue === 'unlogged') parts.push('Unlogged');
     return parts.length ? parts.join(' · ') : 'Filters';
-  }, [bookValue, leanValue]);
+  }, [bookValue, leanValue, loggedValue, showLean, showLogged]);
 
   if (combined) {
     return (
@@ -98,7 +159,8 @@ export function BookLeanFilters({
                     <Pressable
                       onPress={() => {
                         onBookChange('all');
-                        onLeanChange(0);
+                        if (showLean) onLeanChange(0);
+                        if (showLogged) onLoggedChange('all');
                       }}
                       hitSlop={8}
                     >
@@ -131,15 +193,31 @@ export function BookLeanFilters({
                 </>
               ) : null}
 
-              <Text style={styles.section}>Lean %</Text>
-              <LeanPctPanel
-                value={leanValue}
-                onChange={onLeanChange}
-                onCommit={(v) => {
-                  onLeanChange(v);
-                  setOpenAll(false);
-                }}
-              />
+              {showLean ? (
+                <>
+                  <Text style={styles.section}>Lean %</Text>
+                  <LeanPctPanel
+                    value={leanValue}
+                    onChange={onLeanChange}
+                    onCommit={(v) => {
+                      onLeanChange(v);
+                      setOpenAll(false);
+                    }}
+                  />
+                </>
+              ) : null}
+
+              {showLogged ? (
+                <>
+                  {showLean ? <View style={styles.divider} /> : null}
+                  <Text style={styles.section}>Logged</Text>
+                  <LoggedOptions
+                    value={loggedValue}
+                    onChange={onLoggedChange}
+                    onDone={() => setOpenAll(false)}
+                  />
+                </>
+              ) : null}
             </Pressable>
           </Pressable>
         </Modal>
@@ -152,12 +230,15 @@ export function BookLeanFilters({
       {books.length > 0 ? (
         <>
           <Pressable
-            style={styles.trigger}
+            style={[styles.trigger, bookValue !== 'all' && styles.triggerActive]}
             onPress={() => setOpenBook(true)}
             accessibilityRole="button"
             accessibilityLabel={`Bookmaker: ${bookTriggerLabel(books, bookValue)}`}
           >
-            <Text style={styles.triggerText} numberOfLines={1}>
+            <Text
+              style={[styles.triggerText, bookValue !== 'all' && styles.triggerTextActive]}
+              numberOfLines={1}
+            >
               {bookTriggerLabel(books, bookValue)}
             </Text>
             <Text style={styles.chevron}>▾</Text>
@@ -190,39 +271,82 @@ export function BookLeanFilters({
         </>
       ) : null}
 
-      <Pressable
-        style={[styles.trigger, leanValue > 0 && styles.triggerActive]}
-        onPress={() => setOpenLean(true)}
-        accessibilityRole="button"
-        accessibilityLabel={leanTriggerLabel(leanValue)}
-      >
-        <Text
-          style={[styles.triggerText, leanValue > 0 && styles.triggerTextActive]}
-          numberOfLines={1}
-        >
-          {leanTriggerLabel(leanValue)}
-        </Text>
-        <Text style={styles.chevron}>▾</Text>
-      </Pressable>
-
-      <Modal visible={openLean} transparent animationType="fade" onRequestClose={() => setOpenLean(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpenLean(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.sheetHead}>
-              <Text style={styles.titleInline}>Lean %</Text>
-              <SheetClose onClose={() => setOpenLean(false)} />
-            </View>
-            <LeanPctPanel
-              value={leanValue}
-              onChange={onLeanChange}
-              onCommit={(v) => {
-                onLeanChange(v);
-                setOpenLean(false);
-              }}
-            />
+      {showLean ? (
+        <>
+          <Pressable
+            style={[styles.trigger, leanValue > 0 && styles.triggerActive]}
+            onPress={() => setOpenLean(true)}
+            accessibilityRole="button"
+            accessibilityLabel={leanTriggerLabel(leanValue)}
+          >
+            <Text
+              style={[styles.triggerText, leanValue > 0 && styles.triggerTextActive]}
+              numberOfLines={1}
+            >
+              {leanTriggerLabel(leanValue)}
+            </Text>
+            <Text style={styles.chevron}>▾</Text>
           </Pressable>
-        </Pressable>
-      </Modal>
+
+          <Modal visible={openLean} transparent animationType="fade" onRequestClose={() => setOpenLean(false)}>
+            <Pressable style={styles.backdrop} onPress={() => setOpenLean(false)}>
+              <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+                <View style={styles.sheetHead}>
+                  <Text style={styles.titleInline}>Lean %</Text>
+                  <SheetClose onClose={() => setOpenLean(false)} />
+                </View>
+                <LeanPctPanel
+                  value={leanValue}
+                  onChange={onLeanChange}
+                  onCommit={(v) => {
+                    onLeanChange(v);
+                    setOpenLean(false);
+                  }}
+                />
+              </Pressable>
+            </Pressable>
+          </Modal>
+        </>
+      ) : null}
+
+      {showLogged ? (
+        <>
+          <Pressable
+            style={[styles.trigger, loggedValue !== 'all' && styles.triggerActive]}
+            onPress={() => setOpenLogged(true)}
+            accessibilityRole="button"
+            accessibilityLabel={loggedTriggerLabel(loggedValue)}
+          >
+            <Text
+              style={[styles.triggerText, loggedValue !== 'all' && styles.triggerTextActive]}
+              numberOfLines={1}
+            >
+              {loggedTriggerLabel(loggedValue)}
+            </Text>
+            <Text style={styles.chevron}>▾</Text>
+          </Pressable>
+          <Modal
+            visible={openLogged}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setOpenLogged(false)}
+          >
+            <Pressable style={styles.backdrop} onPress={() => setOpenLogged(false)}>
+              <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+                <View style={styles.sheetHead}>
+                  <Text style={styles.titleInline}>Logged</Text>
+                  <SheetClose onClose={() => setOpenLogged(false)} />
+                </View>
+                <LoggedOptions
+                  value={loggedValue}
+                  onChange={onLoggedChange}
+                  onDone={() => setOpenLogged(false)}
+                />
+              </Pressable>
+            </Pressable>
+          </Modal>
+        </>
+      ) : null}
     </View>
   );
 }
@@ -244,7 +368,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 8,
-    maxWidth: 128,
+    maxWidth: 140,
     flexShrink: 0,
   },
   triggerActive: {
