@@ -44,7 +44,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Today',
     question: 'What does the Logged checkbox do?',
     answer:
-      'On Today, next to Filters, tap Logged to cycle: all tips → only tips you already logged (struck through) → only tips you have not logged yet → all again. Use Unlogged when you want fresh picks to place.',
+      'On Today, open Filters and set Logged to All / Logged only / Unlogged only. Use Unlogged when you want tips you have not logged yet.',
     keywords: ['logged', 'unlogged', 'filter', 'checkbox', 'struck', 'tips'],
   },
   {
@@ -100,7 +100,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'How do I use the Arb tab?',
     answer:
-      'Refresh prices on Today first (↻). Open Arb → Find surebets. The scan covers 1X2, O/U 0.5/1.5/2.5, and BTTS across books with fresh odds — best price per outcome, always from ≥2 books. Copy the stake plan and place legs quickly. True arbs are rare; more books help, but the free odds-api plan only allows 2 recreational books.',
+      'Refresh prices on Today first (↻). Open Arb → Find surebets. By default the scan uses your configured books (e.g. SportyBet + MelBet from ODDS_API_IO_BOOKMAKERS). Names like Pinnacle, Matchbook, Unibet_nl are European books from the-odds-api — turn on “all books” only if you can place there. Copy or Log a stake plan; History keeps logged surebets.',
     keywords: ['arb', 'how', 'steps', 'stake', 'plan', 'surebet'],
   },
   {
