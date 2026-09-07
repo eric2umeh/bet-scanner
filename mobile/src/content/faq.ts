@@ -100,7 +100,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'How do I use the Arb tab?',
     answer:
-      'Refresh prices on Today first (↻). Open Arb → Find Nigeria surebets. Default scan: 1X2, O/U, BTTS, and team totals (both sides). Optional “DC coverage” is exclusive DC vs opposite 1X2 — not a classic surebet. International adds EU books (incl. O/U from the-odds-api). Copy or Log a stake plan; History keeps logged surebets.',
+      'Refresh prices on Today first (↻). Open Arb → Find Nigeria surebets. Default scan: 1X2, O/U, BTTS, and team totals (both sides). International adds EU books (incl. O/U from the-odds-api). Copy or Log a stake plan; History keeps logged surebets.',
     keywords: ['arb', 'how', 'steps', 'stake', 'plan', 'surebet'],
   },
   {
