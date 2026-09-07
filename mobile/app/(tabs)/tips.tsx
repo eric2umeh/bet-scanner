@@ -26,6 +26,7 @@ import {
 import { isAuthError, userFacingError } from '../../src/api/client';
 import { BookLeanFilters } from '../../src/components/BookLeanFilters';
 import { DatePickerField } from '../../src/components/DatePickerField';
+import { HorizontalChipScroll } from '../../src/components/HorizontalChipScroll';
 import { LeanBar } from '../../src/components/LeanBar';
 import { PaginationBar } from '../../src/components/PaginationBar';
 import { SignInRequiredBanner } from '../../src/components/SignInRequiredBanner';
@@ -640,13 +641,7 @@ export default function TipsScreen() {
               />
             </View>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.filters}
-              contentContainerStyle={styles.filterRow}
-              keyboardShouldPersistTaps="handled"
-            >
+            <HorizontalChipScroll style={styles.filters} contentContainerStyle={styles.filterRow}>
               {MARKET_CHIPS.map((c) => (
                 <Pressable
                   key={c.id}
@@ -658,7 +653,7 @@ export default function TipsScreen() {
                   </Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </HorizontalChipScroll>
 
             <Pressable
               style={[styles.settlePrimary, busy && styles.disabled]}
