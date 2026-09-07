@@ -19,6 +19,7 @@ import {
 import { fetchPublicAppConfig } from '../api/appConfig';
 import { createTip, fetchTipsPage, type TipOut } from '../api/tips';
 import { BookLeanFilters } from './BookLeanFilters';
+import { DatePickerField } from './DatePickerField';
 import { HorizontalChipScroll } from './HorizontalChipScroll';
 import { PaginationBar } from './PaginationBar';
 import { useAppModal } from './modal';
@@ -44,6 +45,22 @@ const MARKET_CHIPS: { id: MarketChip; label: string }[] = [
 ];
 
 const PAGE_SIZE_DEFAULT = 10;
+
+function toLocalIsoDate(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Match kickoff to a local calendar day (YYYY-MM-DD). Empty filter = any day. */
+function kickoffOnDate(kickoffAt: string | null | undefined, isoDate: string): boolean {
+  if (!isoDate) return true;
+  if (!kickoffAt) return false;
+  const d = new Date(kickoffAt);
+  if (Number.isNaN(d.getTime())) return false;
+  return toLocalIsoDate(d) === isoDate;
+}
 
 function selLabel(sel: string, market?: string) {
   const s = (sel || '').toLowerCase();
@@ -101,6 +118,8 @@ export function ArbitragePanel({ onFlash }: Props) {
   const [clockTick, setClockTick] = useState(0);
   const [sampleStake, setSampleStake] = useState('50000');
   const [searchQ, setSearchQ] = useState('');
+  /** Default today so future-dated arbs don't dominate the list. Clear = all days. */
+  const [dateFilter, setDateFilter] = useState(() => toLocalIsoDate());
   const [marketFilter, setMarketFilter] = useState<MarketChip>('all');
   const [bookFilter, setBookFilter] = useState('all');
   const [minProfitPct, setMinProfitPct] = useState(0);
@@ -210,6 +229,7 @@ export function ArbitragePanel({ onFlash }: Props) {
     const q = searchQ.trim().toLowerCase();
     return opps.filter((o) => {
       if (!isKickoffUpcoming(o.kickoff_at)) return false;
+      if (!kickoffOnDate(o.kickoff_at, dateFilter)) return false;
       if (marketFilter !== 'all' && String(o.market) !== marketFilter) return false;
       if (minProfitPct > 0 && Number(o.profit_pct) < minProfitPct) return false;
       if (bookFilter !== 'all') {
@@ -222,21 +242,27 @@ export function ArbitragePanel({ onFlash }: Props) {
       }
       return true;
     });
-  }, [opps, marketFilter, bookFilter, minProfitPct, searchQ, clockTick]);
+  }, [opps, marketFilter, bookFilter, minProfitPct, searchQ, dateFilter, clockTick]);
 
   const chipCounts = useMemo(() => {
-    const base = opps.filter((o) => isKickoffUpcoming(o.kickoff_at));
+    const base = opps.filter(
+      (o) => isKickoffUpcoming(o.kickoff_at) && kickoffOnDate(o.kickoff_at, dateFilter)
+    );
     const counts: Partial<Record<MarketChip, number>> = { all: base.length };
     for (const o of base) {
       const m = String(o.market || '') as MarketChip;
       counts[m] = (counts[m] || 0) + 1;
     }
     return counts;
-  }, [opps, clockTick]);
+  }, [opps, dateFilter, clockTick]);
 
   useEffect(() => {
     setPageIndex(0);
-  }, [searchQ, marketFilter, bookFilter, minProfitPct, pageSize]);
+  }, [searchQ, marketFilter, bookFilter, minProfitPct, dateFilter, pageSize]);
+
+  useEffect(() => {
+    setHistPageIndex(0);
+  }, [dateFilter, histPageSize]);
 
   const totalPages = filteredOpps.length
     ? Math.max(1, Math.ceil(filteredOpps.length / pageSize))
@@ -246,14 +272,20 @@ export function ArbitragePanel({ onFlash }: Props) {
     return filteredOpps.slice(start, start + pageSize);
   }, [filteredOpps, pageIndex, pageSize]);
 
-  const histTotalPages = history.length
-    ? Math.max(1, Math.ceil(history.length / histPageSize))
-    : 0;
   const pagedHistory = useMemo(() => {
+    const list = history.filter((t) => kickoffOnDate(t.kickoff_at, dateFilter));
     const start = histPageIndex * histPageSize;
-    return history.slice(start, start + histPageSize);
-  }, [history, histPageIndex, histPageSize]);
+    return list.slice(start, start + histPageSize);
+  }, [history, histPageIndex, histPageSize, dateFilter]);
 
+  const histFilteredCount = useMemo(
+    () => history.filter((t) => kickoffOnDate(t.kickoff_at, dateFilter)).length,
+    [history, dateFilter]
+  );
+
+  const histTotalPages = histFilteredCount
+    ? Math.max(1, Math.ceil(histFilteredCount / histPageSize))
+    : 0;
   const bestProfit = filteredOpps.length
     ? Math.max(...filteredOpps.map((o) => Number(o.profit_pct) || 0))
     : 0;
@@ -410,6 +442,12 @@ export function ArbitragePanel({ onFlash }: Props) {
               autoCapitalize="none"
               autoCorrect={false}
             />
+            <DatePickerField
+              value={dateFilter}
+              onChange={setDateFilter}
+              placeholder="Date"
+              style={styles.dateField}
+            />
             <BookLeanFilters
               books={booksForFilter}
               bookValue={bookFilter}
@@ -439,10 +477,11 @@ export function ArbitragePanel({ onFlash }: Props) {
 
           {!filteredOpps.length && !busy ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>No surebets right now</Text>
+              <Text style={styles.emptyTitle}>No surebets for this view</Text>
               <Text style={styles.emptyText}>
-                True arbs are rare on SportyBet/MelBet. Sync Today first, then Find surebets.
-                “All books” includes European books from the-odds-api (not SportyBet).
+                {dateFilter
+                  ? `Nothing for ${dateFilter}. Clear the date (×) to see other days, or Find surebets again.`
+                  : 'True arbs are rare on SportyBet/MelBet. Sync Today first, then Find surebets. “All books” includes European books from the-odds-api (not SportyBet).'}
               </Text>
             </View>
           ) : null}
@@ -475,19 +514,29 @@ export function ArbitragePanel({ onFlash }: Props) {
       ) : (
         <>
           <Text style={styles.hint}>Logged surebets (source: arbitrage). Tap Find surebets on Scan, then Log.</Text>
-          <Pressable
-            style={[styles.btnSecondary, busy && styles.disabled]}
-            disabled={busy}
-            onPress={() => void loadHistory()}
-          >
-            <Text style={styles.btnSecondaryText}>Refresh history</Text>
-          </Pressable>
+          <View style={styles.filterTools}>
+            <DatePickerField
+              value={dateFilter}
+              onChange={setDateFilter}
+              placeholder="Kickoff date"
+              style={styles.dateField}
+            />
+            <Pressable
+              style={[styles.btnSecondaryInline, busy && styles.disabled]}
+              disabled={busy}
+              onPress={() => void loadHistory()}
+            >
+              <Text style={styles.btnSecondaryText}>Refresh</Text>
+            </Pressable>
+          </View>
 
           {!pagedHistory.length && !busy ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>No logged surebets yet</Text>
+              <Text style={styles.emptyTitle}>No logged surebets</Text>
               <Text style={styles.emptyText}>
-                On Scan, tap Log surebet on a card to save it here.
+                {dateFilter
+                  ? `Nothing for ${dateFilter}. Clear the date (×) or Log a surebet from Scan.`
+                  : 'On Scan, tap Log surebet on a card to save it here.'}
               </Text>
             </View>
           ) : null}
@@ -512,7 +561,7 @@ export function ArbitragePanel({ onFlash }: Props) {
             </View>
           ))}
 
-          {history.length > 0 ? (
+          {histFilteredCount > 0 ? (
             <PaginationBar
               page={histPageIndex + 1}
               totalPages={histTotalPages}
@@ -696,6 +745,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 13,
+  },
+  dateField: { flexShrink: 0 },
+  btnSecondaryInline: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: 'center',
   },
   allBooksToggle: {
     marginBottom: 10,
