@@ -48,7 +48,7 @@ FILES
 
   mobile/src/components/EdgePanel.tsx
   mobile/src/components/AdvancedTools.tsx
-  mobile/app/(tabs)/me.tsx
+  mobile/app/(tabs)/account.tsx
   mobile/src/api/edge.ts
   docs/PHASE_13A_EDGE_NATIVE.txt
 

@@ -9,8 +9,42 @@ Goal:
 Prerequisites:
   - Phase 11F EAS config (mobile/eas.json) — done
   - Live API on Render (or similar): https://bet-scanner-znvg.onrender.com
-  - Expo account (owner: eric2umeh) — projectId in app.json
+  - Expo account — projectId in app.config.js
   - Google Play Developer account ($25 one-time)
+
+
+--------------------------------------------------------------------------------
+PHASE 0 — CLOSED / INTERNAL TESTING (do this first for Instagram trust)
+--------------------------------------------------------------------------------
+
+  Outcome: a Play install link you can share (testers only), not full public launch.
+
+  1) Preflight:
+       python scripts/check_eas_release.py
+
+  2) EAS secrets (production API baked into the store build — not laptop .env):
+       cd mobile && eas login && eas secret:list --scope project
+     Create if missing:
+       EXPO_PUBLIC_API_URL=https://bet-scanner-znvg.onrender.com
+       EXPO_PUBLIC_SUPABASE_URL=…
+       EXPO_PUBLIC_SUPABASE_ANON_KEY=…
+       EXPO_PUBLIC_APP_API_KEY=…   (same as Render APP_API_KEY if set)
+
+  3) Confirm support / legal URLs (already in repo):
+       https://bet-scanner-znvg.onrender.com/privacy
+       https://bet-scanner-znvg.onrender.com/delete-account
+     Support email on those pages: betscout.tech@gmail.com
+
+  4) Build Android App Bundle:
+       cd mobile && npm run build:production
+     (or: eas build --platform android --profile production)
+
+  5) Play Console → Create app “Bet Scout” if needed → Testing → Internal testing
+     Upload the .aab → add your email + a few tester emails → copy the opt-in link.
+
+  6) Only then share Instagram / outreach with that Play testing link.
+
+  After Phase 0 feels solid → continue STEP 3 (store listing) → production track.
 
 
 --------------------------------------------------------------------------------

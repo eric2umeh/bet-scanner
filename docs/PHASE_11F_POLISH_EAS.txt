@@ -63,7 +63,7 @@ FILES
 
   mobile/src/components/ConnectionBanner.tsx
   mobile/app/_layout.tsx
-  mobile/app/(tabs)/me.tsx
+  mobile/app/(tabs)/account.tsx
   mobile/app/(tabs)/tips.tsx
   mobile/app/(tabs)/index.tsx
   mobile/app/match/[id].tsx

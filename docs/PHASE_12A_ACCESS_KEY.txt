@@ -71,7 +71,7 @@ FILES
   .env.example
   mobile/app/onboarding.tsx
   mobile/app/_layout.tsx
-  mobile/app/(tabs)/me.tsx
+  mobile/app/(tabs)/account.tsx
   mobile/src/api/client.ts
   mobile/src/store/accessKey.ts
   mobile/src/store/onboarding.ts

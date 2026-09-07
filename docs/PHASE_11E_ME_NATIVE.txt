@@ -44,7 +44,7 @@ NOTE
 FILES
 --------------------------------------------------------------------------------
 
-  mobile/app/(tabs)/me.tsx
+  mobile/app/(tabs)/account.tsx
   mobile/src/api/convert.ts
   mobile/src/api/ops.ts
   docs/PHASE_11E_ME_NATIVE.txt

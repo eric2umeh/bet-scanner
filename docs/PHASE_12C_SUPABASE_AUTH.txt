@@ -90,7 +90,7 @@ FILES
   mobile/src/lib/supabase.ts
   mobile/src/store/session.ts
   mobile/src/api/client.ts
-  mobile/app/(tabs)/me.tsx
+  mobile/app/(tabs)/account.tsx
   mobile/app/_layout.tsx
   docs/PHASE_12C_SUPABASE_AUTH.txt
 
