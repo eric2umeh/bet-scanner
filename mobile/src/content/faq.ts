@@ -100,7 +100,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'How do I use the Arb tab?',
     answer:
-      'Refresh prices on Today first (↻). Open Arb → Find surebets. By default the scan uses your configured books (e.g. SportyBet + MelBet from ODDS_API_IO_BOOKMAKERS). Names like Pinnacle, Matchbook, Unibet_nl are European books from the-odds-api — turn on “all books” only if you can place there. Copy or Log a stake plan; History keeps logged surebets.',
+      'Refresh prices on Today first (↻). Open Arb → Find Nigeria surebets. Default scan: 1X2, O/U, BTTS, and team totals (both sides). Optional “DC coverage” is exclusive DC vs opposite 1X2 — not a classic surebet. International adds EU books (incl. O/U from the-odds-api). Copy or Log a stake plan; History keeps logged surebets.',
     keywords: ['arb', 'how', 'steps', 'stake', 'plan', 'surebet'],
   },
   {

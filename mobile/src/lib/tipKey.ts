@@ -41,6 +41,14 @@ export function marketLabel(market: string): string {
   if (m === 'ou_2_5') return 'O/U 2.5';
   if (m === 'btts') return 'BTTS';
   if (m === 'tt_2_5') return 'Team 3+';
+  if (m === 'tt_2_5_home') return 'Home Team 3+';
+  if (m === 'tt_2_5_away') return 'Away Team 3+';
+  if (m.startsWith('coverage_dc_1x')) return 'Cover: 1X vs Away';
+  if (m.startsWith('coverage_dc_x2')) return 'Cover: X2 vs Home';
+  if (m.startsWith('coverage_dc_12')) return 'Cover: 12 vs Draw';
+  if (m.startsWith('coverage_')) return 'DC coverage';
+  if (m.startsWith('ah_')) return 'Asian HCP';
+  if (m.startsWith('corners_')) return 'Corners';
   return market;
 }
 
