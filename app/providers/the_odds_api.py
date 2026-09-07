@@ -1,7 +1,7 @@
 """
 Provider: The Odds API (free tier ~500 requests / month)
 
-Good for: bookmaker odds (1X2 / h2h) from many global books.
+Good for: bookmaker odds (1X2 / h2h, optional totals) from many global books.
 Not NG books (SportyBet/Bet9ja) yet — those come later via other sources.
 This still teaches the odds table + snapshot pattern for free.
 
@@ -9,7 +9,7 @@ Sign up: https://the-odds-api.com/
 Docs:    https://the-odds-api.com/liveapi/guides/v4/
 
 Example:
-  GET /v4/sports/soccer_epl/odds?regions=uk,eu&markets=h2h&oddsFormat=decimal&apiKey=KEY
+  GET /v4/sports/soccer_epl/odds?regions=uk,eu&markets=h2h,totals&oddsFormat=decimal&apiKey=KEY
 """
 
 from datetime import datetime, timezone
@@ -63,10 +63,14 @@ class TheOddsApiProvider:
 
     def _fetch_sport(self, sport_key: str) -> list[OddQuote]:
         url = f"{self.BASE_URL}/sports/{sport_key}/odds"
+        # Phase D: optional totals so EU books contribute O/U surebets (extra credits).
+        markets = "h2h"
+        if bool(getattr(self.settings, "odds_api_include_totals", True)):
+            markets = "h2h,totals"
         params = {
             "apiKey": self.api_key,
             "regions": self.settings.odds_regions,
-            "markets": "h2h",          # 1X2 style home/draw/away
+            "markets": markets,
             "oddsFormat": "decimal",
             "dateFormat": "iso",
         }
@@ -77,7 +81,7 @@ class TheOddsApiProvider:
         remaining = response.headers.get("x-requests-remaining")
         used = response.headers.get("x-requests-used")
         print(
-            f"[the-odds-api] {response.status_code} {sport_key} "
+            f"[the-odds-api] {response.status_code} {sport_key} markets={markets} "
             f"used={used} remaining={remaining}"
         )
 
@@ -117,30 +121,78 @@ class TheOddsApiProvider:
         for book in event.get("bookmakers") or []:
             bookmaker = (book.get("key") or book.get("title") or "unknown").lower()
             for market in book.get("markets") or []:
-                if market.get("key") != "h2h":
-                    continue
-                for outcome in market.get("outcomes") or []:
-                    selection = _selection_from_outcome(outcome.get("name"), home, away)
-                    price = outcome.get("price")
-                    if selection is None or price is None:
-                        continue
-                    quotes.append(
-                        OddQuote(
-                            external_match_id=event_id,
-                            provider=self.name,
-                            home_team=home,
-                            away_team=away,
-                            kickoff_at=kickoff,
-                            competition_code=code,
-                            competition_name=name,
-                            bookmaker=bookmaker,
-                            market="1X2",
-                            selection=selection,
-                            price=Decimal(str(price)),
-                            captured_at=now,
+                mkey = str(market.get("key") or "")
+                if mkey == "h2h":
+                    for outcome in market.get("outcomes") or []:
+                        selection = _selection_from_outcome(
+                            outcome.get("name"), home, away
                         )
-                    )
+                        price = outcome.get("price")
+                        if selection is None or price is None:
+                            continue
+                        quotes.append(
+                            OddQuote(
+                                external_match_id=event_id,
+                                provider=self.name,
+                                home_team=home,
+                                away_team=away,
+                                kickoff_at=kickoff,
+                                competition_code=code,
+                                competition_name=name,
+                                bookmaker=bookmaker,
+                                market="1X2",
+                                selection=selection,
+                                price=Decimal(str(price)),
+                                captured_at=now,
+                            )
+                        )
+                elif mkey == "totals":
+                    for outcome in market.get("outcomes") or []:
+                        mapped = _totals_quote(outcome)
+                        if mapped is None:
+                            continue
+                        market_key, selection, price = mapped
+                        quotes.append(
+                            OddQuote(
+                                external_match_id=event_id,
+                                provider=self.name,
+                                home_team=home,
+                                away_team=away,
+                                kickoff_at=kickoff,
+                                competition_code=code,
+                                competition_name=name,
+                                bookmaker=bookmaker,
+                                market=market_key,
+                                selection=selection,
+                                price=price,
+                                captured_at=now,
+                            )
+                        )
         return quotes
+
+
+def _totals_quote(outcome: dict) -> tuple[str, str, Decimal] | None:
+    """Map the-odds-api totals outcomes → ou_0_5 / ou_1_5 / ou_2_5."""
+    name = str(outcome.get("name") or "").strip().lower()
+    if name not in {"over", "under"}:
+        return None
+    point = outcome.get("point")
+    try:
+        line = float(point)
+    except (TypeError, ValueError):
+        return None
+    wanted = {0.5: "ou_0_5", 1.5: "ou_1_5", 2.5: "ou_2_5"}
+    market_key = None
+    for target, key in wanted.items():
+        if abs(line - target) < 0.01:
+            market_key = key
+            break
+    if not market_key:
+        return None
+    price = outcome.get("price")
+    if price is None:
+        return None
+    return market_key, name, Decimal(str(price))
 
 
 def _selection_from_outcome(name: str | None, home: str, away: str) -> str | None:
