@@ -12,7 +12,7 @@ type Props = {
 
 export function AccessDeniedPanel({
   title = 'Sign in required',
-  message = 'Sign in on Me to use this page on this server.',
+  message = 'Sign in on Account to use this page on this server.',
   actionLabel = 'Go to sign in',
   onAction,
 }: Props) {
@@ -24,7 +24,7 @@ export function AccessDeniedPanel({
       <Text style={styles.text}>{message}</Text>
       <Pressable
         style={styles.btn}
-        onPress={onAction ?? (() => router.push('/(tabs)/me'))}
+        onPress={onAction ?? (() => router.push('/(tabs)/account'))}
       >
         <Text style={styles.btnText}>{actionLabel}</Text>
       </Pressable>
