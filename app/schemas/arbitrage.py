@@ -72,6 +72,10 @@ class ArbOpportunityOut(BaseModel):
     competition_code: str
     kickoff_at: datetime
     market: str
+    product: str = Field(
+        default="surebet",
+        description="surebet (default) or coverage (Phase C exclusive DC pairs)",
+    )
     profit_pct: Decimal
     implied_sum: Decimal
     legs: list[ScanLegOut]
@@ -92,7 +96,9 @@ class ScanResponse(BaseModel):
     max_odds_age_minutes: int
     books_scanned: list[str] = Field(
         default_factory=list,
-        description="Bookmakers with fresh 1X2 / O/U / BTTS odds included in this scan",
+        description="Bookmakers with fresh odds included in this scan",
     )
     opportunities: list[ArbOpportunityOut]
     message: str
+    include_coverage: bool = False
+    coverage_count: int = 0
