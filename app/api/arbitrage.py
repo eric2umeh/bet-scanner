@@ -18,7 +18,7 @@ from app.schemas.arbitrage import (
     CalculateResponse,
     ScanResponse,
 )
-from app.services.scan_arbitrage import calculate_from_request, scan_1x2_arbs
+from app.services.scan_arbitrage import calculate_from_request, scan_arbs
 
 router = APIRouter(prefix="/arbitrage", tags=["arbitrage"])
 
@@ -47,23 +47,23 @@ def scan_arbitrage(
     bookmakers: str | None = Query(
         default=None,
         description=(
-            "Optional comma list to limit books, e.g. sportybet,onexbet. "
-            "Omit to scan every bookmaker with fresh 1X2 odds in the DB."
+            "Optional comma list to limit books, e.g. sportybet,melbet. "
+            "Omit to scan every bookmaker with fresh 1X2 / O/U / BTTS odds."
         ),
     ),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> ScanResponse:
     """
-    Scan stored 1X2 odds for surebets.
+    Scan stored odds for surebets: 1X2 (3-way), O/U 0.5/1.5/2.5 and BTTS (2-way).
 
-    Uses best home / draw / away prices across all synced bookmakers (unless
-    bookmakers= filter is set). Each opportunity lists which book each leg uses.
+    Best price per outcome across books; requires ≥2 distinct books and a complete
+    mutually exclusive outcome set for the same event + market + line.
     """
     allowed = None
     if bookmakers:
         allowed = {b.strip().lower() for b in bookmakers.split(",") if b.strip()}
-    result = scan_1x2_arbs(
+    result = scan_arbs(
         db,
         settings,
         min_profit_pct=min_profit_pct,
