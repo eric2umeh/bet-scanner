@@ -32,6 +32,14 @@ export const FAQ_ITEMS: FaqItem[] = [
     keywords: ['load', 'real', 'bets', 'sync', 'odds'],
   },
   {
+    id: 'today-open-book',
+    category: 'Today',
+    question: 'How do I open a match in my bookmaker app?',
+    answer:
+      'On Today, tap the book name with ↗ under a match (e.g. “SportyBet ↗” or “MelBet ↗”), or “Open in …” on the match screen. The label follows the book filter you picked, or the tip’s bookmaker. Bet Scout opens a team search — books rarely publish exact match links, so pick the right fixture if several appear.',
+    keywords: ['sportybet', 'melbet', '1xbet', 'open', 'app', 'deep', 'link', 'search', 'place', 'bookmaker'],
+  },
+  {
     id: 'today-log',
     category: 'Today',
     question: 'How do I log tips from Today?',
