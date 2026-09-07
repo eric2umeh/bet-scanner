@@ -137,28 +137,32 @@ async function fetchOnce<T>(path: string, init?: RequestInit, timeoutMs = DEFAUL
 async function fetchJson<T>(
   path: string,
   init?: RequestInit,
-  timeoutMs = DEFAULT_TIMEOUT_MS
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  retry = true
 ): Promise<T> {
   try {
     return await fetchOnce<T>(path, init, timeoutMs);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     // One retry — often the first call only woke the dyno
-    if (msg === TIMEOUT_USER_MSG || msg === NETWORK_USER_MSG) {
+    if (retry && (msg === TIMEOUT_USER_MSG || msg === NETWORK_USER_MSG)) {
       return fetchOnce<T>(path, init, timeoutMs);
     }
     throw e;
   }
 }
 
-export async function getJson<T>(path: string, opts?: { timeoutMs?: number }): Promise<T> {
-  return fetchJson<T>(path, undefined, opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+export async function getJson<T>(
+  path: string,
+  opts?: { timeoutMs?: number; retry?: boolean }
+): Promise<T> {
+  return fetchJson<T>(path, undefined, opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS, opts?.retry !== false);
 }
 
 export async function postJson<T>(
   path: string,
   body: unknown = {},
-  opts?: { timeoutMs?: number }
+  opts?: { timeoutMs?: number; retry?: boolean }
 ): Promise<T> {
   return fetchJson<T>(
     path,
@@ -167,7 +171,8 @@ export async function postJson<T>(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     },
-    opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS
+    opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    opts?.retry !== false
   );
 }
 
