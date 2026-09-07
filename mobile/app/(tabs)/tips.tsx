@@ -578,6 +578,13 @@ export default function TipsScreen() {
           <RefreshControl refreshing={busy} onRefresh={() => reloadAll()} tintColor={colors.accent} />
         }
       >
+        {!needsSignIn && stats ? (
+          <Text style={styles.statusLine} numberOfLines={2}>
+            {stats.hit_rate_pct ?? '—'}% hit · {stats.won} won · {stats.lost} lost · {stats.pending}{' '}
+            pending
+          </Text>
+        ) : null}
+
         <View style={styles.tabRow}>
           <Pressable
             style={[styles.tabBtn, tab === 'active' && styles.tabBtnOn]}
@@ -596,27 +603,6 @@ export default function TipsScreen() {
         {status ? <Text style={styles.status}>{status}</Text> : null}
 
         {needsSignIn ? <SignInRequiredBanner /> : null}
-
-        {!needsSignIn && stats ? (
-          <View style={styles.stats}>
-            <View style={styles.stat}>
-              <Text style={styles.statVal}>{stats.hit_rate_pct ?? '—'}%</Text>
-              <Text style={styles.statLabel}>Hit rate</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={styles.statVal}>{stats.won}</Text>
-              <Text style={styles.statLabel}>Won</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={styles.statVal}>{stats.lost}</Text>
-              <Text style={styles.statLabel}>Lost</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={styles.statVal}>{stats.pending}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
-            </View>
-          </View>
-        ) : null}
 
         {!needsSignIn ? (
           <>
@@ -840,6 +826,12 @@ const styles = StyleSheet.create({
   tabTextOn: { color: colors.accent },
   muted: { color: colors.muted, marginTop: 6, fontSize: 13, lineHeight: 18 },
   status: { color: colors.ink, marginTop: 6, fontSize: 12 },
+  statusLine: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 10,
+  },
   filters: { marginTop: 8, marginBottom: 4, maxHeight: 44 },
   filterTools: {
     flexDirection: 'row',
@@ -879,19 +871,6 @@ const styles = StyleSheet.create({
   chipOn: { borderColor: colors.accent, backgroundColor: colors.accentDim },
   chipText: { color: colors.muted, fontWeight: '600', fontSize: 12 },
   chipTextOn: { color: colors.accent },
-  stats: { flexDirection: 'row', gap: 6, marginTop: 8 },
-  stat: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-  },
-  statVal: { color: colors.ink, fontWeight: '800', fontSize: 14 },
-  statLabel: { color: colors.muted, fontSize: 10, marginTop: 1 },
   row: { flexDirection: 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' },
   btn: {
     backgroundColor: colors.accent,
