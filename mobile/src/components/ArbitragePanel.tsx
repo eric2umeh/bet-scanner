@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useNavigation } from 'expo-router';
 
 import {
   formatSurebetPlan,
@@ -21,8 +22,10 @@ import { isRequestCancelled, userFacingError } from '../api/client';
 import { createTip, fetchTipsPage, type TipOut } from '../api/tips';
 import { BookLeanFilters } from './BookLeanFilters';
 import { DatePickerField } from './DatePickerField';
+import { HelpHeaderButton } from './HelpHeaderButton';
 import { HorizontalChipScroll } from './HorizontalChipScroll';
 import { PaginationBar } from './PaginationBar';
+import { SyncHeaderButton } from './SyncHeaderButton';
 import { useAppModal } from './modal';
 import { bookLabel, marketLabel } from '../lib/tipKey';
 import { isKickoffUpcoming } from '../lib/matchBettable';
@@ -109,6 +112,7 @@ type Props = {
 };
 
 export function ArbitragePanel({ onFlash }: Props) {
+  const navigation = useNavigation();
   const modal = useAppModal();
   const [configuredBooks, setConfiguredBooks] = useState<string[]>(['sportybet', 'melbet']);
   const [opps, setOpps] = useState<ArbOpportunity[]>([]);
@@ -153,12 +157,12 @@ export function ArbitragePanel({ onFlash }: Props) {
     onFlash?.(msg, bad);
   }
 
-  function cancelScan() {
+  const cancelScan = useCallback(() => {
     scanAbortRef.current?.abort();
     scanAbortRef.current = null;
     setBusy(false);
     flash('Cancelled.');
-  }
+  }, []);
 
   const stakeN = useMemo(() => {
     const n = Number(String(sampleStake).replace(/,/g, ''));
@@ -221,6 +225,50 @@ export function ArbitragePanel({ onFlash }: Props) {
     },
     [stakeN, scanAllBooks, configuredBooks]
   );
+
+  const onToggleInternational = useCallback(() => {
+    const next = !scanAllBooks;
+    setScanAllBooks(next);
+    void findSurebets({ allBooks: next });
+  }, [scanAllBooks, findSurebets]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={styles.headerActions}>
+          {tab === 'scan' ? (
+            <>
+              <SyncHeaderButton
+                onPress={() => void findSurebets()}
+                onCancel={cancelScan}
+                busy={busy}
+                showIcon={false}
+                label="Find Nigeria surebets"
+              />
+              <Pressable
+                style={[
+                  styles.headerSide,
+                  scanAllBooks && styles.headerSideOn,
+                  busy && styles.disabled,
+                ]}
+                disabled={busy}
+                onPress={onToggleInternational}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  scanAllBooks ? 'Use Nigeria books only' : 'Scan international books'
+                }
+              >
+                <Text style={[styles.headerSideText, scanAllBooks && styles.headerSideTextOn]}>
+                  {scanAllBooks ? 'Nigeria' : 'International'}
+                </Text>
+              </Pressable>
+            </>
+          ) : null}
+          <HelpHeaderButton />
+        </View>
+      ),
+    });
+  }, [navigation, busy, scanAllBooks, findSurebets, cancelScan, onToggleInternational, tab]);
   const loadHistory = useCallback(async () => {
     setBusy(true);
     try {
@@ -384,7 +432,13 @@ export function ArbitragePanel({ onFlash }: Props) {
         Platform.OS === 'web' ? { paddingBottom: webScrollBottom(20) } : null,
       ]}
     >
-      <Text style={styles.heroTitle}>Surebet scanner</Text>
+      <Text style={styles.statusLine} numberOfLines={2}>
+        {tab === 'scan'
+          ? `${filteredOpps.length} found · best ${
+              filteredOpps.length ? `${bestProfit.toFixed(2)}%` : '—'
+            }`
+          : `${histFilteredCount} logged`}
+      </Text>
 
       <View style={styles.tabs}>
         <Pressable
@@ -403,61 +457,18 @@ export function ArbitragePanel({ onFlash }: Props) {
 
       {tab === 'scan' ? (
         <>
-          <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Text style={styles.statVal}>{filteredOpps.length}</Text>
-              <Text style={styles.statLabel}>Found</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={[styles.statVal, filteredOpps.length ? styles.statGood : null]}>
-                {filteredOpps.length ? `${bestProfit.toFixed(2)}%` : '—'}
-              </Text>
-              <Text style={styles.statLabel}>Best profit</Text>
-            </View>
-            <View style={styles.stat}>
-              <TextInput
-                style={styles.stakeInput}
-                value={sampleStake}
-                onChangeText={setSampleStake}
-                keyboardType="numeric"
-                accessibilityLabel="Sample stake in Naira"
-              />
-              <Text style={styles.statLabel}>Sample stake ₦</Text>
-            </View>
-          </View>
-
-          <View style={styles.actionRow}>
-            <Pressable
-              style={[styles.btnPrimary, styles.btnPrimaryFlex, busy && styles.btnPrimaryCancel]}
-              onPress={() => {
-                if (busy) {
-                  cancelScan();
-                  return;
-                }
-                void findSurebets();
-              }}
-            >
-              {busy ? (
-                <Text style={styles.btnCancelText}>Cancel</Text>
-              ) : (
-                <Text style={styles.btnPrimaryText}>Find Nigeria surebets</Text>
-              )}
-            </Pressable>
-            <Pressable
-              style={[styles.btnSide, scanAllBooks && styles.btnSideOn, busy && styles.disabled]}
-              disabled={busy}
-              onPress={() => {
-                const next = !scanAllBooks;
-                setScanAllBooks(next);
-                void findSurebets({ allBooks: next });
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={scanAllBooks ? 'Use Nigeria books only' : 'Scan international books'}
-            >
-              <Text style={[styles.btnSideText, scanAllBooks && styles.btnSideTextOn]}>
-                {scanAllBooks ? 'Nigeria' : 'International'}
-              </Text>
-            </Pressable>
+          <View style={styles.stakeField}>
+            <Text style={styles.stakeLabel}>Sample stake ₦</Text>
+            <TextInput
+              style={styles.stakeInput}
+              value={sampleStake}
+              onChangeText={setSampleStake}
+              keyboardType="numeric"
+              placeholder="e.g. 50000"
+              placeholderTextColor={colors.muted}
+              accessibilityLabel="Sample stake in Naira"
+              selectTextOnFocus
+            />
           </View>
 
           <HorizontalChipScroll>
@@ -689,10 +700,33 @@ function ArbCard({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, paddingBottom: 40 },
-  heroTitle: {
-    color: colors.ink,
-    fontWeight: '800',
-    fontSize: 15,
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+    marginRight: 4,
+  },
+  headerSide: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minHeight: 40,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  headerSideOn: {
+    borderColor: 'rgba(45, 212, 168, 0.45)',
+    backgroundColor: 'rgba(45, 212, 168, 0.14)',
+  },
+  headerSideText: { color: colors.ink, fontWeight: '800', fontSize: 12 },
+  headerSideTextOn: { color: colors.accent },
+  statusLine: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
     marginBottom: 10,
   },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 12 },
@@ -711,67 +745,27 @@ const styles = StyleSheet.create({
   },
   tabText: { color: colors.muted, fontWeight: '700', fontSize: 13 },
   tabTextOn: { color: colors.accent },
-  statsRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
-  stat: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-  },
-  statVal: { color: colors.ink, fontWeight: '800', fontSize: 14 },
-  stakeInput: {
-    color: colors.ink,
-    fontWeight: '800',
-    fontSize: 13,
-    textAlign: 'center',
-    minWidth: 56,
-    paddingVertical: 0,
-    width: '100%',
-  },
-  statGood: { color: colors.accent },
-  statLabel: { color: colors.muted, fontSize: 10, marginTop: 1 },
-  actionRow: {
+  stakeField: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     marginBottom: 10,
-  },
-  btnPrimary: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  btnPrimaryFlex: { flex: 1 },
-  btnPrimaryCancel: {
-    backgroundColor: 'rgba(248, 113, 113, 0.2)',
+    backgroundColor: colors.card,
+    borderColor: 'rgba(45, 212, 168, 0.35)',
     borderWidth: 1,
-    borderColor: 'rgba(248, 113, 113, 0.55)',
-  },
-  btnPrimaryText: { color: '#06241c', fontWeight: '800', fontSize: 15 },
-  btnCancelText: { color: '#fecaca', fontWeight: '800', fontSize: 15 },
-  btnSide: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: colors.line,
-    minHeight: 44,
-    justifyContent: 'center',
+    paddingVertical: 8,
   },
-  btnSideOn: {
-    borderColor: 'rgba(45, 212, 168, 0.45)',
-    backgroundColor: colors.accentDim,
+  stakeLabel: { color: colors.muted, fontSize: 12, fontWeight: '600', flexShrink: 0 },
+  stakeInput: {
+    flex: 1,
+    color: colors.ink,
+    fontWeight: '700',
+    fontSize: 15,
+    paddingVertical: 4,
+    minWidth: 80,
   },
-  btnSideText: { color: colors.ink, fontWeight: '700', fontSize: 13 },
-  btnSideTextOn: { color: colors.accent },
   btnSecondary: {
     backgroundColor: colors.surface,
     borderRadius: 12,
