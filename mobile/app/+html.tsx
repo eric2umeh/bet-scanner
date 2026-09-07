@@ -22,6 +22,16 @@ export default function Root({ children }: PropsWithChildren) {
                 /* Contain rubber-band to the app scroll view (in-app pull), not full page reload */
                 overscroll-behavior-y: contain;
               }
+              /* Hide scrollbars; scrolling still works (wheel / trackpad / touch). */
+              * {
+                scrollbar-width: none !important;
+                -ms-overflow-style: none !important;
+              }
+              *::-webkit-scrollbar {
+                display: none !important;
+                width: 0 !important;
+                height: 0 !important;
+              }
             `,
           }}
         />
