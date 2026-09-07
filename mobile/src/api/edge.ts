@@ -86,6 +86,8 @@ export function scanSurebets(opts: {
   sample_stake_ngn: number;
   bookmakers?: string | null;
   min_profit_pct?: number | string;
+  /** Phase C: exclusive DC coverage pairs (off by default). */
+  include_coverage?: boolean;
   signal?: AbortSignal;
 }) {
   const q = new URLSearchParams({
@@ -94,6 +96,9 @@ export function scanSurebets(opts: {
   });
   if (opts.bookmakers != null && String(opts.bookmakers).trim()) {
     q.set('bookmakers', String(opts.bookmakers).trim());
+  }
+  if (opts.include_coverage) {
+    q.set('include_coverage', 'true');
   }
   return getJson<ArbScanResponse>(`/arbitrage/scan?${q}`, { signal: opts.signal });
 }
