@@ -342,7 +342,9 @@ export default function TodayScreen() {
         return hay.includes(q);
       });
     }
-    return withTips;
+    return withTips.sort(
+      (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
+    );
   }, [matches, picksByMatch, searchQ, clockTick, dateFilter]);
 
   const totalPages = visibleMatches.length
@@ -725,6 +727,14 @@ export default function TodayScreen() {
           />
         </View>
 
+        {dateFilter && !busy ? (
+          <Text style={styles.dateCount} numberOfLines={1}>
+            {visibleMatches.length
+              ? `${visibleMatches.length} fixture${visibleMatches.length === 1 ? '' : 's'} with tips`
+              : 'No fixtures with tips'}
+          </Text>
+        ) : null}
+
         {isWeb && !narrowWeb ? (
           <Text style={styles.hint}>
             Tap Load matches (or pull down) for fresh odds · tap a pick for your slip.
@@ -960,6 +970,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   dateField: { flexShrink: 0 },
+  dateCount: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 2,
+  },
   btn: {
     backgroundColor: colors.accent,
     borderRadius: 12,
