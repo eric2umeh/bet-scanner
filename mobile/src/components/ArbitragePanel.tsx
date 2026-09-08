@@ -144,7 +144,8 @@ export function ArbitragePanel({ onFlash }: Props) {
   const [busy, setBusy] = useState(false);
   const [loggingId, setLoggingId] = useState<string | null>(null);
   const [clockTick, setClockTick] = useState(0);
-  const [sampleStake, setSampleStake] = useState('50000');
+  const [sampleStake, setSampleStake] = useState('10000');
+  const [settingsReady, setSettingsReady] = useState(false);
   const [searchQ, setSearchQ] = useState('');
   /** Default today so future-dated arbs don't dominate the list. Clear = all days. */
   const [dateFilter, setDateFilter] = useState(() => toLocalIsoDate());
@@ -157,6 +158,7 @@ export function ArbitragePanel({ onFlash }: Props) {
   /** When true, scan every book in DB (EU + NG). Default false = configured NG only. */
   const [scanAllBooks, setScanAllBooks] = useState(false);
   const scanAbortRef = useRef<AbortController | null>(null);
+  const stakeNRef = useRef(10000);
 
   useEffect(() => {
     const id = setInterval(() => setClockTick((n) => n + 1), 60_000);
@@ -169,9 +171,10 @@ export function ArbitragePanel({ onFlash }: Props) {
   useEffect(() => {
     void (async () => {
       const s = await loadSettings();
-      setSampleStake(String(s.bankroll || 50000));
+      setSampleStake(String(s.bankroll || 10000));
       const cfg = await fetchPublicAppConfig();
       if (cfg.odds_bookmakers?.length) setConfiguredBooks(cfg.odds_bookmakers);
+      setSettingsReady(true);
     })();
   }, []);
 
@@ -190,6 +193,10 @@ export function ArbitragePanel({ onFlash }: Props) {
     const n = Number(String(sampleStake).replace(/,/g, ''));
     return Number.isFinite(n) && n > 0 ? n : 10000;
   }, [sampleStake]);
+
+  useEffect(() => {
+    stakeNRef.current = stakeN;
+  }, [stakeN]);
 
   /** Only books that appear in the current scan results (empty when none). */
   const booksForFilter = useMemo(() => {
@@ -218,7 +225,7 @@ export function ArbitragePanel({ onFlash }: Props) {
       try {
         const useAll = opts?.allBooks ?? scanAllBooks;
         const data = await scanSurebets({
-          sample_stake_ngn: stakeN,
+          sample_stake_ngn: stakeNRef.current,
           bookmakers: useAll ? 'all' : configuredBooks.join(','),
           min_profit_pct: 0.01,
           signal: ctrl.signal,
@@ -227,7 +234,9 @@ export function ArbitragePanel({ onFlash }: Props) {
         const upcoming = (data.opportunities || []).filter((o) =>
           isKickoffUpcoming(o.kickoff_at)
         );
-        setOpps(upcoming.map((o) => applyStake(o, stakeN)));
+        // Always split against the field value now (settings may have loaded mid-request).
+        const total = stakeNRef.current;
+        setOpps(upcoming.map((o) => applyStake(o, total)));
         setPageIndex(0);
         flash(
           upcoming.length
@@ -260,6 +269,21 @@ export function ArbitragePanel({ onFlash }: Props) {
         <View style={styles.headerActions}>
           {tab === 'scan' ? (
             <>
+              <View style={styles.headerStake}>
+                <Text style={styles.headerStakeLabel} numberOfLines={1}>
+                  Sample stake ₦
+                </Text>
+                <TextInput
+                  style={styles.headerStakeInput}
+                  value={sampleStake}
+                  onChangeText={setSampleStake}
+                  keyboardType="numeric"
+                  placeholder="1000"
+                  placeholderTextColor={colors.muted}
+                  accessibilityLabel="Enter your sample stake in Naira"
+                  selectTextOnFocus
+                />
+              </View>
               <SyncHeaderButton
                 onPress={() => void findSurebets()}
                 onCancel={cancelScan}
@@ -290,7 +314,16 @@ export function ArbitragePanel({ onFlash }: Props) {
         </View>
       ),
     });
-  }, [navigation, busy, scanAllBooks, findSurebets, cancelScan, onToggleInternational, tab]);
+  }, [
+    navigation,
+    busy,
+    scanAllBooks,
+    findSurebets,
+    cancelScan,
+    onToggleInternational,
+    tab,
+    sampleStake,
+  ]);
   const loadHistory = useCallback(async () => {
     setBusy(true);
     try {
@@ -310,8 +343,9 @@ export function ArbitragePanel({ onFlash }: Props) {
   }, []);
 
   useEffect(() => {
+    if (!settingsReady) return;
     void findSurebets();
-  }, []);
+  }, [settingsReady]);
 
   useEffect(() => {
     if (tab === 'history') void loadHistory();
@@ -468,21 +502,6 @@ export function ArbitragePanel({ onFlash }: Props) {
               }`
             : `${histFilteredCount} logged`}
         </Text>
-        {tab === 'scan' ? (
-          <View style={styles.stakeField}>
-            <Text style={styles.stakeLabel}>Enter your sample stake ₦</Text>
-            <TextInput
-              style={styles.stakeInput}
-              value={sampleStake}
-              onChangeText={setSampleStake}
-              keyboardType="numeric"
-              placeholder="e.g. 50000"
-              placeholderTextColor={colors.muted}
-              accessibilityLabel="Enter your sample stake in Naira"
-              selectTextOnFocus
-            />
-          </View>
-        ) : null}
       </View>
 
       <View style={styles.tabs}>
@@ -720,7 +739,7 @@ function ArbCard({
           disabled={logging}
         >
           {logging ? (
-            <ActivityIndicator color="#06241c" size="small" />
+            <ActivityIndicator color={colors.onAccent} size="small" />
           ) : (
             <Text style={styles.logBtnText}>Log surebet</Text>
           )}
@@ -740,6 +759,33 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     marginRight: 4,
   },
+  headerStake: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.card,
+    borderColor: 'rgba(15, 138, 95, 0.35)',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    maxWidth: 168,
+  },
+  headerStakeLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  headerStakeInput: {
+    minWidth: 56,
+    maxWidth: 72,
+    color: colors.ink,
+    fontWeight: '700',
+    fontSize: 13,
+    paddingVertical: 2,
+    paddingHorizontal: 0,
+  },
   headerSide: {
     borderRadius: 12,
     paddingHorizontal: 10,
@@ -751,8 +797,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   headerSideOn: {
-    borderColor: 'rgba(45, 212, 168, 0.45)',
-    backgroundColor: 'rgba(45, 212, 168, 0.14)',
+    borderColor: 'rgba(15, 138, 95, 0.45)',
+    backgroundColor: 'rgba(15, 138, 95, 0.14)',
   },
   headerSideText: { color: colors.ink, fontWeight: '800', fontSize: 12 },
   headerSideTextOn: { color: colors.accent },
@@ -782,36 +828,10 @@ const styles = StyleSheet.create({
   },
   tabOn: {
     backgroundColor: colors.accentDim,
-    borderColor: 'rgba(45, 212, 168, 0.45)',
+    borderColor: 'rgba(15, 138, 95, 0.45)',
   },
   tabText: { color: colors.muted, fontWeight: '700', fontSize: 13 },
   tabTextOn: { color: colors.accent },
-  stakeField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexGrow: 1,
-    flexShrink: 1,
-    minWidth: 200,
-    maxWidth: 360,
-    marginLeft: 'auto',
-    backgroundColor: colors.card,
-    borderColor: 'rgba(45, 212, 168, 0.35)',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  stakeLabel: { color: colors.muted, fontSize: 11, fontWeight: '600', flexShrink: 1 },
-  stakeInput: {
-    flex: 1,
-    color: colors.ink,
-    fontWeight: '700',
-    fontSize: 14,
-    paddingVertical: 2,
-    minWidth: 64,
-    textAlign: 'right',
-  },
   btnSecondary: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -862,7 +882,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     marginRight: 8,
   },
-  chipOn: { backgroundColor: colors.accentDim, borderColor: 'rgba(45, 212, 168, 0.45)' },
+  chipOn: { backgroundColor: colors.accentDim, borderColor: 'rgba(15, 138, 95, 0.45)' },
   chipText: { color: colors.muted, fontWeight: '600', fontSize: 13 },
   chipTextOn: { color: colors.accent },
   disabled: { opacity: 0.55 },
@@ -944,7 +964,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
     justifyContent: 'center',
   },
-  logBtnText: { color: '#06241c', fontWeight: '800', fontSize: 13 },
+  logBtnText: { color: colors.onAccent, fontWeight: '800', fontSize: 13 },
   histStake: { color: colors.ink, fontWeight: '600', fontSize: 13, marginTop: 6 },
   rationale: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 8 },
 });
