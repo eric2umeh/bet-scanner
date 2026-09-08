@@ -1,5 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, ThemeProvider, type Theme } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider, type Theme } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -25,13 +25,13 @@ export const unstable_settings = {
 };
 
 const AppNavTheme: Theme = {
-  ...DarkTheme,
-  dark: true,
+  ...DefaultTheme,
+  dark: false,
   colors: {
-    ...DarkTheme.colors,
+    ...DefaultTheme.colors,
     primary: colors.accent,
     background: colors.bg,
-    card: colors.bg,
+    card: colors.surface,
     text: colors.ink,
     border: colors.line,
     notification: colors.accent,
@@ -116,7 +116,7 @@ export default function RootLayout() {
     <AppQueryProvider>
       <ModalProvider>
         <ThemeProvider value={AppNavTheme}>
-          <StatusBar style="light" backgroundColor={colors.bg} />
+          <StatusBar style="dark" backgroundColor={colors.bg} />
           <WebMobileFrame>
             <View style={{ flex: 1, backgroundColor: colors.bg }}>
               <ConnectionBanner />
