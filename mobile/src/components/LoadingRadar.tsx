@@ -1,13 +1,6 @@
-import { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Easing,
-  Platform,
-  StyleSheet,
-  View,
-  type ViewStyle,
-} from 'react-native';
-import Svg, { Circle, Line, Path } from 'react-native-svg';
+import { useEffect, useState } from 'react';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
+import Svg, { Circle, G, Line, Path } from 'react-native-svg';
 
 import { colors } from '../theme/colors';
 
@@ -19,19 +12,17 @@ type Props = {
   style?: ViewStyle;
 };
 
-const isWeb = Platform.OS === 'web';
+const PERIOD_MS = 1100;
 
 /**
- * Brand radar mark as a loading spinner — concentric rings stay put,
- * the scout arm spins continuously (same footprint as ActivityIndicator).
- *
- * Web uses CSS infinite animation (RN Animated.loop + native driver often
- * completes one turn then stops in the browser).
+ * Brand radar mark as a loading spinner — rings stay put, scout arm spins.
+ * Uses requestAnimationFrame (not RN Animated / CSS className) so it keeps
+ * spinning on Expo web, Cancel buttons, and native.
  */
 export function LoadingRadar({ size = 'small', color, style }: Props) {
   const dim =
     typeof size === 'number' ? size : size === 'large' ? 36 : 20;
-  const spin = useRef(new Animated.Value(0)).current;
+  const [deg, setDeg] = useState(0);
   const accent = color || colors.accent;
   const ink = colors.ink;
   const c = dim / 2;
@@ -39,62 +30,16 @@ export function LoadingRadar({ size = 'small', color, style }: Props) {
   const stroke = Math.max(1, dim * 0.06);
 
   useEffect(() => {
-    if (!isWeb || typeof document === 'undefined') return;
-    const id = 'betscout-radar-spin-style';
-    if (document.getElementById(id)) return;
-    const el = document.createElement('style');
-    el.id = id;
-    el.textContent = `
-      @keyframes betscout-radar-spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-      .betscout-radar-arm {
-        animation: betscout-radar-spin 1.1s linear infinite !important;
-        transform-origin: 50% 50% !important;
-        will-change: transform;
-      }
-    `;
-    document.head.appendChild(el);
-  }, []);
-
-  useEffect(() => {
-    if (isWeb) return;
-    spin.setValue(0);
-    const loop = Animated.loop(
-      Animated.timing(spin, {
-        toValue: 1,
-        duration: 1100,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    loop.start();
-    return () => {
-      loop.stop();
-      spin.stopAnimation();
+    let raf = 0;
+    const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const tick = (now: number) => {
+      const t = (now - start) % PERIOD_MS;
+      setDeg((t / PERIOD_MS) * 360);
+      raf = requestAnimationFrame(tick);
     };
-  }, [spin]);
-
-  const rotate = spin.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const armSvg = (
-    <Svg width={dim} height={dim} viewBox={`0 0 ${dim} ${dim}`}>
-      <Line
-        x1={c}
-        y1={c}
-        x2={c + r * 0.95}
-        y2={c - r * 0.2}
-        stroke={accent}
-        strokeWidth={stroke * 1.15}
-        strokeLinecap="round"
-        opacity={0.95}
-      />
-    </Svg>
-  );
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   return (
     <View
@@ -102,7 +47,7 @@ export function LoadingRadar({ size = 'small', color, style }: Props) {
       accessibilityRole="progressbar"
       accessibilityLabel="Loading"
     >
-      <Svg width={dim} height={dim} viewBox={`0 0 ${dim} ${dim}`} style={StyleSheet.absoluteFill}>
+      <Svg width={dim} height={dim} viewBox={`0 0 ${dim} ${dim}`}>
         <Circle
           cx={c}
           cy={c}
@@ -131,23 +76,19 @@ export function LoadingRadar({ size = 'small', color, style }: Props) {
           opacity={0.8}
         />
         <Path d={hexPath(c, c, dim * 0.1)} fill={ink} opacity={0.95} />
+        <G transform={`rotate(${deg} ${c} ${c})`}>
+          <Line
+            x1={c}
+            y1={c}
+            x2={c + r * 0.95}
+            y2={c - r * 0.2}
+            stroke={accent}
+            strokeWidth={stroke * 1.15}
+            strokeLinecap="round"
+            opacity={0.95}
+          />
+        </G>
       </Svg>
-      {isWeb ? (
-        <View
-          // RN web: CSS infinite spin (see app/+html.tsx)
-          // @ts-expect-error className is valid on RN web
-          className="betscout-radar-arm"
-          style={StyleSheet.absoluteFill}
-        >
-          {armSvg}
-        </View>
-      ) : (
-        <Animated.View
-          style={[StyleSheet.absoluteFill, { transform: [{ rotate }] }]}
-        >
-          {armSvg}
-        </Animated.View>
-      )}
     </View>
   );
 }
