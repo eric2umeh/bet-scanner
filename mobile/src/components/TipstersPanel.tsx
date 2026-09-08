@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -20,6 +19,7 @@ import {
   type Tipster,
 } from '../api/tipsters';
 import { bookLabel } from '../lib/tipKey';
+import { LoadingRadar } from './LoadingRadar';
 import { colors } from '../theme/colors';
 
 const SETTLE = [
@@ -178,16 +178,10 @@ export function TipstersPanel({ active, onFlash }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.section}>Tipsters / booking codes</Text>
-      <Text style={styles.muted}>
-        Instagram / Telegram codes → settle → leaderboard. We store the code — we cannot open
-        opaque SportyBet / Bet9ja slips automatically.
-      </Text>
-
       {status ? (
         <View style={[styles.statusBox, statusBad && styles.statusBad]}>
           {busy ? (
-            <ActivityIndicator
+            <LoadingRadar
               color={statusBad ? colors.bad : colors.accent}
               style={{ marginRight: 8 }}
             />

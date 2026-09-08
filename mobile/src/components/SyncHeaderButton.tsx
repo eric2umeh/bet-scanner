@@ -1,6 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { LoadingRadar } from './LoadingRadar';
 import { colors } from '../theme/colors';
 
 type Props = {
@@ -37,7 +38,7 @@ export function SyncHeaderButton({
         accessibilityLabel={cancelLabel}
       >
         <View style={styles.inner}>
-          <ActivityIndicator size="small" color="#fecaca" />
+          <LoadingRadar size="small" color="#fecaca" />
           {showLabel ? <Text style={styles.cancelLabel}>{cancelLabel}</Text> : null}
         </View>
       </Pressable>
@@ -55,7 +56,7 @@ export function SyncHeaderButton({
       accessibilityHint="Fetches fresh odds and rebuilds Home tips — not the same as browser refresh"
     >
       {busy ? (
-        <ActivityIndicator size="small" color={colors.accent} />
+        <LoadingRadar size="small" color={colors.accent} />
       ) : (
         <View style={styles.inner}>
           {showIcon ? (

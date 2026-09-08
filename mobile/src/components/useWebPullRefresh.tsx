@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
   StyleSheet,
   Text,
@@ -9,6 +8,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 
+import { LoadingRadar } from './LoadingRadar';
 import { colors } from '../theme/colors';
 
 const PULL_THRESHOLD = 72;
@@ -96,7 +96,7 @@ export function WebPullHint({ pullPx, refreshing }: { pullPx: number; refreshing
   return (
     <View style={[styles.hint, { height: refreshing ? 36 : Math.max(24, pullPx * 0.5) }]}>
       {refreshing ? (
-        <ActivityIndicator size="small" color={colors.accent} />
+        <LoadingRadar size="small" color={colors.accent} />
       ) : (
         <Text style={[styles.hintText, ready && styles.hintReady]}>
           {ready ? 'Release to refresh' : 'Pull to refresh'}

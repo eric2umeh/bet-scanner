@@ -103,11 +103,17 @@ export function scanSurebets(opts: {
   return getJson<ArbScanResponse>(`/arbitrage/scan?${q}`, { signal: opts.signal });
 }
 
-export async function scanValue(opts: { bankroll_ngn: number; unit_pct: number }) {
+export async function scanValue(opts: {
+  bankroll_ngn: number;
+  unit_pct: number;
+  /** Omit to use server configured ODDS_API_IO_BOOKMAKERS. */
+  bookmakers?: string;
+}) {
   const q = new URLSearchParams({
     bankroll_ngn: String(opts.bankroll_ngn),
     unit_pct: String(opts.unit_pct),
   });
+  if (opts.bookmakers) q.set('bookmakers', opts.bookmakers);
   return getJson<ValueScanResponse>(`/value/scan?${q}`);
 }
 

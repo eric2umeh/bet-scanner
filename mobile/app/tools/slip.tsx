@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +15,7 @@ import {
 } from '../../src/api/convert';
 import { shareOrCopyText } from '../../src/lib/shareText';
 import { bookLabel } from '../../src/lib/tipKey';
+import { LoadingRadar } from '../../src/components/LoadingRadar';
 import { colors } from '../../src/theme/colors';
 
 function fmtPrice(v: number | string | null | undefined) {
@@ -57,7 +57,7 @@ export default function SlipToolScreen() {
       return;
     }
     setConverting(true);
-    flash('Comparing SportyBet and Bet9ja prices…');
+    flash('Comparing book prices…');
     try {
       const data = await convertSlip({
         slip_text: slipText,
@@ -93,17 +93,10 @@ export default function SlipToolScreen() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.hero}>
-        <Text style={styles.heroText}>
-          Paste match names and picks in plain text. We look up saved odds — booking codes alone
-          cannot be opened automatically.
-        </Text>
-      </View>
-
       {status ? (
         <View style={[styles.statusBox, statusBad && styles.statusBad]}>
           {converting ? (
-            <ActivityIndicator color={statusBad ? colors.bad : colors.accent} style={{ marginRight: 8 }} />
+            <LoadingRadar color={statusBad ? colors.bad : colors.accent} style={{ marginRight: 8 }} />
           ) : null}
           <Text style={[styles.statusText, statusBad && styles.statusTextBad]}>{status}</Text>
         </View>
@@ -149,7 +142,7 @@ export default function SlipToolScreen() {
           onPress={onPriceCheck}
         >
           {converting ? (
-            <ActivityIndicator color={colors.onAccent} />
+            <LoadingRadar color={colors.onAccent} />
           ) : (
             <Text style={styles.btnText}>Compare prices</Text>
           )}

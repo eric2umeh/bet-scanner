@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -11,6 +10,7 @@ import {
 
 import { runDailyOps, type DailyOpsResponse } from '../../src/api/ops';
 import { loadSettings } from '../../src/store/settings';
+import { LoadingRadar } from '../../src/components/LoadingRadar';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
@@ -85,12 +85,9 @@ export default function MorningUpdateScreen() {
         Platform.OS === 'web' ? { paddingBottom: webScrollBottom(20) } : null,
       ]}
     >
-      <Text style={styles.hint}>
-        Morning update: fixtures, settle tips, brief. Fresh prices: ↻ on Home.
-      </Text>
       {status ? (
         <View style={[styles.statusBox, statusBad && styles.statusBad]}>
-          {opsBusy ? <ActivityIndicator color={colors.accent} style={{ marginRight: 8 }} /> : null}
+          {opsBusy ? <LoadingRadar color={colors.accent} style={{ marginRight: 8 }} /> : null}
           <Text style={[styles.statusText, statusBad && styles.statusTextBad]}>{status}</Text>
         </View>
       ) : null}
@@ -100,7 +97,7 @@ export default function MorningUpdateScreen() {
         onPress={() => void onMorning()}
       >
         {opsBusy ? (
-          <ActivityIndicator color={colors.onAccent} />
+          <LoadingRadar color={colors.onAccent} />
         ) : (
           <Text style={styles.btnText}>Run morning update</Text>
         )}

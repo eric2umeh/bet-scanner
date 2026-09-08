@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from 'react';
 import {
-  ActivityIndicator,
   Linking,
   Pressable,
   RefreshControl,
@@ -34,6 +33,7 @@ import {
   type AppSettings,
 } from '../../src/store/settings';
 import { PasswordInput } from '../../src/components/PasswordInput';
+import { LoadingRadar } from '../../src/components/LoadingRadar';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
@@ -231,7 +231,7 @@ export default function AccountScreen() {
       {status ? (
         <View style={[styles.statusBox, statusBad && styles.statusBad]}>
           {authBusy ? (
-            <ActivityIndicator color={statusBad ? colors.bad : colors.accent} style={{ marginRight: 8 }} />
+            <LoadingRadar color={statusBad ? colors.bad : colors.accent} style={{ marginRight: 8 }} />
           ) : null}
           <Text style={[styles.statusText, statusBad && styles.statusTextBad]}>{status}</Text>
         </View>

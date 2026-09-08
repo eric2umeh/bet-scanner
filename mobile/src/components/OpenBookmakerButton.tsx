@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
 
 import { useAppModal } from './modal';
 import {
@@ -7,6 +7,7 @@ import {
   openBookmakerMatch,
 } from '../lib/openBookmaker';
 import { bookLabel } from '../lib/tipKey';
+import { LoadingRadar } from './LoadingRadar';
 import { colors } from '../theme/colors';
 
 type Props = {
@@ -76,7 +77,7 @@ export function OpenBookmakerButton({
       disabled={busy}
     >
       {busy ? (
-        <ActivityIndicator size="small" color={colors.accent} />
+        <LoadingRadar size="small" color={colors.accent} />
       ) : (
         <Text style={compact ? styles.compactText : styles.btnText} numberOfLines={1}>
           {compact ? `${label} ↗` : `Open in ${label} ↗`}

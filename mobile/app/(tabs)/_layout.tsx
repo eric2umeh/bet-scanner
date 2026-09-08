@@ -1,10 +1,12 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
 import type { ComponentProps } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
+import { ScreenInfoButton } from '../../src/components/ScreenInfoButton';
 import { WebTabBar } from '../../src/components/WebTabBar';
+import { TOOL_INFO } from '../../src/content/toolInfo';
 import { colors } from '../../src/theme/colors';
 
 const isWeb = Platform.OS === 'web';
@@ -16,10 +18,14 @@ function TabBarIcon(props: {
   return <FontAwesome size={22} style={{ marginBottom: -2 }} {...props} />;
 }
 
-const webSubHeader = {
-  headerShown: true as const,
-  headerRight: () => <HelpHeaderButton />,
-};
+function TabHeaderRight({ info }: { info: { title: string; message: string } }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <ScreenInfoButton title={info.title} message={info.message} />
+      <HelpHeaderButton />
+    </View>
+  );
+}
 
 export default function TabLayout() {
   return (
@@ -51,6 +57,7 @@ export default function TabLayout() {
           title: 'Home',
           tabBarLabel: 'Home',
           headerShown: !isWeb,
+          headerRight: () => <TabHeaderRight info={TOOL_INFO.home} />,
           tabBarIcon: ({ color }) => <TabBarIcon name="futbol-o" color={color} />,
         }}
       />
@@ -58,7 +65,8 @@ export default function TabLayout() {
         name="tips"
         options={{
           title: 'Tips',
-          ...(isWeb ? webSubHeader : null),
+          headerShown: true,
+          headerRight: () => <TabHeaderRight info={TOOL_INFO.tips} />,
           tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
         }}
       />
@@ -67,7 +75,8 @@ export default function TabLayout() {
         options={{
           title: 'Surebets',
           tabBarLabel: 'Surebets',
-          ...(isWeb ? webSubHeader : null),
+          headerShown: true,
+          // ArbitragePanel sets headerRight (Find Nigeria + stake); info lives there too.
           tabBarIcon: ({ color }) => <TabBarIcon name="balance-scale" color={color} />,
         }}
       />
@@ -75,7 +84,8 @@ export default function TabLayout() {
         name="tools"
         options={{
           title: 'Tools',
-          ...(isWeb ? webSubHeader : null),
+          headerShown: true,
+          headerRight: () => <TabHeaderRight info={TOOL_INFO.tools} />,
           tabBarIcon: ({ color }) => <TabBarIcon name="th-large" color={color} />,
         }}
       />
@@ -83,7 +93,8 @@ export default function TabLayout() {
         name="account"
         options={{
           title: 'Account',
-          ...(isWeb ? webSubHeader : null),
+          headerShown: true,
+          headerRight: () => <TabHeaderRight info={TOOL_INFO.account} />,
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
         }}
       />

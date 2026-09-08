@@ -2,7 +2,6 @@ import { useRouter, useNavigation } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   RefreshControl,
@@ -31,10 +30,12 @@ import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
 import { LeanBar } from '../../src/components/LeanBar';
 import { OpenBookmakerButton } from '../../src/components/OpenBookmakerButton';
 import { PaginationBar } from '../../src/components/PaginationBar';
+import { ScreenInfoButton } from '../../src/components/ScreenInfoButton';
 import { SyncHeaderButton } from '../../src/components/SyncHeaderButton';
 import { BetSlipFab } from '../../src/components/BetSlipFab';
 import { useWebPullRefresh, WebPullHint } from '../../src/components/useWebPullRefresh';
 import { useAppModal } from '../../src/components/modal';
+import { TOOL_INFO } from '../../src/content/toolInfo';
 import { usePendingLoggedTips } from '../../src/hooks/usePendingLoggedTips';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { isMatchBettable } from '../../src/lib/matchBettable';
@@ -58,6 +59,7 @@ import {
   toggleTip,
 } from '../../src/store/selection';
 import { loadSettings, unitStakeNgn, type AppSettings } from '../../src/store/settings';
+import { LoadingRadar } from '../../src/components/LoadingRadar';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 import type { Match, TipPick } from '../../src/types/api';
@@ -546,6 +548,7 @@ export default function TodayScreen() {
             busy={busy}
             label="Load matches"
           />
+          <ScreenInfoButton title={TOOL_INFO.home.title} message={TOOL_INFO.home.message} />
           <HelpHeaderButton />
         </View>
       ),
@@ -690,6 +693,7 @@ export default function TodayScreen() {
                   showLabel
                   label="Load matches"
                 />
+                <ScreenInfoButton title={TOOL_INFO.home.title} message={TOOL_INFO.home.message} />
                 <HelpHeaderButton />
               </View>
             ) : null}
@@ -748,7 +752,7 @@ export default function TodayScreen() {
         </View>
 
         {busy && !matches.length ? (
-          <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
+          <LoadingRadar size="large" color={colors.accent} style={{ marginTop: 24 }} />
         ) : null}
 
         {showNoTipsBanner ? (

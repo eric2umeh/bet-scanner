@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   RefreshControl,
@@ -41,6 +40,7 @@ import { bookLabel, marketLabel } from '../../src/lib/tipKey';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { youthMatchHint } from '../../src/lib/marketLean';
 import { subscribeTipsList } from '../../src/store/tipsEvents';
+import { LoadingRadar } from '../../src/components/LoadingRadar';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
@@ -650,7 +650,7 @@ export default function TipsScreen() {
             </Pressable>
 
             {busy && !tips.length ? (
-              <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
+              <LoadingRadar size="large" color={colors.accent} style={{ marginTop: 24 }} />
             ) : null}
 
             {searchPending && !singles.length && !Object.keys(multis).length ? (

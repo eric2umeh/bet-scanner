@@ -6,7 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 
 import { setCachedAccessKey } from '../src/api/client';
 import { ConnectionBanner } from '../src/components/ConnectionBanner';
@@ -16,6 +16,7 @@ import { AppQueryProvider } from '../src/query/QueryProvider';
 import { loadAccessKey } from '../src/store/accessKey';
 import { isOnboardingDone } from '../src/store/onboarding';
 import { initSession } from '../src/store/session';
+import { LoadingRadar } from '../src/components/LoadingRadar';
 import { colors } from '../src/theme/colors';
 
 export { ErrorBoundary } from 'expo-router';
@@ -107,7 +108,7 @@ export default function RootLayout() {
           justifyContent: 'center',
         }}
       >
-        <ActivityIndicator color={colors.accent} />
+        <LoadingRadar color={colors.accent} />
       </View>
     );
   }

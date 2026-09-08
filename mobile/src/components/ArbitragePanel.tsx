@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -24,9 +23,12 @@ import { BookLeanFilters } from './BookLeanFilters';
 import { DatePickerField } from './DatePickerField';
 import { HelpHeaderButton } from './HelpHeaderButton';
 import { HorizontalChipScroll } from './HorizontalChipScroll';
+import { LoadingRadar } from './LoadingRadar';
 import { PaginationBar } from './PaginationBar';
+import { ScreenInfoButton } from './ScreenInfoButton';
 import { SyncHeaderButton } from './SyncHeaderButton';
 import { useAppModal } from './modal';
+import { TOOL_INFO } from '../content/toolInfo';
 import { bookLabel, marketLabel } from '../lib/tipKey';
 import { isKickoffUpcoming } from '../lib/matchBettable';
 import { openBookmakerMatch } from '../lib/openBookmaker';
@@ -310,6 +312,7 @@ export function ArbitragePanel({ onFlash }: Props) {
               </Pressable>
             </>
           ) : null}
+          <ScreenInfoButton title={TOOL_INFO.surebets.title} message={TOOL_INFO.surebets.message} />
           <HelpHeaderButton />
         </View>
       ),
@@ -742,7 +745,7 @@ function ArbCard({
           disabled={logging}
         >
           {logging ? (
-            <ActivityIndicator color={colors.onAccent} size="small" />
+            <LoadingRadar size="small" color={colors.onAccent} />
           ) : (
             <Text style={styles.logBtnText}>Log surebet</Text>
           )}

@@ -1,7 +1,6 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -30,6 +29,7 @@ import {
   toggleTip,
 } from '../../src/store/selection';
 import { loadSettings, unitStakeNgn } from '../../src/store/settings';
+import { LoadingRadar } from '../../src/components/LoadingRadar';
 import { colors } from '../../src/theme/colors';
 import type { Match, TipPick } from '../../src/types/api';
 
@@ -363,7 +363,7 @@ export default function MatchDetailScreen() {
 
         {panel === 'odds' ? (
           <View>
-            {loadingOdds ? <ActivityIndicator color={colors.accent} style={{ marginVertical: 16 }} /> : null}
+            {loadingOdds ? <LoadingRadar size="large" color={colors.accent} style={{ marginVertical: 16 }} /> : null}
             {oddsError ? <Text style={styles.bad}>{oddsError}</Text> : null}
             {!loadingOdds && !oddsBlocks.blocks.length && !oddsError ? (
               <View style={styles.card}>

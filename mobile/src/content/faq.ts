@@ -172,7 +172,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Home',
     question: 'Why do Home fixtures stop around mid-afternoon?',
     answer:
-      'Odds sync uses ODDS_API_IO_EVENT_LIMIT (max 100). A low value like 40 fills with the soonest kickoffs and drops evening games. Set ODDS_API_IO_EVENT_LIMIT=100 in local .env and Render → Environment, redeploy/restart, then Load matches. APP_TIMEZONE=Africa/Lagos is fine and not the cause.',
+      'Odds sync uses ODDS_API_IO_EVENT_LIMIT (code max 300). A low value like 40 fills with the soonest kickoffs and drops evening games. Try 100–300, redeploy/restart, then Load matches. Higher uses more free-tier requests (~2 + events÷10 per sync). APP_TIMEZONE=Africa/Lagos is fine and not the cause.',
     keywords: ['3pm', 'evening', 'limit', 'event', 'cutoff', 'afternoon', 'ODDS_API_IO_EVENT_LIMIT'],
   },
   {
