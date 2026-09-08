@@ -33,6 +33,7 @@ from app.services.arbitrage_math import (
     looks_like_palpable_error,
 )
 from app.services.match_bettable import match_still_bettable
+from app.services.ng_market_filters import is_ng_surebet_unreliable
 
 # Logical scan market → ordered mutually exclusive selections.
 # Team totals use logical keys; odds rows live under DB market `tt_2_5`.
@@ -173,6 +174,15 @@ def scan_arbs(
     for match_id, markets_map in by_match.items():
         match = db.get(Match, match_id)
         if match is None or not match_still_bettable(match, now=now):
+            continue
+        # Skip youth / lower-tier / UNK comps — often unsearchable on MelBet or
+        # only offer alternate O/U lines on SportyBet vs our feed.
+        if is_ng_surebet_unreliable(
+            match.home_team or "",
+            match.away_team or "",
+            competition_code=match.competition_code,
+            competition_name=match.competition_name,
+        ):
             continue
 
         for logical in scan_markets:
