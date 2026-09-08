@@ -70,7 +70,7 @@ class OddsApiIoProvider:
         self.api_key = key
         self.bookmakers = settings.odds_api_io_bookmakers_list
         # Cap 100: keeps free-tier /odds/multi usage reasonable (~10 batches).
-        self.event_limit = max(1, min(settings.odds_api_io_event_limit, 100))
+        self.event_limit = max(1, min(int(settings.odds_api_io_event_limit), 300))
 
     def fetch_settled_fixtures(
         self,
