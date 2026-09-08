@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 
+from app.services.ng_market_filters import is_ng_surebet_unreliable
 from app.services.scan_arbitrage import (
     COVERAGE_PAIRS,
     DEFAULT_SUREBET_MARKETS,
@@ -118,3 +119,27 @@ def test_finalize_accepts_fresh_cross_book():
     assert opp is not None
     assert opp["product"] == "surebet"
     assert len(opp["books_used"]) == 2
+
+
+def test_ng_surebet_unreliable_filters_obscure_fixtures():
+    assert is_ng_surebet_unreliable(
+        "FC Bentonit",
+        "Lernayin Artsakh FC",
+        competition_code="UNK",
+    )
+    assert is_ng_surebet_unreliable(
+        "Home U19",
+        "Away U19",
+        competition_code="YTH",
+    )
+    assert is_ng_surebet_unreliable(
+        "A",
+        "B",
+        competition_name="Armenia. First League",
+    )
+    assert not is_ng_surebet_unreliable(
+        "Arsenal",
+        "Chelsea",
+        competition_code="EPL",
+        competition_name="Premier League",
+    )
