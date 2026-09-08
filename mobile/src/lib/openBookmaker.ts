@@ -31,7 +31,7 @@ const BOOK_OPEN: Record<string, BookOpenConfig> = {
   melbet: {
     key: 'melbet',
     homeUrl: 'https://melbet.com/en',
-    // MelBet `/en/search` 404s; football line is the stable hand-off.
+    // MelBet `/en/search` 404s; football line + clipboard paste is the hand-off.
     openUrl: () => 'https://melbet.com/en/line/football',
     hasSearch: false,
   },
@@ -92,10 +92,19 @@ export function resolveBookOpenConfig(bookmaker: string): BookOpenConfig {
 export function bookmakerSearchQuery(home: string, away: string): string {
   const h = cleanTeam(home);
   const a = cleanTeam(away);
-  let primary = preferSearchName(h, a).slice(0, 48);
+  const sh = significantWords(h);
+  const sa = significantWords(a);
+  // Prefer a short unique token; if both sides have distinctive names, join them
+  // so MelBet/SportyBet search can still hit obscure fixtures.
+  let primary = preferSearchName(h, a);
+  if (sh && sa && sh.toLowerCase() !== sa.toLowerCase()) {
+    const joined = `${sh} ${sa}`.trim();
+    if (joined.length <= 48) primary = joined;
+  }
+  primary = primary.slice(0, 48);
   // SportyBet rejects searches under 3 non-space characters.
   if (primary.replace(/\s/g, '').length < 3) {
-    const fallback = `${significantWords(h) || h} ${significantWords(a) || a}`.trim();
+    const fallback = `${sh || h} ${sa || a}`.trim();
     primary = (fallback || primary || 'football').slice(0, 48);
   }
   return primary;
