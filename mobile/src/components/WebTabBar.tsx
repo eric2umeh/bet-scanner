@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   shell: {
     flexDirection: 'row',
     height: WEB_TAB_BAR_HEIGHT,
-    backgroundColor: 'rgba(16, 24, 32, 0.98)',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.line,
     paddingHorizontal: 4,
