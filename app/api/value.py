@@ -18,6 +18,7 @@ from app.schemas.value import (
     ValuePickOut,
     ValueScanResponse,
 )
+from app.services.bookmakers import configured_odds_books
 from app.services.scan_value import scan_value_1x2
 from app.services.value_math import (
     average_fair_probs,
@@ -44,15 +45,16 @@ def scan_value(
     bankroll_ngn: Decimal = Query(default=Decimal("50000"), gt=0),
     unit_pct: Decimal | None = Query(default=None, gt=0, le=10),
     bookmakers: str | None = Query(
-        default="sportybet,bet9ja",
-        description="Comma list, e.g. sportybet,bet9ja",
+        default=None,
+        description="Comma list (default: ODDS_API_IO_BOOKMAKERS, e.g. sportybet,melbet)",
     ),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> ValueScanResponse:
-    allowed = None
     if bookmakers:
         allowed = {b.strip().lower() for b in bookmakers.split(",") if b.strip()}
+    else:
+        allowed = {b.lower() for b in configured_odds_books(settings)} or None
     result = scan_value_1x2(
         db,
         settings,
