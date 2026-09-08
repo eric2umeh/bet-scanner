@@ -88,10 +88,13 @@ def list_bettable_matches(
     settings: Settings = Depends(get_settings),
 ) -> list[Match]:
     """
-    Matches that have fresh odds on your NG books — use for the Today tab.
+    Matches that have odds on your NG books — use for the Home tab.
 
     Only rows linked in the `odds` table count (odds-api.io sync). Calendar
-    fixtures without a recent odds pull will not appear here.
+    fixtures without an odds pull will not appear here.
+
+    Default max_age is generous (24h via client) so evening kickoffs stay listed
+    even if the last sync was earlier in the day — not the tight arb freshness window.
     """
     days = max(1, min(days, 60))
     if bookmakers:
@@ -104,7 +107,7 @@ def list_bettable_matches(
     max_age = (
         max_age_minutes
         if max_age_minutes is not None
-        else settings.arb_max_odds_age_minutes
+        else max(settings.arb_max_odds_age_minutes, 24 * 60)
     )
     now = datetime.now(ZoneInfo("UTC"))
     end = now + timedelta(days=days)
