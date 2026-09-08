@@ -78,8 +78,10 @@ class Settings(BaseSettings):
     # Docs: https://docs.odds-api.io/quickstart
     odds_api_io_key: str = ""
     odds_api_io_bookmakers: str = "SportyBet,Bet9ja"
-    # Free tier ~100 req/hr; /odds/multi batches 10 events per request
-    odds_api_io_event_limit: int = 40
+    # Free tier ~100 req/hr; /odds/multi batches 10 events per request.
+    # Keep high (≤100) so evening kickoffs sync — low values (e.g. 40) fill with
+    # soonest fixtures only and look like a ~3pm cutoff on Home.
+    odds_api_io_event_limit: int = 100
 
     # BetRelay (optional / often paid) — https://betrelay.com.ng/api-docs
     betrelay_api_key: str = ""
