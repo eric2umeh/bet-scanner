@@ -32,6 +32,16 @@ export default function Root({ children }: PropsWithChildren) {
                 width: 0 !important;
                 height: 0 !important;
               }
+              /* Continuous radar arm for LoadingRadar (web) */
+              @keyframes betscout-radar-spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+              .betscout-radar-arm {
+                animation: betscout-radar-spin 1.1s linear infinite;
+                transform-origin: 50% 50%;
+                will-change: transform;
+              }
             `,
           }}
         />
