@@ -170,6 +170,14 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'today-disabled',
     category: 'Home',
+    question: 'Why do Home fixtures stop around mid-afternoon?',
+    answer:
+      'Odds sync uses ODDS_API_IO_EVENT_LIMIT (max 100). A low value like 40 fills with the soonest kickoffs and drops evening games. Set ODDS_API_IO_EVENT_LIMIT=100 in local .env and Render → Environment, redeploy/restart, then Load matches. APP_TIMEZONE=Africa/Lagos is fine and not the cause.',
+    keywords: ['3pm', 'evening', 'limit', 'event', 'cutoff', 'afternoon', 'ODDS_API_IO_EVENT_LIMIT'],
+  },
+  {
+    id: 'today-disabled-markets',
+    category: 'Home',
     question: 'Why do odds show here but are disabled on SportyBet?',
     answer:
       'We pull prices from odds-api.io, not directly from the SportyBet app. Markets can suspend after sync. We skip suspended API markets and youth leagues where O/U and BTTS are often off. Always confirm live in the book before staking.',
