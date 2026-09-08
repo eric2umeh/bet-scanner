@@ -271,11 +271,18 @@ class OddsApiIoProvider:
             if not isinstance(data, list):
                 raise OddsApiIoError(f"Unexpected /events response: {type(data)}")
             future = _future_events_only(data)
+            future.sort(key=lambda e: _parse_dt(e.get("date")).timestamp())
+            day_end = now + timedelta(hours=24)
+            within_day = [
+                e for e in future if _parse_dt(e.get("date")) <= day_end
+            ]
+            later = [e for e in future if _parse_dt(e.get("date")) > day_end]
+            selected = (within_day + later)[: self.event_limit]
             print(
-                f"[odds-api-io] events={len(future)}/{len(data)} future "
-                f"(limit={self.event_limit})"
+                f"[odds-api-io] events={len(selected)}/{len(data)} future "
+                f"(limit={self.event_limit}, within_24h={len(within_day)})"
             )
-            return future[: self.event_limit]
+            return selected
 
         # Ask each book for up to event_limit events, then merge uniquely.
         per_book: list[list[dict]] = []
@@ -303,31 +310,31 @@ class OddsApiIoProvider:
             )
             per_book.append(future)
 
-        cap = self.event_limit
-        selected: list[dict] = []
+        # Merge uniquely, then prefer the next 24h so evening kickoffs today
+        # aren't dropped when the soonest morning slate alone fills the cap.
+        merged: list[dict] = []
         seen: set = set()
-        index = 0
-        while len(selected) < cap:
-            progressed = False
-            for events in per_book:
-                if index >= len(events):
-                    continue
-                event = events[index]
+        for events in per_book:
+            for event in events:
                 event_id = event.get("id")
-                progressed = True
                 if event_id is None or event_id in seen:
                     continue
                 seen.add(event_id)
-                selected.append(event)
-                if len(selected) >= cap:
-                    break
-            if not progressed:
-                break
-            index += 1
+                merged.append(event)
+
+        def _kickoff_ts(event: dict) -> float:
+            return _parse_dt(event.get("date")).timestamp()
+
+        merged.sort(key=_kickoff_ts)
+        day_end = (now + timedelta(hours=24)).timestamp()
+        within_day = [e for e in merged if _kickoff_ts(e) <= day_end]
+        later = [e for e in merged if _kickoff_ts(e) > day_end]
+        selected = (within_day + later)[: self.event_limit]
 
         print(
             f"[odds-api-io] events={len(selected)} future "
-            f"(merged from {len(self.bookmakers)} books, cap={cap})"
+            f"(cap={self.event_limit}, within_24h={len(within_day)}, "
+            f"merged={len(merged)})"
         )
         return selected
 
