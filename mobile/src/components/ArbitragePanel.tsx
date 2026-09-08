@@ -706,6 +706,9 @@ function ArbCard({
               Place on: {booksUsed.map((b) => bookLabel(b)).join(' · ')}
             </Text>
           ) : null}
+          <Text style={styles.confirmLive}>
+            Confirm both legs live — books often change O/U lines (2.5→3.5) or hide lower leagues.
+          </Text>
         </View>
         <View style={styles.profitBadge}>
           <Text style={styles.profitText}>{Number(opp.profit_pct).toFixed(2)}%</Text>
@@ -913,6 +916,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 6,
     lineHeight: 16,
+  },
+  confirmLive: {
+    color: colors.warn,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 6,
   },
   profitBadge: {
     backgroundColor: colors.accentDim,
