@@ -153,8 +153,8 @@ function emptyStateForFilter(
 ): { title: string; body: string } {
   if (opts.dateFilter && opts.fixturesOnSelectedDate === 0) {
     return {
-      title: 'No fixtures for this date',
-      body: `No upcoming kickoffs on ${opts.dateFilter} in your books. Pick another day, clear the date (×), or Load matches closer to kickoff.`,
+      title: 'No bets for this date',
+      body: `Nothing with tips on ${opts.dateFilter}. Pick another day, clear the date (×) to see all upcoming, or Load matches closer to kickoff.`,
     };
   }
   const leanHint =
@@ -332,37 +332,23 @@ export default function TodayScreen() {
   const visibleMatches = useMemo(() => {
     void clockTick;
     const q = searchQ.trim().toLowerCase();
-    // Selected date: full local calendar day (00:00–23:59), tip or not.
-    // No date: tip-bearing only so weeks of empty fixtures don't flood Home.
-    let list = matches.filter((m) => {
-      if (!isMatchBettable(m)) return false;
-      if (!kickoffOnDate(m.kickoff_at, dateFilter)) return false;
-      if (dateFilter) return true;
-      return (picksByMatch[m.id] || []).length > 0;
-    });
+    // Only tip-bearing fixtures — never show “No tip” empty cards.
+    let list = matches.filter(
+      (m) =>
+        isMatchBettable(m) &&
+        kickoffOnDate(m.kickoff_at, dateFilter) &&
+        (picksByMatch[m.id] || []).length > 0
+    );
     if (q) {
       list = list.filter((m) => {
         const hay = `${m.home_team} ${m.away_team} ${m.competition_code || ''}`.toLowerCase();
         return hay.includes(q);
       });
     }
-    // Market / lean / logged chips: when filtering a market, only matches with those tips.
-    if (filter !== 'all' || minLeanPct > 0 || loggedFilter !== 'all') {
-      list = list.filter((m) => (picksByMatch[m.id] || []).length > 0);
-    }
     return list.sort(
       (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
     );
-  }, [
-    matches,
-    picksByMatch,
-    searchQ,
-    clockTick,
-    dateFilter,
-    filter,
-    minLeanPct,
-    loggedFilter,
-  ]);
+  }, [matches, picksByMatch, searchQ, clockTick, dateFilter]);
 
   const totalPages = visibleMatches.length
     ? Math.max(1, Math.ceil(visibleMatches.length / pageSize))
@@ -640,11 +626,17 @@ export default function TodayScreen() {
   }, [leanAwarePicks]);
 
   const fixturesOnSelectedDate = useMemo(() => {
-    if (!dateFilter) return matches.length;
+    // Tip-bearing only (same rule as the visible list).
+    if (!dateFilter) {
+      return matches.filter((m) => (picksByMatch[m.id] || []).length > 0).length;
+    }
     return matches.filter(
-      (m) => isMatchBettable(m) && kickoffOnDate(m.kickoff_at, dateFilter)
+      (m) =>
+        isMatchBettable(m) &&
+        kickoffOnDate(m.kickoff_at, dateFilter) &&
+        (picksByMatch[m.id] || []).length > 0
     ).length;
-  }, [matches, dateFilter, clockTick]);
+  }, [matches, dateFilter, clockTick, picksByMatch]);
 
   const filterEmpty = emptyStateForFilter(filter, {
     minLeanPct,
@@ -838,13 +830,7 @@ export default function TodayScreen() {
                     style={!twoColWeb ? { marginBottom: 4 } : undefined}
                   />
                 ) : null}
-                {!tips.length ? (
-                  <Pressable onPress={() => router.push(`/match/${m.id}`)}>
-                    <Text style={[styles.noTip, denseLaptop && styles.noTipDense]}>
-                      No tip — open for odds
-                    </Text>
-                  </Pressable>
-                ) : (
+                {!tips.length ? null : (
                   tips.map((p) => {
                     const on = isTipSelected(p);
                     const logged = pickIsLogged(p);
