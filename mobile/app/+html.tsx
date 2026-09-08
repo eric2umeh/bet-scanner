@@ -18,7 +18,7 @@ export default function Root({ children }: PropsWithChildren) {
               html, body, #root { height: 100%; }
               body {
                 margin: 0;
-                background: radial-gradient(ellipse at 50% 20%, #0f151c 0%, #040608 55%);
+                background: radial-gradient(ellipse at 50% 10%, #ffffff 0%, #E8EEF0 55%);
                 /* Contain rubber-band to the app scroll view (in-app pull), not full page reload */
                 overscroll-behavior-y: contain;
               }
