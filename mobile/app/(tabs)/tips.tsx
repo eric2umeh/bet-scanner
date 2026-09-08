@@ -663,7 +663,7 @@ export default function TipsScreen() {
                 <Text style={styles.muted}>
                   {searchQ.trim()
                     ? 'Try another team spelling, clear the date filter, or switch Active/History.'
-                    : 'Log from Today or change filters.'}
+                    : 'Log from Home or change filters.'}
                 </Text>
               </View>
             ) : null}

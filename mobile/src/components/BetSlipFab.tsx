@@ -233,7 +233,7 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
         accessibilityRole="button"
         accessibilityState={{ disabled: !!busy }}
         accessibilityLabel={
-          busy ? 'Logging tips…' : `${count} tips selected. Drag anywhere on Today.`
+          busy ? 'Logging tips…' : `${count} tips selected. Drag anywhere on Home.`
         }
       >
         <View style={[styles.fab, busy && styles.fabBusy]}>

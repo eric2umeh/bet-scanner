@@ -50,7 +50,7 @@ export default function ToolsHubScreen() {
       <View style={styles.note}>
         <Text style={styles.noteTitle}>Quick tip</Text>
         <Text style={styles.noteText}>
-          For surebets, use the Surebets tab. For daily Safe picks, stay on Today. Bankroll and
+          For surebets, use the Surebets tab. For daily Safe picks, stay on Home. Bankroll and
           sign-in live under Account.
         </Text>
       </View>

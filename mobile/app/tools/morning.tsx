@@ -86,7 +86,7 @@ export default function MorningUpdateScreen() {
       ]}
     >
       <Text style={styles.hint}>
-        Morning update: fixtures, settle tips, brief. Fresh prices: ↻ on Today.
+        Morning update: fixtures, settle tips, brief. Fresh prices: ↻ on Home.
       </Text>
       {status ? (
         <View style={[styles.statusBox, statusBad && styles.statusBad]}>

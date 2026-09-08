@@ -17,7 +17,7 @@ export default function NotFoundScreen() {
 
         <Link href="/" asChild>
           <Pressable style={styles.btn}>
-            <Text style={styles.btnText}>Back to Today</Text>
+            <Text style={styles.btnText}>Back to Home</Text>
           </Pressable>
         </Link>
 

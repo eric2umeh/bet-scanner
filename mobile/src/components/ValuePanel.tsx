@@ -153,7 +153,7 @@ export function ValuePanel({ onFlash }: Props) {
         <Text style={styles.btnPrimaryText}>{busy ? 'Working…' : 'Scan value'}</Text>
       </Pressable>
       <Text style={styles.hint}>
-        Syncs odds + scans in one step. Pull down to repeat. Log individual picks from Today after
+        Syncs odds + scans in one step. Pull down to repeat. Log individual picks from Home after
         you place them.
       </Text>
 

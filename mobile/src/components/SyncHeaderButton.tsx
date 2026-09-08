@@ -52,7 +52,7 @@ export function SyncHeaderButton({
       disabled={off}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityHint="Fetches fresh odds and rebuilds Today tips — not the same as browser refresh"
+      accessibilityHint="Fetches fresh odds and rebuilds Home tips — not the same as browser refresh"
     >
       {busy ? (
         <ActivityIndicator size="small" color={colors.accent} />
