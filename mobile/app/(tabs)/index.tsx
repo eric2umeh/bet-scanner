@@ -25,6 +25,7 @@ import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { BookLeanFilters } from '../../src/components/BookLeanFilters';
 import { DatePickerField } from '../../src/components/DatePickerField';
+import { FreeHomeExtras } from '../../src/components/FreeHomeExtras';
 import { HorizontalChipScroll } from '../../src/components/HorizontalChipScroll';
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
 import { LeanBar } from '../../src/components/LeanBar';
@@ -147,13 +148,13 @@ function emptyStateForFilter(
     totalTips: number;
     loggedFilter: LoggedFilter;
     dateFilter: string;
-    tipsOnSelectedDate: number;
+    fixturesOnSelectedDate: number;
   }
 ): { title: string; body: string } {
-  if (opts.dateFilter && opts.tipsOnSelectedDate === 0) {
+  if (opts.dateFilter && opts.fixturesOnSelectedDate === 0) {
     return {
-      title: 'No bets for this date',
-      body: `Nothing with tips on ${opts.dateFilter}. Pick another day, clear the date (×) to see all upcoming, or Load matches closer to kickoff.`,
+      title: 'No fixtures for this date',
+      body: `No upcoming kickoffs on ${opts.dateFilter} in your books. Pick another day, clear the date (×), or Load matches closer to kickoff.`,
     };
   }
   const leanHint =
@@ -330,22 +331,37 @@ export default function TodayScreen() {
   const visibleMatches = useMemo(() => {
     void clockTick;
     const q = searchQ.trim().toLowerCase();
-    let withTips = matches.filter(
-      (m) =>
-        isMatchBettable(m) &&
-        kickoffOnDate(m.kickoff_at, dateFilter) &&
-        (picksByMatch[m.id] || []).length > 0
-    );
+    // Selected date: full local calendar day (00:00–23:59), tip or not.
+    // No date: tip-bearing only so weeks of empty fixtures don't flood Home.
+    let list = matches.filter((m) => {
+      if (!isMatchBettable(m)) return false;
+      if (!kickoffOnDate(m.kickoff_at, dateFilter)) return false;
+      if (dateFilter) return true;
+      return (picksByMatch[m.id] || []).length > 0;
+    });
     if (q) {
-      withTips = withTips.filter((m) => {
+      list = list.filter((m) => {
         const hay = `${m.home_team} ${m.away_team} ${m.competition_code || ''}`.toLowerCase();
         return hay.includes(q);
       });
     }
-    return withTips.sort(
+    // Market / lean / logged chips: when filtering a market, only matches with those tips.
+    if (filter !== 'all' || minLeanPct > 0 || loggedFilter !== 'all') {
+      list = list.filter((m) => (picksByMatch[m.id] || []).length > 0);
+    }
+    return list.sort(
       (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
     );
-  }, [matches, picksByMatch, searchQ, clockTick, dateFilter]);
+  }, [
+    matches,
+    picksByMatch,
+    searchQ,
+    clockTick,
+    dateFilter,
+    filter,
+    minLeanPct,
+    loggedFilter,
+  ]);
 
   const totalPages = visibleMatches.length
     ? Math.max(1, Math.ceil(visibleMatches.length / pageSize))
@@ -371,19 +387,28 @@ export default function TodayScreen() {
       unit_pct: s.unitPct,
     };
     // Always load DC + Winner so Today chips work regardless of Account → Safe tip style.
+    // Same 24h window as bettable — evening kickoffs stay tippable after a morning sync.
+    const oddsAge = { max_odds_age_minutes: 24 * 60 };
     const safeCalls = books.flatMap((bookmaker) => [
-      scanSafeBuilder({ bookmaker, pick_market: 'double_chance', ...bankroll }).catch(
-        () => ({ picks: [] as TipPick[] })
-      ),
-      scanSafeBuilder({ bookmaker, pick_market: '1x2', ...bankroll }).catch(
-        () => ({ picks: [] as TipPick[] })
-      ),
+      scanSafeBuilder({
+        bookmaker,
+        pick_market: 'double_chance',
+        ...bankroll,
+        ...oddsAge,
+      }).catch(() => ({ picks: [] as TipPick[] })),
+      scanSafeBuilder({
+        bookmaker,
+        pick_market: '1x2',
+        ...bankroll,
+        ...oddsAge,
+      }).catch(() => ({ picks: [] as TipPick[] })),
     ]);
     const goalCalls = books.map((bookmaker) =>
       scanGoalMarkets({
         bookmaker,
         markets: 'ou_0_5,ou_1_5,ou_2_5,btts,tt_2_5',
         ...bankroll,
+        ...oddsAge,
       }).catch(() => ({ picks: [] as TipPick[] }))
     );
     const results = await Promise.all([...safeCalls, ...goalCalls]);
@@ -613,10 +638,12 @@ export default function TodayScreen() {
     return counts;
   }, [leanAwarePicks]);
 
-  const tipsOnSelectedDate = useMemo(() => {
-    if (!dateFilter) return picks.length;
-    return picks.filter((p) => kickoffOnDate(p.kickoff_at, dateFilter)).length;
-  }, [picks, dateFilter]);
+  const fixturesOnSelectedDate = useMemo(() => {
+    if (!dateFilter) return matches.length;
+    return matches.filter(
+      (m) => isMatchBettable(m) && kickoffOnDate(m.kickoff_at, dateFilter)
+    ).length;
+  }, [matches, dateFilter, clockTick]);
 
   const filterEmpty = emptyStateForFilter(filter, {
     minLeanPct,
@@ -624,7 +651,7 @@ export default function TodayScreen() {
     totalTips: picks.length,
     loggedFilter,
     dateFilter,
-    tipsOnSelectedDate,
+    fixturesOnSelectedDate,
   });
 
   const showNoTipsBanner = !busy && matches.length > 0 && picks.length === 0 && !dateFilter;
@@ -657,8 +684,7 @@ export default function TodayScreen() {
             <BrandLogo
               size={narrowWeb ? 'sm' : 'md'}
               showWordmark
-              tagline={status}
-              hideTagline={isWeb}
+              hideTagline
               style={styles.heroBrand}
             />
             {isWeb ? (
@@ -675,11 +701,12 @@ export default function TodayScreen() {
               </View>
             ) : null}
           </View>
-          {isWeb ? (
+          <View style={styles.statusRow}>
             <Text style={styles.statusLine} numberOfLines={2}>
               {status}
             </Text>
-          ) : null}
+            <FreeHomeExtras />
+          </View>
         </View>
 
         <HorizontalChipScroll>
@@ -730,8 +757,8 @@ export default function TodayScreen() {
         {dateFilter && !busy ? (
           <Text style={styles.dateCount} numberOfLines={1}>
             {visibleMatches.length
-              ? `${visibleMatches.length} fixture${visibleMatches.length === 1 ? '' : 's'} with tips`
-              : 'No fixtures with tips'}
+              ? `${visibleMatches.length} fixture${visibleMatches.length === 1 ? '' : 's'} · ${dateFilter} (full day)`
+              : 'No fixtures this day'}
           </Text>
         ) : null}
 
@@ -915,8 +942,8 @@ const styles = StyleSheet.create({
     marginHorizontal: -16,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(42, 53, 64, 0.7)',
-    backgroundColor: 'rgba(11, 16, 20, 0.88)',
+    borderBottomColor: colors.line,
+    backgroundColor: colors.surface,
   },
   hero: {
     flexDirection: 'row',
@@ -936,11 +963,20 @@ const styles = StyleSheet.create({
     gap: 6,
     flexShrink: 0,
   },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    flexWrap: 'wrap',
+  },
   statusLine: {
     color: colors.muted,
-    marginTop: 8,
     fontSize: 12,
     lineHeight: 17,
+    flexShrink: 1,
+    flexGrow: 1,
+    minWidth: 140,
   },
   hint: {
     color: colors.muted,
@@ -984,7 +1020,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnDisabled: { opacity: 0.55 },
-  btnText: { color: '#06241c', fontWeight: '700', fontSize: 13, textAlign: 'center' },
+  btnText: { color: colors.onAccent, fontWeight: '700', fontSize: 13, textAlign: 'center' },
   btnSecondary: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -1004,7 +1040,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     marginRight: 8,
   },
-  chipOn: { backgroundColor: colors.accentDim, borderColor: 'rgba(45, 212, 168, 0.45)' },
+  chipOn: { backgroundColor: colors.accentDim, borderColor: 'rgba(15, 138, 95, 0.35)' },
   chipText: { color: colors.muted, fontWeight: '600', fontSize: 13 },
   chipTextOn: { color: colors.accent },
   matchGrid: { marginTop: 8 },
@@ -1016,12 +1052,13 @@ const styles = StyleSheet.create({
   },
   card: {
     marginTop: 10,
-    backgroundColor: '#1c2630',
+    backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    boxShadow: '0 2px 10px rgba(18, 32, 24, 0.06)',
   },
   cardCompact: {
     marginTop: 8,
@@ -1037,7 +1074,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   cardHasTip: {
-    borderColor: 'rgba(45, 212, 168, 0.4)',
+    borderColor: 'rgba(15, 138, 95, 0.4)',
   },
   cardTop: {
     flexDirection: 'row',
@@ -1059,7 +1096,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(42, 53, 64, 0.85)',
+    borderTopColor: colors.line,
   },
   staleBanner: {
     marginTop: 10,
@@ -1069,7 +1106,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     borderStyle: 'dashed',
-    backgroundColor: 'rgba(20, 27, 34, 0.6)',
+    backgroundColor: colors.surface,
   },
   staleText: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: 4 },
   tipRow: {
@@ -1079,7 +1116,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(42, 53, 64, 0.85)',
+    borderTopColor: colors.line,
   },
   tipRowCompact: {
     gap: 8,
@@ -1107,7 +1144,7 @@ const styles = StyleSheet.create({
   },
   checkOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   checkLogged: { backgroundColor: colors.muted, borderColor: colors.muted },
-  checkMark: { color: '#06241c', fontWeight: '800', fontSize: 12 },
+  checkMark: { color: colors.onAccent, fontWeight: '800', fontSize: 12 },
   tipBody: { flex: 1, minWidth: 0 },
   tipTitle: { color: colors.ink, fontWeight: '700', fontSize: 14 },
   tipTitleCompact: { fontSize: 12, lineHeight: 16, fontWeight: '600' },
