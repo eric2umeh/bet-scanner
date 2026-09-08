@@ -17,6 +17,16 @@ _YOUTH_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Lower divisions / obscure leagues are often missing on MelBet search or only
+# offer alternate totals lines on SportyBet (e.g. 3.5 instead of feed’s 2.5).
+_LOWER_TIER_RE = re.compile(
+    r"first\s+league|2nd\s+division|division\s*[23]|segunda|terceira|"
+    r"third\s+division|liga\s*[34]|liga\s+(iii|iv)\b|amateur|regional|"
+    r"county|amateur|women'?s?\s+second|reserves?\b|"
+    r"armenia\.?\s*first|armenia\.?\s*division",
+    re.IGNORECASE,
+)
+
 
 def is_youth_or_reserve_match(
     home: str,
@@ -29,6 +39,33 @@ def is_youth_or_reserve_match(
         x for x in (home, away, competition_code or "", competition_name or "") if x
     )
     return bool(_YOUTH_RE.search(blob))
+
+
+def is_ng_surebet_unreliable(
+    home: str,
+    away: str,
+    *,
+    competition_code: str | None = None,
+    competition_name: str | None = None,
+) -> bool:
+    """
+    True when a surebet is unlikely to be placeable on SportyBet/MelBet:
+    youth/reserve, lower-tier leagues, or unknown competition codes.
+    """
+    if is_youth_or_reserve_match(
+        home,
+        away,
+        competition_code=competition_code,
+        competition_name=competition_name,
+    ):
+        return True
+    code = str(competition_code or "").strip().upper()
+    if code in {"UNK", "UNKNOWN", "N/A", "NA", "?"}:
+        return True
+    blob = " ".join(
+        x for x in (home, away, competition_code or "", competition_name or "") if x
+    )
+    return bool(_LOWER_TIER_RE.search(blob))
 
 
 def singles_only_hint(home: str, away: str, **kw) -> str | None:
