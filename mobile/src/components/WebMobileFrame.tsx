@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   outer: {
     flex: 1,
     minHeight: '100%',
-    backgroundColor: '#040608',
+    backgroundColor: '#E8EEF0',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 20,
@@ -58,10 +58,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(42, 53, 64, 0.9)',
+    borderColor: colors.line,
     overflow: 'hidden',
     position: 'relative',
     // @ts-expect-error RN web boxShadow
-    boxShadow: '0 28px 90px rgba(0, 0, 0, 0.62)',
+    boxShadow: '0 20px 60px rgba(18, 32, 24, 0.12)',
   },
 });
