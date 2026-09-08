@@ -23,7 +23,7 @@ export function LeanBar({ pct, style, compact }: Props) {
   };
   if (Platform.OS === 'web') {
     Object.assign(fillStyle, {
-      backgroundImage: 'linear-gradient(90deg, #1fa87f, #2dd4a8)',
+      backgroundImage: 'linear-gradient(90deg, #0F8A5F, #0F8A5F)',
     });
   }
 
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 4,
     borderRadius: 99,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.line,
     overflow: 'hidden',
   },
   trackCompact: {

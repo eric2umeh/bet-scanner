@@ -52,5 +52,5 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 18,
   },
-  btnText: { color: '#06241c', fontWeight: '700', fontSize: 14 },
+  btnText: { color: colors.onAccent, fontWeight: '700', fontSize: 14 },
 });

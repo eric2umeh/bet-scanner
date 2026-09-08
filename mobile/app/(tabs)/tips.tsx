@@ -888,8 +888,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'stretch',
   },
-  settlePrimaryText: { color: '#06241c', fontWeight: '800', fontSize: 15 },
-  btnText: { color: '#06241c', fontWeight: '700' },
+  settlePrimaryText: { color: colors.onAccent, fontWeight: '800', fontSize: 15 },
+  btnText: { color: colors.onAccent, fontWeight: '700' },
   btnSecondary: {
     backgroundColor: colors.surface,
     borderRadius: 12,

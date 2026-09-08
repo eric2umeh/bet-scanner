@@ -77,8 +77,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(45, 212, 168, 0.45)',
-    backgroundColor: 'rgba(45, 212, 168, 0.14)',
+    borderColor: 'rgba(15, 138, 95, 0.45)',
+    backgroundColor: 'rgba(15, 138, 95, 0.14)',
   },
   btnLabeled: {
     borderRadius: 12,

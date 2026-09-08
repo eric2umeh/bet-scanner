@@ -26,7 +26,7 @@ type Props = {
 };
 
 /**
- * Vector radar + ball mark — matches app icon (#0b1014 shell, #2dd4a8 accent).
+ * Vector radar + ball mark — light shell + forest green accent.
  * Use anywhere in the UI; PNG assets in assets/images/ are for OS icon + splash.
  */
 export function BrandLogo({

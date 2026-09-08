@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   btn: {
     marginTop: 12,
     backgroundColor: colors.accentDim,
-    borderColor: 'rgba(45, 212, 168, 0.45)',
+    borderColor: 'rgba(15, 138, 95, 0.45)',
     borderWidth: 1,
     borderRadius: 10,
     paddingVertical: 12,

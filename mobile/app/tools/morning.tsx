@@ -100,7 +100,7 @@ export default function MorningUpdateScreen() {
         onPress={() => void onMorning()}
       >
         {opsBusy ? (
-          <ActivityIndicator color="#06241c" />
+          <ActivityIndicator color={colors.onAccent} />
         ) : (
           <Text style={styles.btnText}>Run morning update</Text>
         )}
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnDisabled: { opacity: 0.55 },
-  btnText: { color: '#06241c', fontWeight: '800', fontSize: 15 },
+  btnText: { color: colors.onAccent, fontWeight: '800', fontSize: 15 },
   opsBox: {
     marginTop: 14,
     padding: 12,

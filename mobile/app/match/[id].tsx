@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
-  btnText: { color: '#06241c', fontWeight: '700' },
+  btnText: { color: colors.onAccent, fontWeight: '700' },
   btnSecondary: {
     marginTop: 8,
     backgroundColor: colors.surface,

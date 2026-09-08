@@ -141,6 +141,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   disabled: { opacity: 0.6 },
-  btnText: { color: '#06241c', fontWeight: '700', fontSize: 16 },
+  btnText: { color: colors.onAccent, fontWeight: '700', fontSize: 16 },
   error: { color: colors.bad, marginTop: 8, fontSize: 13 },
 });

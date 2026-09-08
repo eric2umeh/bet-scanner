@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  btnPrimaryText: { color: '#06241c', fontWeight: '800', fontSize: 15 },
+  btnPrimaryText: { color: colors.onAccent, fontWeight: '800', fontSize: 15 },
   hint: { color: colors.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 },
   disabled: { opacity: 0.55 },
   empty: {

@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   btnText: { fontWeight: '700', fontSize: 15 },
   btnPrimary: { backgroundColor: colors.accent },
-  btnPrimaryText: { color: '#06241c' },
+  btnPrimaryText: { color: colors.onAccent },
   btnSecondary: {
     backgroundColor: colors.surface,
     borderWidth: 1,

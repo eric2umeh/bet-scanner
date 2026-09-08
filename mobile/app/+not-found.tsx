@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
   },
-  btnText: { color: '#06241c', fontWeight: '700', fontSize: 15 },
+  btnText: { color: colors.onAccent, fontWeight: '700', fontSize: 15 },
   link: { marginTop: 8, paddingVertical: 10 },
   linkText: { color: colors.accent, fontWeight: '600', fontSize: 14 },
 });

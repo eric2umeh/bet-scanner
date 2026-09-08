@@ -149,7 +149,7 @@ export default function SlipToolScreen() {
           onPress={onPriceCheck}
         >
           {converting ? (
-            <ActivityIndicator color="#06241c" />
+            <ActivityIndicator color={colors.onAccent} />
           ) : (
             <Text style={styles.btnText}>Compare prices</Text>
           )}
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnFlex: { flex: 1, minWidth: 120 },
-  btnText: { color: '#06241c', fontWeight: '700' },
+  btnText: { color: colors.onAccent, fontWeight: '700' },
   btnSecondary: {
     backgroundColor: colors.surface,
     borderRadius: 12,

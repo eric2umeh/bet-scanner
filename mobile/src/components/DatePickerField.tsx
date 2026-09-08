@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   triggerOn: {
-    borderColor: 'rgba(45, 212, 168, 0.45)',
+    borderColor: 'rgba(15, 138, 95, 0.45)',
     backgroundColor: colors.accentDim,
   },
   triggerText: { color: colors.ink, fontSize: 12, fontWeight: '600', flexShrink: 1 },
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   daySelected: { backgroundColor: colors.accent },
   dayToday: { borderWidth: 1, borderColor: colors.accent },
   dayText: { color: colors.ink, fontSize: 14, fontWeight: '600' },
-  dayTextSelected: { color: '#06241c', fontWeight: '800' },
+  dayTextSelected: { color: colors.onAccent, fontWeight: '800' },
   dayTextToday: { color: colors.accent },
   footer: {
     flexDirection: 'row',

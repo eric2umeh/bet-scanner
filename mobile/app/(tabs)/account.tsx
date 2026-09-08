@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   btnDisabled: { opacity: 0.55 },
-  btnText: { color: '#06241c', fontWeight: '800', fontSize: 14 },
+  btnText: { color: colors.onAccent, fontWeight: '800', fontSize: 14 },
   btnSecondaryText: { color: colors.ink, fontWeight: '700', fontSize: 14 },
   chip: {
     flex: 1,

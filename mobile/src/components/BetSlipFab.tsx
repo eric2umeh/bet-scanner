@@ -381,8 +381,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 5,
   },
-  fabBadgeText: { color: '#06241c', fontWeight: '800', fontSize: 12 },
-  fabOdds: { color: '#06241c', fontWeight: '800', fontSize: 13 },
+  fabBadgeText: { color: colors.onAccent, fontWeight: '800', fontSize: 12 },
+  fabOdds: { color: colors.onAccent, fontWeight: '800', fontSize: 13 },
   dragHint: {
     marginTop: 4,
     color: colors.muted,
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetCountText: { color: '#06241c', fontWeight: '800', fontSize: 13 },
+  sheetCountText: { color: colors.onAccent, fontWeight: '800', fontSize: 13 },
   sheetTitle: { flex: 1, color: colors.ink, fontWeight: '800', fontSize: 17 },
   sheetClose: { color: colors.muted, fontSize: 16, padding: 4 },
   sheetScroll: { maxHeight: 320, paddingHorizontal: 16 },
@@ -492,6 +492,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     alignItems: 'center',
   },
-  btnPrimaryText: { color: '#06241c', fontWeight: '800', fontSize: 15 },
+  btnPrimaryText: { color: colors.onAccent, fontWeight: '800', fontSize: 15 },
   btnDisabled: { opacity: 0.55 },
 });

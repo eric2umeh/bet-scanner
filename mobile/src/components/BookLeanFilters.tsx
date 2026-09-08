@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   triggerActive: {
-    borderColor: 'rgba(45, 212, 168, 0.45)',
+    borderColor: 'rgba(15, 138, 95, 0.45)',
     backgroundColor: colors.accentDim,
   },
   triggerText: { color: colors.ink, fontSize: 12, fontWeight: '600', flexShrink: 1 },
