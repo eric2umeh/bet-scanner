@@ -16,8 +16,16 @@ export function fetchUpcomingMatches(days = 21) {
   return getJson<Match[]>(`/matches/upcoming?days=${days}`);
 }
 
-export async function fetchBettableMatches(days = 21, bookmakers?: string): Promise<Match[]> {
-  const q = new URLSearchParams({ days: String(days) });
+export async function fetchBettableMatches(
+  days = 21,
+  bookmakers?: string,
+  /** Odds older than this are ignored (default 24h so evening fixtures stay listed). */
+  maxAgeMinutes = 24 * 60
+): Promise<Match[]> {
+  const q = new URLSearchParams({
+    days: String(days),
+    max_age_minutes: String(maxAgeMinutes),
+  });
   if (bookmakers) q.set('bookmakers', bookmakers);
   try {
     return await getJson<Match[]>(`/matches/bettable?${q}`);
