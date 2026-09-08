@@ -40,8 +40,8 @@ module.exports = {
     orientation: 'portrait',
     icon: './assets/images/icon.png',
     scheme: 'betscanner',
-    userInterfaceStyle: 'dark',
-    backgroundColor: '#0b1014',
+    userInterfaceStyle: 'light',
+    backgroundColor: '#F5F7F8',
     runtimeVersion: {
       policy: 'appVersion',
     },
@@ -53,7 +53,7 @@ module.exports = {
     splash: {
       image: './assets/images/splash-icon.png',
       resizeMode: 'contain',
-      backgroundColor: '#0b1014',
+      backgroundColor: '#F5F7F8',
     },
     ios: {
       supportsTablet: true,
@@ -67,7 +67,7 @@ module.exports = {
       versionCode: 1,
       adaptiveIcon: {
         foregroundImage: './assets/images/adaptive-icon.png',
-        backgroundColor: '#0b1014',
+        backgroundColor: '#F5F7F8',
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
