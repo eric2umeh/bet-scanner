@@ -48,7 +48,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Today',
+          title: 'Home',
+          tabBarLabel: 'Home',
           headerShown: !isWeb,
           tabBarIcon: ({ color }) => <TabBarIcon name="futbol-o" color={color} />,
         }}
