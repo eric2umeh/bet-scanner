@@ -1,14 +1,16 @@
-/** Match dashboard.html dark shell */
+/** Light shell — clean white cards, forest green accent (SCOUTER-inspired). */
 export const colors = {
-  bg: '#0b1014',
-  surface: '#141b22',
-  card: '#1a232c',
-  ink: '#e8eef2',
-  muted: '#8b9aab',
-  line: '#2a3540',
-  accent: '#2dd4a8',
-  accentDim: 'rgba(45, 212, 168, 0.14)',
-  good: '#3ecf8e',
-  warn: '#e6b84d',
-  bad: '#ef6b6b',
+  bg: '#F5F7F8',
+  surface: '#FFFFFF',
+  card: '#FFFFFF',
+  ink: '#122018',
+  muted: '#6B7280',
+  line: '#E5E9EC',
+  accent: '#0F8A5F',
+  accentDim: 'rgba(15, 138, 95, 0.12)',
+  good: '#0F8A5F',
+  warn: '#C9922A',
+  bad: '#D64545',
+  /** Text on solid accent buttons */
+  onAccent: '#FFFFFF',
 };
