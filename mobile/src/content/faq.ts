@@ -108,8 +108,16 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'Why are there no surebets?',
     answer:
-      'True arbs are rare. Odds must be fresh, and tiny edges disappear fast. Refresh Home, then Find surebets closer to kickoff. The scanner needs ≥2 books with overlapping O/U, BTTS, or 1X2 prices — one book alone will never show a cross-book surebet.',
-    keywords: ['no', 'empty', 'rare', 'none', 'surebet'],
+      'True arbs are rare. Odds must be fresh, and tiny edges disappear fast. Refresh Home, then Find surebets closer to kickoff. The scanner needs ≥2 books with overlapping O/U, BTTS, or 1X2 prices — one book alone will never show a cross-book surebet. Youth, unknown (UNK), and lower-tier leagues are skipped because SportyBet/MelBet often lack the match or only offer a different O/U line (e.g. 3.5 instead of 2.5).',
+    keywords: ['no', 'empty', 'rare', 'none', 'surebet', 'unk', 'youth', 'melbet'],
+  },
+  {
+    id: 'arb-confirm-live',
+    category: 'Arbitrage',
+    question: 'Why can’t I find the surebet match or O/U 2.5 on SportyBet/MelBet?',
+    answer:
+      'Feeds can lag the live book. SportyBet may suspend 2.5 and only show 3.5; MelBet may hide lower-league fixtures from search. Always open each leg, confirm the same market line, and skip the arb if either book differs. We already hide many youth/UNK/lower-tier fixtures from Find Nigeria surebets.',
+    keywords: ['sportybet', 'melbet', '2.5', '3.5', 'search', 'missing', 'confirm'],
   },
   {
     id: 'auth-key',
