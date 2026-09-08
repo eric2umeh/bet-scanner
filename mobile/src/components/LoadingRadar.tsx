@@ -1,5 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, View, type ViewStyle } from 'react-native';
+import {
+  Animated,
+  Easing,
+  Platform,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 
 import { colors } from '../theme/colors';
@@ -12,9 +19,14 @@ type Props = {
   style?: ViewStyle;
 };
 
+const isWeb = Platform.OS === 'web';
+
 /**
  * Brand radar mark as a loading spinner — concentric rings stay put,
  * the scout arm spins continuously (same footprint as ActivityIndicator).
+ *
+ * Web uses CSS infinite animation (RN Animated.loop + native driver often
+ * completes one turn then stops in the browser).
  */
 export function LoadingRadar({ size = 'small', color, style }: Props) {
   const dim =
@@ -27,6 +39,28 @@ export function LoadingRadar({ size = 'small', color, style }: Props) {
   const stroke = Math.max(1, dim * 0.06);
 
   useEffect(() => {
+    if (!isWeb || typeof document === 'undefined') return;
+    const id = 'betscout-radar-spin-style';
+    if (document.getElementById(id)) return;
+    const el = document.createElement('style');
+    el.id = id;
+    el.textContent = `
+      @keyframes betscout-radar-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .betscout-radar-arm {
+        animation: betscout-radar-spin 1.1s linear infinite !important;
+        transform-origin: 50% 50% !important;
+        will-change: transform;
+      }
+    `;
+    document.head.appendChild(el);
+  }, []);
+
+  useEffect(() => {
+    if (isWeb) return;
+    spin.setValue(0);
     const loop = Animated.loop(
       Animated.timing(spin, {
         toValue: 1,
@@ -36,13 +70,31 @@ export function LoadingRadar({ size = 'small', color, style }: Props) {
       })
     );
     loop.start();
-    return () => loop.stop();
+    return () => {
+      loop.stop();
+      spin.stopAnimation();
+    };
   }, [spin]);
 
   const rotate = spin.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
   });
+
+  const armSvg = (
+    <Svg width={dim} height={dim} viewBox={`0 0 ${dim} ${dim}`}>
+      <Line
+        x1={c}
+        y1={c}
+        x2={c + r * 0.95}
+        y2={c - r * 0.2}
+        stroke={accent}
+        strokeWidth={stroke * 1.15}
+        strokeLinecap="round"
+        opacity={0.95}
+      />
+    </Svg>
+  );
 
   return (
     <View
@@ -80,25 +132,22 @@ export function LoadingRadar({ size = 'small', color, style }: Props) {
         />
         <Path d={hexPath(c, c, dim * 0.1)} fill={ink} opacity={0.95} />
       </Svg>
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          { transform: [{ rotate }] },
-        ]}
-      >
-        <Svg width={dim} height={dim} viewBox={`0 0 ${dim} ${dim}`}>
-          <Line
-            x1={c}
-            y1={c}
-            x2={c + r * 0.95}
-            y2={c - r * 0.2}
-            stroke={accent}
-            strokeWidth={stroke * 1.15}
-            strokeLinecap="round"
-            opacity={0.95}
-          />
-        </Svg>
-      </Animated.View>
+      {isWeb ? (
+        <View
+          // RN web: CSS infinite spin (see app/+html.tsx)
+          // @ts-expect-error className is valid on RN web
+          className="betscout-radar-arm"
+          style={StyleSheet.absoluteFill}
+        >
+          {armSvg}
+        </View>
+      ) : (
+        <Animated.View
+          style={[StyleSheet.absoluteFill, { transform: [{ rotate }] }]}
+        >
+          {armSvg}
+        </Animated.View>
+      )}
     </View>
   );
 }
