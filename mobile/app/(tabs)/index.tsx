@@ -247,8 +247,9 @@ export default function TodayScreen() {
     usePendingLoggedTips(true);
   const { width: windowWidth } = useWindowDimensions();
   const narrowWeb = isWeb && windowWidth < 560;
-  /** Two-column match grid only when cards stay wide enough to read tip text. */
-  const twoColWeb = isWeb && windowWidth >= 640;
+  /** Laptop web (phone frame ≥640): denser cards so more fixtures fit in one view. */
+  const denseLaptop = isWeb && windowWidth >= 640;
+  const twoColWeb = denseLaptop;
 
   const pickIsLogged = useCallback(
     (p: TipPick) => isTipLogged(p) || isPickLoggedFromServer(p),
@@ -754,24 +755,6 @@ export default function TodayScreen() {
           />
         </View>
 
-        {dateFilter && !busy ? (
-          <Text style={styles.dateCount} numberOfLines={1}>
-            {visibleMatches.length
-              ? `${visibleMatches.length} fixture${visibleMatches.length === 1 ? '' : 's'} · ${dateFilter} (full day)`
-              : 'No fixtures this day'}
-          </Text>
-        ) : null}
-
-        {isWeb && !narrowWeb ? (
-          <Text style={styles.hint}>
-            Tap Load matches (or pull down) for fresh odds · tap a pick for your slip.
-          </Text>
-        ) : !isWeb ? (
-          <Text style={styles.hint}>
-            Pull down or tap Load matches for fresh odds · tap a pick for your slip.
-          </Text>
-        ) : null}
-
         {busy && !matches.length ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
         ) : null}
@@ -803,39 +786,63 @@ export default function TodayScreen() {
                   styles.card,
                   !twoColWeb && styles.cardCompact,
                   twoColWeb && styles.cardWeb,
+                  denseLaptop && styles.cardDenseLaptop,
                   hasTip && styles.cardHasTip,
                 ]}
               >
                 <Pressable onPress={() => router.push(`/match/${m.id}`)}>
-                  <View style={[styles.cardTop, !twoColWeb && styles.cardTopCompact]}>
-                    <Text style={styles.league} numberOfLines={1}>
+                  <View
+                    style={[
+                      styles.cardTop,
+                      (!twoColWeb || denseLaptop) && styles.cardTopCompact,
+                    ]}
+                  >
+                    <Text
+                      style={[styles.league, denseLaptop && styles.leagueDense]}
+                      numberOfLines={1}
+                    >
                       {m.competition_code || '—'}
                     </Text>
-                    <Text style={styles.kickoff} numberOfLines={1}>
+                    <Text
+                      style={[styles.kickoff, denseLaptop && styles.kickoffDense]}
+                      numberOfLines={1}
+                    >
                       {kickoffLabel(m.kickoff_at)}
                     </Text>
                   </View>
                   <Text
-                    style={[styles.match, !twoColWeb && styles.matchCompact]}
+                    style={[
+                      styles.match,
+                      !twoColWeb && styles.matchCompact,
+                      denseLaptop && styles.matchDense,
+                    ]}
                     numberOfLines={1}
                   >
-                    {formatMatchTitle(m.home_team, m.away_team, twoColWeb ? 14 : 18)}
+                    {formatMatchTitle(
+                      m.home_team,
+                      m.away_team,
+                      denseLaptop ? 12 : twoColWeb ? 14 : 18
+                    )}
                   </Text>
                 </Pressable>
-                <OpenBookmakerButton
-                  home={m.home_team}
-                  away={m.away_team}
-                  bookmaker={
-                    bookFilter !== 'all'
-                      ? bookFilter
-                      : tips.find((t) => t.bookmaker)?.bookmaker || 'sportybet'
-                  }
-                  compact
-                  style={!twoColWeb ? { marginBottom: 4 } : undefined}
-                />
+                {!denseLaptop ? (
+                  <OpenBookmakerButton
+                    home={m.home_team}
+                    away={m.away_team}
+                    bookmaker={
+                      bookFilter !== 'all'
+                        ? bookFilter
+                        : tips.find((t) => t.bookmaker)?.bookmaker || 'sportybet'
+                    }
+                    compact
+                    style={!twoColWeb ? { marginBottom: 4 } : undefined}
+                  />
+                ) : null}
                 {!tips.length ? (
                   <Pressable onPress={() => router.push(`/match/${m.id}`)}>
-                    <Text style={styles.noTip}>No tip — open for odds</Text>
+                    <Text style={[styles.noTip, denseLaptop && styles.noTipDense]}>
+                      No tip — open for odds
+                    </Text>
                   </Pressable>
                 ) : (
                   tips.map((p) => {
@@ -847,7 +854,7 @@ export default function TodayScreen() {
                         key={tipKey(p)}
                         style={[
                           styles.tipRow,
-                          !twoColWeb && styles.tipRowCompact,
+                          (!twoColWeb || denseLaptop) && styles.tipRowCompact,
                           on && styles.tipRowOn,
                           logged && styles.tipRowLogged,
                           busy && styles.tipRowBusy,
@@ -861,7 +868,7 @@ export default function TodayScreen() {
                         <View
                           style={[
                             styles.check,
-                            !twoColWeb && styles.checkCompact,
+                            (!twoColWeb || denseLaptop) && styles.checkCompact,
                             on && styles.checkOn,
                             logged && styles.checkLogged,
                           ]}
@@ -872,27 +879,30 @@ export default function TodayScreen() {
                           <Text
                             style={[
                               styles.tipTitle,
-                              !twoColWeb && styles.tipTitleCompact,
+                              (!twoColWeb || denseLaptop) && styles.tipTitleCompact,
+                              denseLaptop && styles.tipTitleDense,
                               loggedPickStyle(logged),
                             ]}
                             numberOfLines={1}
                           >
                             {marketLabel(p.market)} · {String(p.selection).toUpperCase()}
                             {p.odds != null ? ` @ ${p.odds}` : ''}
-                            {!twoColWeb ? ` · ${bookLabel(p.bookmaker)}` : ''}
+                            {!twoColWeb || denseLaptop
+                              ? ` · ${bookLabel(p.bookmaker)}`
+                              : ''}
                           </Text>
-                          {twoColWeb ? (
+                          {twoColWeb && !denseLaptop ? (
                             <Text style={styles.tipMeta} numberOfLines={1}>
                               {bookLabel(p.bookmaker)}
                             </Text>
                           ) : null}
-                          {p.singles_only_hint ? (
+                          {p.singles_only_hint && !denseLaptop ? (
                             <Text style={styles.tipWarn} numberOfLines={1}>
                               {p.singles_only_hint}
                             </Text>
                           ) : null}
                         </View>
-                        <LeanBar pct={p.confidence_pct} compact={!twoColWeb} />
+                        <LeanBar pct={p.confidence_pct} compact />
                       </Pressable>
                     );
                   })
@@ -978,13 +988,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minWidth: 140,
   },
-  hint: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 6,
-    marginBottom: 4,
-  },
   filterTools: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
@@ -1006,12 +1009,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   dateField: { flexShrink: 0 },
-  dateCount: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 4,
-    marginBottom: 2,
-  },
   btn: {
     backgroundColor: colors.accent,
     borderRadius: 12,
@@ -1047,7 +1044,7 @@ const styles = StyleSheet.create({
   matchGridWeb: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 6,
     justifyContent: 'space-between',
   },
   card: {
@@ -1073,6 +1070,19 @@ const styles = StyleSheet.create({
     marginTop: 0,
     minWidth: 0,
   },
+  /** Laptop web denser packing — smaller padding/type so more cards fit. */
+  cardDenseLaptop: {
+    marginTop: 0,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    boxShadow: '0 1px 4px rgba(18, 32, 24, 0.05)',
+  },
+  leagueDense: { fontSize: 9 },
+  kickoffDense: { fontSize: 9 },
+  matchDense: { fontSize: 12, lineHeight: 15 },
+  noTipDense: { fontSize: 10, marginTop: 4, paddingTop: 4 },
+  tipTitleDense: { fontSize: 11, lineHeight: 14, fontWeight: '600' },
   cardHasTip: {
     borderColor: 'rgba(15, 138, 95, 0.4)',
   },
