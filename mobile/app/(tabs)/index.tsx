@@ -61,6 +61,7 @@ import {
 } from '../../src/store/selection';
 import { loadSettings, unitStakeNgn, type AppSettings } from '../../src/store/settings';
 import { LoadingRadar } from '../../src/components/LoadingRadar';
+import { RequireSignIn } from '../../src/components/RequireSignIn';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 import type { Match, TipPick } from '../../src/types/api';
@@ -666,6 +667,7 @@ export default function TodayScreen() {
   const showFilterEmpty = !busy && !visibleMatches.length && !showNoTipsBanner;
 
   return (
+    <RequireSignIn>
     <View style={styles.root}>
       <ScrollView
         style={styles.screen}
@@ -938,6 +940,7 @@ export default function TodayScreen() {
         busy={busy}
       />
     </View>
+    </RequireSignIn>
   );
 }
 

@@ -32,7 +32,7 @@ import { SignInRequiredBanner } from '../../src/components/SignInRequiredBanner'
 import { SwipeableRow } from '../../src/components/SwipeableRow';
 import { useAppModal } from '../../src/components/modal';
 import { useDebouncedValue } from '../../src/hooks/useDebouncedValue';
-import { useNeedsSignIn } from '../../src/hooks/useTipsFeed';
+import { useMustSignIn } from '../../src/hooks/useMustSignIn';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { markScoreRefreshRan } from '../../src/store/autoSettle';
 import { queryKeys } from '../../src/query/client';
@@ -263,7 +263,7 @@ function PickLines({ t }: { t: TipOut }) {
 export default function TipsScreen() {
   const insets = useSafeAreaInsets();
   const modal = useAppModal();
-  const needsSignIn = useNeedsSignIn();
+  const needsSignIn = useMustSignIn();
   const [tab, setTab] = useState<TipsTab>('active');
   const [tips, setTips] = useState<TipOut[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -602,7 +602,12 @@ export default function TipsScreen() {
 
         {status ? <Text style={styles.status}>{status}</Text> : null}
 
-        {needsSignIn ? <SignInRequiredBanner /> : null}
+        {needsSignIn ? (
+          <SignInRequiredBanner
+            title="Sign in to continue"
+            message="Create a free account or sign in on Account to view and settle your tips."
+          />
+        ) : null}
 
         {!needsSignIn ? (
           <>

@@ -1,5 +1,10 @@
 import { ArbitragePanel } from '../../src/components/ArbitragePanel';
+import { RequireSignIn } from '../../src/components/RequireSignIn';
 
 export default function ArbScreen() {
-  return <ArbitragePanel />;
+  return (
+    <RequireSignIn>
+      <ArbitragePanel />
+    </RequireSignIn>
+  );
 }
