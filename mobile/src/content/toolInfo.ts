@@ -35,7 +35,8 @@ export const TOOL_INFO = {
   home: {
     title: 'Home',
     message:
-      'Shows tip-bearing fixtures for the date you pick. Load matches syncs odds from your books, then builds Safe / lean tips.\n\n' +
+      'Shows tip-bearing fixtures for the date you pick. An admin host uses Load matches to sync odds (morning/afternoon); everyone else sees those shared tips automatically.\n\n' +
+      'Admins manage who can Load matches under Account → Users & Roles.\n\n' +
       'Free tips opens Value picks. Brief opens Daily update.',
   },
   tips: {
