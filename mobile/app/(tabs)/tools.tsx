@@ -3,11 +3,13 @@ import { ScrollView, StyleSheet, Platform } from 'react-native';
 
 import { RequireSignIn } from '../../src/components/RequireSignIn';
 import { ToolHubCard } from '../../src/components/ToolHubCard';
+import { useIsAdmin } from '../../src/hooks/useIsAdmin';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
 export default function ToolsHubScreen() {
   const router = useRouter();
+  const isAdmin = useIsAdmin();
 
   return (
     <RequireSignIn>
@@ -18,12 +20,14 @@ export default function ToolsHubScreen() {
           Platform.OS === 'web' ? { paddingBottom: webScrollBottom(20) } : null,
         ]}
       >
-        <ToolHubCard
-          icon="sun-o"
-          title="Daily update"
-          description="Fixtures, settle tips, decision brief"
-          onPress={() => router.push('/tools/morning')}
-        />
+        {isAdmin ? (
+          <ToolHubCard
+            icon="sun-o"
+            title="Daily update"
+            description="Fixtures, settle tips, decision brief (admin)"
+            onPress={() => router.push('/tools/morning')}
+          />
+        ) : null}
         <ToolHubCard
           icon="line-chart"
           title="Value picks"
