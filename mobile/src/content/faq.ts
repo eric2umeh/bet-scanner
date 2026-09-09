@@ -244,7 +244,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Account',
     question: 'Do I need to sign in?',
     answer:
-      'Only if your server has AUTH_REQUIRED_FOR_TIPS=true. Otherwise sign-in is optional but keeps your tips tied to your email when you use multiple devices.',
+      'Yes. Create a free account (or sign in) on Account to use Home tips, Surebets, Tools, and your tip history. Account is where you register.',
     keywords: ['sign in', 'login', 'account', 'auth', 'required'],
   },
   {

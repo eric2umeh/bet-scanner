@@ -347,7 +347,7 @@ export default function AccountScreen() {
               </Text>
             ) : (
               <>
-                <Text style={styles.hint}>Sign in to keep tips synced to your email.</Text>
+                <Text style={styles.hint}>Create a free account or sign in to use Bet Scout.</Text>
                 <Text style={styles.label}>Email</Text>
                 <TextInput
                   style={styles.input}
