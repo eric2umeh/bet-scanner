@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.deps.admin import is_admin_user
-from app.deps.auth import AuthUser, auth_verification_enabled, get_current_user
+from app.deps.auth import AuthUser, auth_verification_enabled, get_optional_user
 from app.services import user_profiles as profiles
 from app.services.bookmakers import configured_odds_books
 
@@ -50,7 +50,7 @@ def auth_config(settings: Settings = Depends(get_settings)) -> dict:
 def auth_status(
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
-    user: AuthUser | None = Depends(get_current_user),
+    user: AuthUser | None = Depends(get_optional_user),
 ) -> dict:
     secret = auth_verification_enabled(settings)
     admin = False
@@ -83,7 +83,7 @@ def auth_status(
 def get_profile(
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
-    user: AuthUser | None = Depends(get_current_user),
+    user: AuthUser | None = Depends(get_optional_user),
 ) -> dict:
     me = _require_user(user)
     row = profiles.upsert_profile_for_user(db, me, settings)
@@ -95,7 +95,7 @@ def patch_profile(
     body: ProfileUpdateBody,
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
-    user: AuthUser | None = Depends(get_current_user),
+    user: AuthUser | None = Depends(get_optional_user),
 ) -> dict:
     me = _require_user(user)
     row = profiles.update_profile_details(

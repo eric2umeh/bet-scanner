@@ -103,6 +103,30 @@ def _decode_supabase_user(token: str, settings: Settings) -> AuthUser | None:
     return None
 
 
+def get_optional_user(
+    settings: Settings = Depends(get_settings),
+    authorization: Annotated[str | None, Header()] = None,
+) -> AuthUser | None:
+    """
+    Resolve Bearer user when present; never require sign-in.
+    Invalid Bearer still → 401.
+    """
+    auth_on = auth_verification_enabled(settings)
+    has_bearer = bool(
+        authorization and authorization.strip().lower().startswith("bearer ")
+    )
+    if not (auth_on and has_bearer):
+        return None
+    token = authorization.strip()[7:].strip()  # type: ignore[union-attr]
+    user = _decode_supabase_user(token, settings)
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired login. Sign in again on Me.",
+        )
+    return user
+
+
 def get_current_user(
     settings: Settings = Depends(get_settings),
     authorization: Annotated[str | None, Header()] = None,
@@ -114,21 +138,8 @@ def get_current_user(
     - Bearer present but invalid → 401
     - AUTH_REQUIRED_FOR_TIPS → 401 when no user
     """
+    user = get_optional_user(settings=settings, authorization=authorization)
     auth_on = auth_verification_enabled(settings)
-    has_bearer = bool(
-        authorization and authorization.strip().lower().startswith("bearer ")
-    )
-
-    user: AuthUser | None = None
-    if auth_on and has_bearer:
-        token = authorization.strip()[7:].strip()  # type: ignore[union-attr]
-        user = _decode_supabase_user(token, settings)
-        if user is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid or expired login. Sign in again on Me.",
-            )
-
     if settings.auth_required_for_tips and auth_on and user is None:
         raise HTTPException(
             status_code=401,
