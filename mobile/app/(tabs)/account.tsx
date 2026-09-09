@@ -41,7 +41,7 @@ import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
 const SUPPORT_EMAIL = 'betscout.tech@gmail.com';
-const DEVELOPER_EMAILS = new Set(['eric2umeh@gmail.com']);
+const DEVELOPER_EMAILS = new Set(['eric2umeh@yahoo.com', 'betscout.tech@gmail.com']);
 
 type Section = 'home' | 'details' | 'password' | 'settings' | 'roles';
 
