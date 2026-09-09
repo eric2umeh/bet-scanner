@@ -38,8 +38,8 @@ class Settings(BaseSettings):
     # When true and JWT secret is set, tip writes require a signed-in user.
     auth_required_for_tips: bool = False
 
-    # One-time seed: when user_profiles has zero admins, the matching signed-in email
-    # is promoted on /auth/status. Afterwards grant/revoke only via Users & Roles.
+    # One-time seed: when user_profiles has zero admins, any matching signed-in email
+    # (comma-separated) is promoted on /auth/status. Afterwards grant/revoke only via Users & Roles.
     bootstrap_admin_email: str = ""
     # Cron/scripts: X-API-Key may still sync odds when no user JWT is present.
     admin_sync_with_api_key: bool = True
