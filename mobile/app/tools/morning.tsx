@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   Platform,
@@ -9,8 +10,10 @@ import {
 } from 'react-native';
 
 import { runDailyOps, type DailyOpsResponse } from '../../src/api/ops';
-import { loadSettings } from '../../src/store/settings';
+import { AccessDeniedPanel } from '../../src/components/AccessDeniedPanel';
 import { LoadingRadar } from '../../src/components/LoadingRadar';
+import { useIsAdmin } from '../../src/hooks/useIsAdmin';
+import { loadSettings } from '../../src/store/settings';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
@@ -45,6 +48,8 @@ function stepDetail(step: string, message?: string | null): string {
 }
 
 export default function MorningUpdateScreen() {
+  const router = useRouter();
+  const isAdmin = useIsAdmin();
   const [opsBusy, setOpsBusy] = useState(false);
   const [opsResult, setOpsResult] = useState<DailyOpsResponse | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -75,6 +80,19 @@ export default function MorningUpdateScreen() {
     } finally {
       setOpsBusy(false);
     }
+  }
+
+  if (!isAdmin) {
+    return (
+      <View style={[styles.screen, styles.content]}>
+        <AccessDeniedPanel
+          title="Admin only"
+          message="Daily update is for admins. Tips refresh from the host’s scheduled sync or Load matches."
+          actionLabel="Back to Tools"
+          onAction={() => router.replace('/(tabs)/tools')}
+        />
+      </View>
+    );
   }
 
   return (
@@ -125,7 +143,6 @@ export default function MorningUpdateScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, paddingBottom: 40 },
-  hint: { color: colors.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 },
   statusBox: {
     marginBottom: 12,
     flexDirection: 'row',
