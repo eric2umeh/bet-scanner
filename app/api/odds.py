@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_db
+from app.deps.admin import require_can_load_matches
 from app.models import Odd
 from app.schemas.odd import OddOut, OddsSyncResult
 from app.services.sync_odds import sync_odds
@@ -24,6 +25,7 @@ router = APIRouter(prefix="/odds", tags=["odds"])
 def sync_odds_endpoint(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
+    _admin=Depends(require_can_load_matches),
 ) -> OddsSyncResult:
     """
     Pull 1X2 odds from enabled providers into the `odds` table.

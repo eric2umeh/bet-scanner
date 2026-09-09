@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_db
+from app.deps.admin import require_can_load_matches
 from app.models import Match, Odd
 from app.providers.api_football import ApiFootballError
 from app.schemas.match import MatchOut, SyncResult
@@ -132,6 +133,7 @@ def list_bettable_matches(
 def sync_matches(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
+    _admin=Depends(require_can_load_matches),
 ) -> SyncResult:
     """
     Pull fixtures from every provider listed in FIXTURE_PROVIDERS.
