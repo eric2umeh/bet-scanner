@@ -269,64 +269,13 @@ export function ArbitragePanel({ onFlash }: Props) {
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerActions}>
-          {tab === 'scan' ? (
-            <>
-              <View style={styles.headerStake}>
-                <Text style={styles.headerStakeLabel} numberOfLines={1}>
-                  Sample stake ₦
-                </Text>
-                <TextInput
-                  style={styles.headerStakeInput}
-                  value={sampleStake}
-                  onChangeText={setSampleStake}
-                  keyboardType="numeric"
-                  placeholder="1000"
-                  placeholderTextColor={colors.muted}
-                  accessibilityLabel="Enter your sample stake in Naira"
-                  selectTextOnFocus
-                />
-              </View>
-              <SyncHeaderButton
-                onPress={() => void findSurebets()}
-                onCancel={cancelScan}
-                busy={busy}
-                showIcon={false}
-                label="Find Nigeria surebets"
-              />
-              <Pressable
-                style={[
-                  styles.headerSide,
-                  scanAllBooks && styles.headerSideOn,
-                  busy && styles.disabled,
-                ]}
-                disabled={busy}
-                onPress={onToggleInternational}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  scanAllBooks ? 'Use Nigeria books only' : 'Scan international books'
-                }
-              >
-                <Text style={[styles.headerSideText, scanAllBooks && styles.headerSideTextOn]}>
-                  {scanAllBooks ? 'Nigeria' : 'International'}
-                </Text>
-              </Pressable>
-            </>
-          ) : null}
           <ScreenInfoButton title={TOOL_INFO.surebets.title} message={TOOL_INFO.surebets.message} />
           <HelpHeaderButton />
         </View>
       ),
     });
-  }, [
-    navigation,
-    busy,
-    scanAllBooks,
-    findSurebets,
-    cancelScan,
-    onToggleInternational,
-    tab,
-    sampleStake,
-  ]);
+  }, [navigation]);
+
   const loadHistory = useCallback(async () => {
     setBusy(true);
     try {
@@ -506,6 +455,50 @@ export function ArbitragePanel({ onFlash }: Props) {
             : `${histFilteredCount} logged`}
         </Text>
       </View>
+
+      {tab === 'scan' ? (
+        <View style={styles.scanToolbar}>
+          <View style={styles.headerStake}>
+            <Text style={styles.headerStakeLabel} numberOfLines={1}>
+              Sample stake ₦
+            </Text>
+            <TextInput
+              style={styles.headerStakeInput}
+              value={sampleStake}
+              onChangeText={setSampleStake}
+              keyboardType="numeric"
+              placeholder="1000"
+              placeholderTextColor={colors.muted}
+              accessibilityLabel="Enter your sample stake in Naira"
+              selectTextOnFocus
+            />
+          </View>
+          <SyncHeaderButton
+            onPress={() => void findSurebets()}
+            onCancel={cancelScan}
+            busy={busy}
+            showIcon={false}
+            label="Find Nigeria"
+          />
+          <Pressable
+            style={[
+              styles.headerSide,
+              scanAllBooks && styles.headerSideOn,
+              busy && styles.disabled,
+            ]}
+            disabled={busy}
+            onPress={onToggleInternational}
+            accessibilityRole="button"
+            accessibilityLabel={
+              scanAllBooks ? 'Use Nigeria books only' : 'Scan international books'
+            }
+          >
+            <Text style={[styles.headerSideText, scanAllBooks && styles.headerSideTextOn]}>
+              {scanAllBooks ? 'Nigeria' : 'International'}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.tabs}>
         <Pressable
@@ -765,6 +758,13 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     marginRight: 4,
   },
+  scanToolbar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
   headerStake: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -775,7 +775,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    maxWidth: 168,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 140,
+    maxWidth: 220,
   },
   headerStakeLabel: {
     color: colors.muted,
@@ -784,8 +787,8 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   headerStakeInput: {
+    flex: 1,
     minWidth: 56,
-    maxWidth: 72,
     color: colors.ink,
     fontWeight: '700',
     fontSize: 13,
