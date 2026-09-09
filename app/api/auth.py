@@ -3,9 +3,13 @@ Phase 12C — auth status helpers (login itself is done by Supabase client).
 """
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
+from app.db import get_db
+from app.deps.admin import is_admin_user
 from app.deps.auth import AuthUser, auth_verification_enabled, get_current_user
+from app.services import user_profiles as profiles
 from app.services.bookmakers import configured_odds_books
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -28,15 +32,24 @@ def auth_config(settings: Settings = Depends(get_settings)) -> dict:
 @router.get("/status")
 def auth_status(
     settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
     user: AuthUser | None = Depends(get_current_user),
 ) -> dict:
     secret = auth_verification_enabled(settings)
+    admin = False
+    if user is not None:
+        try:
+            row = profiles.upsert_profile_for_user(db, user, settings)
+            admin = bool(row.is_admin)
+        except Exception:  # noqa: BLE001 — status should still answer when DB is down
+            admin = is_admin_user(db, user)
     return {
         "auth_configured": secret,
         "auth_required_for_tips": bool(settings.auth_required_for_tips and secret),
         "signed_in": user is not None,
         "user_id": user.id if user else None,
         "email": user.email if user else None,
+        "is_admin": admin,
         "message": (
             f"Signed in as {user.email or user.id}."
             if user
