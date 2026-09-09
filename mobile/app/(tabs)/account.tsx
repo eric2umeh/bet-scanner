@@ -17,6 +17,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import { searchAdminUsers, setUserAdmin, type AdminUser } from '../../src/api/adminUsers';
 import { ApiError, setCachedAccessKey, userFacingError } from '../../src/api/client';
+import { fetchMyProfile, updateMyProfile } from '../../src/api/profile';
 import { MIN_PASSWORD_LENGTH, assertPasswordsMatch } from '../../src/lib/password';
 import { loadAccessKey, saveAccessKey } from '../../src/store/accessKey';
 import {
@@ -67,6 +68,14 @@ export default function AccountScreen() {
   const [roleUsers, setRoleUsers] = useState<AdminUser[]>([]);
   const [rolesBusy, setRolesBusy] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [addressLine, setAddressLine] = useState('');
+  const [city, setCity] = useState('');
+  const [stateRegion, setStateRegion] = useState('');
+  const [country, setCountry] = useState('Nigeria');
+  const [profileBusy, setProfileBusy] = useState(false);
 
   const showDeveloperTools = useMemo(() => {
     if (__DEV__) return true;
@@ -118,6 +127,53 @@ export default function AccountScreen() {
     }, 350);
     return () => clearTimeout(t);
   }, [section, isAdmin, roleQuery, loadRoleUsers]);
+
+  useEffect(() => {
+    if (section !== 'details' || !sessionEmail) return;
+    let cancelled = false;
+    void (async () => {
+      setProfileBusy(true);
+      try {
+        const p = await fetchMyProfile();
+        if (cancelled) return;
+        setFirstName(p.first_name || '');
+        setLastName(p.last_name || '');
+        setPhone(p.phone || '');
+        setAddressLine(p.address_line || '');
+        setCity(p.city || '');
+        setStateRegion(p.state || '');
+        setCountry(p.country || 'Nigeria');
+      } catch (e) {
+        if (!cancelled) flash(userFacingError(e), true);
+      } finally {
+        if (!cancelled) setProfileBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [section, sessionEmail]);
+
+  async function onSaveProfile() {
+    setProfileBusy(true);
+    try {
+      await updateMyProfile({
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        address_line: addressLine,
+        city,
+        state: stateRegion,
+        country,
+      });
+      flash('Profile saved.');
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : userFacingError(e);
+      flash(msg, true);
+    } finally {
+      setProfileBusy(false);
+    }
+  }
 
   async function onToggleAdmin(user: AdminUser, next: boolean) {
     setTogglingId(user.id);
@@ -409,7 +465,73 @@ export default function AccountScreen() {
           <Text style={styles.section}>Account details</Text>
           <Text style={styles.label}>Email</Text>
           <Text style={styles.muted}>{sessionEmail}</Text>
-          <Text style={styles.hint}>Tips you log are saved under this account.</Text>
+          <Text style={styles.hint}>Email comes from sign-in and can’t be changed here.</Text>
+          <Text style={styles.label}>First name</Text>
+          <TextInput
+            style={styles.input}
+            value={firstName}
+            onChangeText={setFirstName}
+            autoCapitalize="words"
+            placeholder="First name"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Last name</Text>
+          <TextInput
+            style={styles.input}
+            value={lastName}
+            onChangeText={setLastName}
+            autoCapitalize="words"
+            placeholder="Last name"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Phone</Text>
+          <TextInput
+            style={styles.input}
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            placeholder="+234…"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Address</Text>
+          <TextInput
+            style={styles.input}
+            value={addressLine}
+            onChangeText={setAddressLine}
+            placeholder="Street / area"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>City</Text>
+          <TextInput
+            style={styles.input}
+            value={city}
+            onChangeText={setCity}
+            placeholder="City"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>State</Text>
+          <TextInput
+            style={styles.input}
+            value={stateRegion}
+            onChangeText={setStateRegion}
+            placeholder="State"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Country</Text>
+          <TextInput
+            style={styles.input}
+            value={country}
+            onChangeText={setCountry}
+            placeholder="Country"
+            placeholderTextColor={colors.muted}
+          />
+          <Pressable
+            style={[styles.btn, profileBusy && styles.btnDisabled]}
+            disabled={profileBusy}
+            onPress={() => void onSaveProfile()}
+          >
+            <Text style={styles.btnText}>{profileBusy ? 'Saving…' : 'Save profile'}</Text>
+          </Pressable>
         </View>
       ) : null}
 
