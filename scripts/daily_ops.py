@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-Phase 7 — cron-friendly daily ops (morning run).
+Phase 7 — cron-friendly daily ops (Lagos morning / midday / evening).
 
   python scripts/daily_ops.py
   python scripts/daily_ops.py --no-odds          # save free odds quota
   python scripts/daily_ops.py --telegram         # send digest if configured
 
-Cron example (07:30 Africa/Lagos on a Mac/Linux host):
-  30 7 * * * cd /path/to/bet-scanner && .venv/bin/python scripts/daily_ops.py --telegram >> /tmp/bet-scanner-ops.log 2>&1
+Recommended schedule (Africa/Lagos, cron in UTC):
+  0 5,11,16 * * *   → 06:00, 12:00, 17:00 Lagos
+  cd /path/to/bet-scanner && .venv/bin/python scripts/daily_ops.py >> /tmp/bet-scanner-ops.log 2>&1
 
-On Render (Phase 8): Cron Job runs this script (see docs/PHASE_8_RENDER_DEPLOY.txt).
+On Render: see render.yaml cron + docs/PHASE_8_RENDER_DEPLOY.txt
+Free alternative: .github/workflows/daily-ops.yml → POST /ops/daily-run
 """
 
 from __future__ import annotations

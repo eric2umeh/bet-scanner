@@ -17,10 +17,11 @@ ARCHITECTURE (MVP)
                     ▼
                Supabase Postgres
 
-  Render Cron  →  python scripts/daily_ops.py --no-odds
+  Render Cron  →  python scripts/daily_ops.py   (fixtures + odds, 3×/day)
                     │
                     ▼
                same Supabase
+  (Free tier: use GitHub Action .github/workflows/daily-ops.yml instead)
 
 
 --------------------------------------------------------------------------------
@@ -86,10 +87,19 @@ OPTION A — Dashboard (simplest)
       - New → Cron Job
       - Same repo / branch
       - Build:  pip install -r requirements.txt
-      - Command: python scripts/daily_ops.py --no-odds
-      - Schedule: 0 6 * * *     (06:00 UTC = 07:00 Lagos)
-      - Copy the SAME env vars as the web service
+      - Command: python scripts/daily_ops.py
+        (includes odds sync — set ODDS_SYNC_ENABLED=true on the cron env)
+      - Schedule: 0 5,11,16 * * *
+        (UTC → ≈ 06:00 / 12:00 / 17:00 Africa/Lagos)
+      - Copy the SAME DB + ODDS_API_IO_* env vars as the web service
         (or use Blueprint fromService links — see render.yaml)
+
+  A4b) Free alternative — GitHub Actions
+      - Push .github/workflows/daily-ops.yml
+      - Repo → Settings → Secrets → Actions:
+          OPS_API_URL = https://YOUR-SERVICE.onrender.com
+          OPS_API_KEY = (same as APP_API_KEY)
+      - Runs the same 3×/day schedule via POST /ops/daily-run
 
 
 --------------------------------------------------------------------------------
@@ -125,9 +135,9 @@ COST / QUOTA REMINDERS
 --------------------------------------------------------------------------------
 
   - Free web sleeps after ~15 minutes idle (wake delay).
-  - Cron is usually NOT free.
-  - Odds-api.io free quota is your bigger risk than Render — keep
-    ODDS_SYNC_ENABLED=false by default; use --no-odds on cron.
+  - Cron is usually NOT free — use GitHub Action daily-ops.yml on free tier.
+  - Odds-api.io quota: 3 syncs/day is intentional; raise ODDS_API_IO_EVENT_LIMIT
+    carefully. Web service can keep ODDS_SYNC_ENABLED=false; cron/Action sets true.
 
 
 --------------------------------------------------------------------------------
