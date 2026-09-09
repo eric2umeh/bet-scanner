@@ -24,7 +24,7 @@ export function LoadingRadar({ size = 'small', color, style }: Props) {
     typeof size === 'number' ? size : size === 'large' ? 36 : 20;
   const [deg, setDeg] = useState(0);
   const accent = color || colors.accent;
-  const ink = colors.ink;
+  const mark = color || colors.ink;
   const c = dim / 2;
   const r = dim * 0.38;
   const stroke = Math.max(1, dim * 0.06);
@@ -55,7 +55,7 @@ export function LoadingRadar({ size = 'small', color, style }: Props) {
           stroke={accent}
           strokeWidth={stroke}
           fill="none"
-          opacity={0.35}
+          opacity={0.55}
         />
         <Circle
           cx={c}
@@ -64,7 +64,7 @@ export function LoadingRadar({ size = 'small', color, style }: Props) {
           stroke={accent}
           strokeWidth={stroke * 0.9}
           fill="none"
-          opacity={0.55}
+          opacity={0.75}
         />
         <Circle
           cx={c}
@@ -73,9 +73,9 @@ export function LoadingRadar({ size = 'small', color, style }: Props) {
           stroke={accent}
           strokeWidth={stroke * 0.8}
           fill="none"
-          opacity={0.8}
+          opacity={1}
         />
-        <Path d={hexPath(c, c, dim * 0.1)} fill={ink} opacity={0.95} />
+        <Path d={hexPath(c, c, dim * 0.1)} fill={mark} opacity={0.95} />
         <G transform={`rotate(${deg} ${c} ${c})`}>
           <Line
             x1={c}
