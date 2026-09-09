@@ -95,10 +95,57 @@ def set_admin(
     return row
 
 
-def profile_to_dict(row: UserProfile) -> dict:
-    return {
+def update_profile_details(
+    db: Session,
+    user: AuthUser,
+    settings: Settings,
+    *,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    phone: str | None = None,
+    address_line: str | None = None,
+    city: str | None = None,
+    state: str | None = None,
+    country: str | None = None,
+) -> UserProfile:
+    row = upsert_profile_for_user(db, user, settings)
+
+    def _clean(value: str | None, max_len: int) -> str | None:
+        if value is None:
+            return None
+        text = " ".join(value.split()).strip()
+        return text[:max_len] if text else None
+
+    row.first_name = _clean(first_name, 80)
+    row.last_name = _clean(last_name, 80)
+    row.phone = _clean(phone, 32)
+    row.address_line = _clean(address_line, 240)
+    row.city = _clean(city, 80)
+    row.state = _clean(state, 80)
+    row.country = _clean(country, 80)
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def profile_to_dict(row: UserProfile, *, include_details: bool = False) -> dict:
+    data = {
         "id": row.id,
         "email": row.email,
         "is_admin": bool(row.is_admin),
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
     }
+    if include_details:
+        data.update(
+            {
+                "first_name": row.first_name,
+                "last_name": row.last_name,
+                "phone": row.phone,
+                "address_line": row.address_line,
+                "city": row.city,
+                "state": row.state,
+                "country": row.country,
+            }
+        )
+    return data
