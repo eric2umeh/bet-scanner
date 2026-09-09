@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_db
+from app.deps.admin import require_can_load_matches
+from app.deps.auth import AuthUser
 from app.schemas.ops import DailyOpsRequest, DailyOpsResponse
 from app.services.daily_ops import run_daily_ops
 
@@ -24,11 +26,10 @@ def daily_run(
     body: DailyOpsRequest,
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
+    _admin: AuthUser | None = Depends(require_can_load_matches),
 ) -> DailyOpsResponse:
     """
-    One pipeline for cron / dashboard.
-
-    Tip: keep sync_odds=false most of the day — free odds-api.io quota is limited.
+    Admin or cron (X-API-Key). Same gate as Load matches.
     """
     result = run_daily_ops(
         db,
