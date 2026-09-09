@@ -38,7 +38,7 @@ export function SyncHeaderButton({
         accessibilityLabel={cancelLabel}
       >
         <View style={styles.inner}>
-          <LoadingRadar size="small" color="#fecaca" />
+          <LoadingRadar size="small" color={colors.accent} />
           {showLabel ? <Text style={styles.cancelLabel}>{cancelLabel}</Text> : null}
         </View>
       </Pressable>
@@ -88,11 +88,11 @@ const styles = StyleSheet.create({
     minWidth: undefined,
   },
   btnCancel: {
-    borderColor: 'rgba(248, 113, 113, 0.55)',
-    backgroundColor: 'rgba(248, 113, 113, 0.14)',
+    borderColor: 'rgba(15, 138, 95, 0.55)',
+    backgroundColor: 'rgba(15, 138, 95, 0.12)',
   },
   btnDisabled: { opacity: 0.45 },
   inner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   label: { color: colors.accent, fontWeight: '800', fontSize: 12 },
-  cancelLabel: { color: '#fecaca', fontWeight: '800', fontSize: 12 },
+  cancelLabel: { color: colors.accent, fontWeight: '800', fontSize: 12 },
 });
