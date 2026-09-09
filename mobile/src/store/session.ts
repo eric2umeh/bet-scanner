@@ -92,6 +92,12 @@ export async function signUp(email: string, password: string) {
       'Sign up'
     );
     if (error) throw error;
+    // With "Confirm email" on, duplicate signups return a fake user with no identities
+    // instead of an error (anti-enumeration). Treat that as “already registered”.
+    const identities = data.user?.identities;
+    if (data.user && Array.isArray(identities) && identities.length === 0) {
+      throw new Error('An account with this email already exists. Use Sign in instead.');
+    }
     applySession(data.session);
     return data.session;
   } catch (e) {
