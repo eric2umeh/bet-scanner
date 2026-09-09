@@ -26,7 +26,14 @@ export function formatAuthError(err: unknown, action: 'sign_in' | 'sign_up'): st
   if (lower.includes('email not confirmed') || code === 'email_not_confirmed') {
     return 'This email is not confirmed yet. Open the link in your inbox, then sign in.';
   }
-  if (lower.includes('user already registered') || code === 'user_already_exists') {
+  if (
+    lower.includes('user already registered') ||
+    lower.includes('already registered') ||
+    lower.includes('already exists') ||
+    lower.includes('email address is already') ||
+    code === 'user_already_exists' ||
+    code === 'email_exists'
+  ) {
     return 'An account with this email already exists. Use Sign in instead.';
   }
   if (
