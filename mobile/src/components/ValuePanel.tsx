@@ -12,6 +12,7 @@ import {
 import { scanValue, type ValuePick } from '../api/edge';
 import { fetchPublicAppConfig } from '../api/appConfig';
 import { syncOdds } from '../api/odds';
+import { useIsAdmin } from '../hooks/useIsAdmin';
 import { bookLabel } from '../lib/tipKey';
 import { shareOrCopyText } from '../lib/shareText';
 import { loadSettings } from '../store/settings';
@@ -33,6 +34,7 @@ type Props = {
 };
 
 export function ValuePanel({ onFlash }: Props) {
+  const isAdmin = useIsAdmin();
   const [picks, setPicks] = useState<ValuePick[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function ValuePanel({ onFlash }: Props) {
     setError(null);
     try {
       const s = await loadSettings();
-      if (withOddsSync) {
+      if (withOddsSync && isAdmin) {
         await syncOdds();
       }
       const cfg = await fetchPublicAppConfig().catch(() => null);
@@ -67,7 +69,7 @@ export function ValuePanel({ onFlash }: Props) {
     } finally {
       setBusy(false);
     }
-  }, [onFlash]);
+  }, [onFlash, isAdmin]);
 
   useEffect(() => {
     void runScan(false);
