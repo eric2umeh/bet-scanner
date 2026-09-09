@@ -5,6 +5,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -14,7 +15,8 @@ import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
-import { setCachedAccessKey } from '../../src/api/client';
+import { searchAdminUsers, setUserAdmin, type AdminUser } from '../../src/api/adminUsers';
+import { ApiError, setCachedAccessKey, userFacingError } from '../../src/api/client';
 import { MIN_PASSWORD_LENGTH, assertPasswordsMatch } from '../../src/lib/password';
 import { loadAccessKey, saveAccessKey } from '../../src/store/accessKey';
 import {
@@ -34,16 +36,18 @@ import {
 } from '../../src/store/settings';
 import { PasswordInput } from '../../src/components/PasswordInput';
 import { LoadingRadar } from '../../src/components/LoadingRadar';
+import { useIsAdmin } from '../../src/hooks/useIsAdmin';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
 
 const SUPPORT_EMAIL = 'betscout.tech@gmail.com';
 const DEVELOPER_EMAILS = new Set(['eric2umeh@gmail.com']);
 
-type Section = 'home' | 'details' | 'password' | 'settings';
+type Section = 'home' | 'details' | 'password' | 'settings' | 'roles';
 
 export default function AccountScreen() {
   const router = useRouter();
+  const isAdmin = useIsAdmin();
   const [section, setSection] = useState<Section>('home');
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [bankroll, setBankroll] = useState('50000');
@@ -59,12 +63,17 @@ export default function AccountScreen() {
   const [pulling, setPulling] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [statusBad, setStatusBad] = useState(false);
+  const [roleQuery, setRoleQuery] = useState('');
+  const [roleUsers, setRoleUsers] = useState<AdminUser[]>([]);
+  const [rolesBusy, setRolesBusy] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const showDeveloperTools = useMemo(() => {
     if (__DEV__) return true;
+    if (isAdmin) return true;
     const em = (sessionEmail || '').trim().toLowerCase();
     return Boolean(em && DEVELOPER_EMAILS.has(em));
-  }, [sessionEmail]);
+  }, [sessionEmail, isAdmin]);
 
   function flash(msg: string, bad = false) {
     setStatus(msg);
@@ -89,6 +98,40 @@ export default function AccountScreen() {
     setSessionEmail(getSessionEmail());
     return subscribeSession(() => setSessionEmail(getSessionEmail()));
   }, []);
+
+  const loadRoleUsers = useCallback(async (q: string) => {
+    setRolesBusy(true);
+    try {
+      const page = await searchAdminUsers(q);
+      setRoleUsers(page.items || []);
+    } catch (e) {
+      flash(userFacingError(e), true);
+    } finally {
+      setRolesBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (section !== 'roles' || !isAdmin) return;
+    const t = setTimeout(() => {
+      void loadRoleUsers(roleQuery);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [section, isAdmin, roleQuery, loadRoleUsers]);
+
+  async function onToggleAdmin(user: AdminUser, next: boolean) {
+    setTogglingId(user.id);
+    try {
+      const updated = await setUserAdmin(user.id, next);
+      setRoleUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      flash(next ? `Admin granted to ${updated.email}` : `Admin removed from ${updated.email}`);
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : userFacingError(e);
+      flash(msg, true);
+    } finally {
+      setTogglingId(null);
+    }
+  }
 
   async function onPullRefresh() {
     setPulling(true);
@@ -242,7 +285,10 @@ export default function AccountScreen() {
           <View style={styles.card}>
             <Text style={styles.section}>Account</Text>
             {sessionEmail ? (
-              <Text style={styles.muted}>Signed in as {sessionEmail}</Text>
+              <Text style={styles.muted}>
+                Signed in as {sessionEmail}
+                {isAdmin ? ' · Admin' : ''}
+              </Text>
             ) : (
               <>
                 <Text style={styles.hint}>Sign in to keep tips synced to your email.</Text>
@@ -298,6 +344,14 @@ export default function AccountScreen() {
                 icon="lock"
                 title="Change password"
                 onPress={() => setSection('password')}
+              />
+            ) : null}
+            {sessionEmail && isAdmin ? (
+              <MenuRow
+                icon="users"
+                title="Users & Roles"
+                subtitle="Grant or revoke admin"
+                onPress={() => setSection('roles')}
               />
             ) : null}
             <MenuRow
@@ -447,6 +501,60 @@ export default function AccountScreen() {
           </Pressable>
         </View>
       ) : null}
+
+      {section === 'roles' && isAdmin ? (
+        <View style={styles.card}>
+          <Pressable onPress={() => setSection('home')} style={styles.backLink}>
+            <Text style={styles.backLinkText}>← Account</Text>
+          </Pressable>
+          <Text style={styles.section}>Users & Roles</Text>
+          <Text style={styles.hint}>
+            Search by email (users appear after they sign in once). Toggle Admin to grant Load
+            matches and this screen.
+          </Text>
+          <Text style={styles.label}>Search users</Text>
+          <TextInput
+            style={styles.input}
+            value={roleQuery}
+            onChangeText={setRoleQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            placeholder="email…"
+            placeholderTextColor={colors.muted}
+          />
+          {rolesBusy ? (
+            <View style={styles.rolesBusy}>
+              <LoadingRadar color={colors.accent} />
+              <Text style={styles.muted}>Loading…</Text>
+            </View>
+          ) : null}
+          {roleUsers.length === 0 && !rolesBusy ? (
+            <Text style={styles.muted}>
+              {roleQuery.trim()
+                ? 'No users match that search.'
+                : 'No profiles yet. Ask users to sign in, or clear search to refresh.'}
+            </Text>
+          ) : null}
+          {roleUsers.map((u) => (
+            <View key={u.id} style={styles.roleRow}>
+              <View style={styles.menuText}>
+                <Text style={styles.menuTitle} numberOfLines={1}>
+                  {u.email}
+                </Text>
+                <Text style={styles.menuSub}>{u.is_admin ? 'Admin' : 'User'}</Text>
+              </View>
+              <Switch
+                value={u.is_admin}
+                disabled={togglingId === u.id}
+                onValueChange={(v) => void onToggleAdmin(u, v)}
+                trackColor={{ false: colors.line, true: colors.accent }}
+                thumbColor={colors.card}
+              />
+            </View>
+          ))}
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -558,4 +666,18 @@ const styles = StyleSheet.create({
   signOutText: { color: colors.bad, fontWeight: '800', fontSize: 15 },
   backLink: { marginBottom: 8 },
   backLinkText: { color: colors.accent, fontWeight: '700', fontSize: 14 },
+  roleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  rolesBusy: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
 });
