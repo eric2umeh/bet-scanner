@@ -4,7 +4,7 @@
 #
 # After connecting the GitHub repo, Render can create:
 #   1) Web service  → FastAPI dashboard + API
-#   2) Cron job     → scripts/daily_ops.py (separate from the web process)
+#   2) Cron job     → scripts/daily_ops.py 3×/day (Lagos morning / midday / evening)
 #
 # Secrets (DATABASE_URL, API keys) are NOT stored here — set them in the
 # Render dashboard (or Blueprint prompts where sync: false).
@@ -71,6 +71,10 @@ services:
         sync: false
       - key: AUTH_REQUIRED_FOR_TIPS
         value: "true"
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_SYNC_WITH_API_KEY
+        value: "true"
       # O/U 2.5 lean floor (de-vig fair %). Higher = fewer soft Overs.
       - key: GOAL_OU25_MIN_CONFIDENCE
         value: "70"
@@ -79,14 +83,15 @@ services:
       - key: GOAL_TT_MIN_CONFIDENCE
         value: "30"
 
-  # Cron is usually NOT on the free tier (~$1+/mo). Create this when ready.
-  # Schedule: 06:00 UTC = 07:00 Africa/Lagos
+  # Cron usually needs a paid plan (~$1+/mo). Free alternative: GitHub Action
+  # (.github/workflows/daily-ops.yml) hitting POST /ops/daily-run.
+  # Schedule UTC: 05:00, 11:00, 16:00 ≈ 06:00 / 12:00 / 17:00 Africa/Lagos.
   - type: cron
     name: bet-scanner-daily-ops
     runtime: python
-    schedule: "0 6 * * *"
+    schedule: "0 5,11,16 * * *"
     buildCommand: pip install -r requirements.txt
-    startCommand: python scripts/daily_ops.py --no-odds
+    startCommand: python scripts/daily_ops.py
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.11"
@@ -112,7 +117,7 @@ services:
           name: bet-scanner-api
           envVarKey: API_FOOTBALL_KEY
       - key: ODDS_SYNC_ENABLED
-        value: "false"
+        value: "true"
       - key: ODDS_PROVIDERS
         value: odds-api-io
       - key: ODDS_API_IO_KEY
@@ -120,6 +125,26 @@ services:
           type: web
           name: bet-scanner-api
           envVarKey: ODDS_API_IO_KEY
+      - key: ODDS_API_IO_BOOKMAKERS
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: ODDS_API_IO_BOOKMAKERS
+      - key: ODDS_API_IO_EVENT_LIMIT
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: ODDS_API_IO_EVENT_LIMIT
+      - key: FIXTURE_PROVIDERS
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: FIXTURE_PROVIDERS
+      - key: API_FOOTBALL_ENABLED
+        fromService:
+          type: web
+          name: bet-scanner-api
+          envVarKey: API_FOOTBALL_ENABLED
       - key: TELEGRAM_ENABLED
         fromService:
           type: web
