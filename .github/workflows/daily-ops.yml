@@ -1,0 +1,35 @@
+# Free-tier alternative to Render Cron: sync fixtures+odds 3×/day (Lagos).
+# UTC 05:00 / 11:00 / 16:00 ≈ 06:00 / 12:00 / 17:00 Africa/Lagos.
+#
+# Repo secrets (Settings → Secrets → Actions):
+#   OPS_API_URL   = https://YOUR-SERVICE.onrender.com
+#   OPS_API_KEY   = same as APP_API_KEY on Render
+
+name: Daily ops sync
+
+on:
+  schedule:
+    - cron: "0 5,11,16 * * *"
+  workflow_dispatch:
+
+jobs:
+  daily-ops:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run fixtures + odds sync
+        env:
+          OPS_API_URL: ${{ secrets.OPS_API_URL }}
+          OPS_API_KEY: ${{ secrets.OPS_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OPS_API_URL:-}" ] || [ -z "${OPS_API_KEY:-}" ]; then
+            echo "Missing OPS_API_URL or OPS_API_KEY secrets — skip."
+            exit 0
+          fi
+          BASE="${OPS_API_URL%/}"
+          curl -fsS -X POST "$BASE/ops/daily-run" \
+            -H "Content-Type: application/json" \
+            -H "X-API-Key: $OPS_API_KEY" \
+            -d '{"sync_fixtures":true,"sync_odds":true,"auto_settle":true,"build_brief":true,"notify_telegram":false}'
+          echo
+          echo "daily-ops OK"
