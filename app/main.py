@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.admin_users import router as admin_users_router
 from app.api.ai import router as ai_router
 from app.api.arbitrage import router as arbitrage_router
 from app.api.auth import router as auth_router
@@ -82,6 +83,7 @@ app.add_middleware(
 app.add_middleware(AppApiKeyMiddleware)
 
 app.include_router(auth_router)
+app.include_router(admin_users_router)
 app.include_router(matches_router)
 app.include_router(odds_router)
 app.include_router(arbitrage_router)
