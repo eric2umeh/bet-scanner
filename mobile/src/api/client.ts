@@ -214,6 +214,24 @@ export async function postJson<T>(
   );
 }
 
+export async function patchJson<T>(
+  path: string,
+  body: unknown = {},
+  opts?: { timeoutMs?: number; retry?: boolean; signal?: AbortSignal }
+): Promise<T> {
+  return fetchJson<T>(
+    path,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: opts?.signal,
+    },
+    opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    opts?.retry !== false
+  );
+}
+
 export async function deleteJson<T>(path: string): Promise<T> {
   return fetchJson<T>(path, { method: 'DELETE' });
 }
