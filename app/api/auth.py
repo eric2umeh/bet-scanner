@@ -2,7 +2,8 @@
 Phase 12C — auth status helpers (login itself is done by Supabase client).
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
@@ -13,6 +14,22 @@ from app.services import user_profiles as profiles
 from app.services.bookmakers import configured_odds_books
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+class ProfileUpdateBody(BaseModel):
+    first_name: str | None = Field(None, max_length=80)
+    last_name: str | None = Field(None, max_length=80)
+    phone: str | None = Field(None, max_length=32)
+    address_line: str | None = Field(None, max_length=240)
+    city: str | None = Field(None, max_length=80)
+    state: str | None = Field(None, max_length=80)
+    country: str | None = Field(None, max_length=80)
+
+
+def _require_user(user: AuthUser | None) -> AuthUser:
+    if user is None:
+        raise HTTPException(status_code=401, detail="Sign in required.")
+    return user
 
 
 @router.get("/config")
@@ -60,3 +77,37 @@ def auth_status(
             )
         ),
     }
+
+
+@router.get("/profile")
+def get_profile(
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+    user: AuthUser | None = Depends(get_current_user),
+) -> dict:
+    me = _require_user(user)
+    row = profiles.upsert_profile_for_user(db, me, settings)
+    return profiles.profile_to_dict(row, include_details=True)
+
+
+@router.patch("/profile")
+def patch_profile(
+    body: ProfileUpdateBody,
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+    user: AuthUser | None = Depends(get_current_user),
+) -> dict:
+    me = _require_user(user)
+    row = profiles.update_profile_details(
+        db,
+        me,
+        settings,
+        first_name=body.first_name,
+        last_name=body.last_name,
+        phone=body.phone,
+        address_line=body.address_line,
+        city=body.city,
+        state=body.state,
+        country=body.country,
+    )
+    return profiles.profile_to_dict(row, include_details=True)
