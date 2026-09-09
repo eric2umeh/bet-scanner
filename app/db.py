@@ -93,6 +93,7 @@ def init_db() -> None:
     try:
         Base.metadata.create_all(bind=engine)
         _ensure_tip_columns()
+        _ensure_user_profile_columns()
     except Exception as exc:  # noqa: BLE001 — startup must stay up for /health
         print(
             "WARNING: init_db could not reach the database.\n"
@@ -127,4 +128,23 @@ def _ensure_tip_columns() -> None:
                 conn.exec_driver_sql(sql)
     except Exception:
         # Fresh local DBs / missing tips table are fine — create_all handles them.
+        pass
+
+
+def _ensure_user_profile_columns() -> None:
+    """Add contact fields when upgrading an older user_profiles table."""
+    statements = [
+        "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS first_name VARCHAR(80)",
+        "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS last_name VARCHAR(80)",
+        "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS phone VARCHAR(32)",
+        "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS address_line VARCHAR(240)",
+        "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS city VARCHAR(80)",
+        "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS state VARCHAR(80)",
+        "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS country VARCHAR(80)",
+    ]
+    try:
+        with engine.begin() as conn:
+            for sql in statements:
+                conn.exec_driver_sql(sql)
+    except Exception:
         pass
