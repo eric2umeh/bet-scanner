@@ -37,6 +37,7 @@ import { useWebPullRefresh, WebPullHint } from '../../src/components/useWebPullR
 import { useAppModal } from '../../src/components/modal';
 import { TOOL_INFO } from '../../src/content/toolInfo';
 import { usePendingLoggedTips } from '../../src/hooks/usePendingLoggedTips';
+import { useIsAdmin } from '../../src/hooks/useIsAdmin';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { isMatchBettable } from '../../src/lib/matchBettable';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
@@ -225,6 +226,7 @@ export default function TodayScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const modal = useAppModal();
+  const isAdmin = useIsAdmin();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [picks, setPicks] = useState<TipPick[]>([]);
@@ -237,7 +239,7 @@ export default function TodayScreen() {
   const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
   const [minLeanPct, setMinLeanPct] = useState(0);
   const [loggedFilter, setLoggedFilter] = useState<LoggedFilter>('all');
-  const [status, setStatus] = useState('Pull down to refresh odds & Safe picks');
+  const [status, setStatus] = useState('Pull down to refresh tips');
   const [busy, setBusy] = useState(false);
   const syncAbortRef = useRef<AbortController | null>(null);
   const [selectedN, setSelectedN] = useState(0);
@@ -527,13 +529,21 @@ export default function TodayScreen() {
   );
 
   const onSyncOdds = useCallback(() => {
+    if (!isAdmin) {
+      void refresh({ withOdds: false });
+      return;
+    }
     void refresh({ withOdds: true });
+  }, [refresh, isAdmin]);
+
+  const onSoftRefresh = useCallback(() => {
+    void refresh({ withOdds: false });
   }, [refresh]);
 
   const webPull = useWebPullRefresh({
     enabled: isWeb,
     refreshing: busy,
-    onRefresh: onSyncOdds,
+    onRefresh: isAdmin ? onSyncOdds : onSoftRefresh,
   });
 
   useLayoutEffect(() => {
@@ -541,19 +551,21 @@ export default function TodayScreen() {
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerActions}>
-          <SyncHeaderButton
-            onPress={onSyncOdds}
-            onCancel={cancelSync}
-            disabled={busy}
-            busy={busy}
-            label="Load matches"
-          />
+          {isAdmin ? (
+            <SyncHeaderButton
+              onPress={onSyncOdds}
+              onCancel={cancelSync}
+              disabled={busy}
+              busy={busy}
+              label="Load matches"
+            />
+          ) : null}
           <ScreenInfoButton title={TOOL_INFO.home.title} message={TOOL_INFO.home.message} />
           <HelpHeaderButton />
         </View>
       ),
     });
-  }, [navigation, onSyncOdds, cancelSync, busy]);
+  }, [navigation, onSyncOdds, cancelSync, busy, isAdmin]);
 
   useEffect(() => {
     void refresh({ withOdds: false });
@@ -668,7 +680,7 @@ export default function TodayScreen() {
           isWeb ? undefined : (
             <RefreshControl
               refreshing={busy}
-              onRefresh={onSyncOdds}
+              onRefresh={isAdmin ? onSyncOdds : onSoftRefresh}
               tintColor={colors.accent}
             />
           )
@@ -685,14 +697,16 @@ export default function TodayScreen() {
             />
             {isWeb ? (
               <View style={styles.headerActions}>
-                <SyncHeaderButton
-                  onPress={onSyncOdds}
-                  onCancel={cancelSync}
-                  disabled={busy}
-                  busy={busy}
-                  showLabel
-                  label="Load matches"
-                />
+                {isAdmin ? (
+                  <SyncHeaderButton
+                    onPress={onSyncOdds}
+                    onCancel={cancelSync}
+                    disabled={busy}
+                    busy={busy}
+                    showLabel
+                    label="Load matches"
+                  />
+                ) : null}
                 <ScreenInfoButton title={TOOL_INFO.home.title} message={TOOL_INFO.home.message} />
                 <HelpHeaderButton />
               </View>
