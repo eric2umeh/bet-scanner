@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.deps.auth import AuthUser, get_current_user
+from app.deps.auth import AuthUser, get_current_user, get_optional_user
 from app.services import user_profiles as profiles
 
 
@@ -38,7 +38,7 @@ def assert_can_load_matches(
     x_api_key: str | None = None,
 ) -> None:
     """
-    Load matches / odds sync:
+    Load matches / odds sync / daily ops:
       - signed-in admin → allowed
       - signed-in non-admin → denied (even if X-API-Key is present)
       - no user + matching X-API-Key → allowed when ADMIN_SYNC_WITH_API_KEY (cron)
@@ -68,7 +68,7 @@ def assert_can_load_matches(
 def require_can_load_matches(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
-    user: AuthUser | None = Depends(get_current_user),
+    user: AuthUser | None = Depends(get_optional_user),
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
 ) -> AuthUser | None:
     assert_can_load_matches(db, settings, user, x_api_key=x_api_key)
