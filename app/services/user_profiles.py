@@ -37,7 +37,7 @@ def upsert_profile_for_user(
 ) -> UserProfile:
     """
     Ensure a profile row exists. When the DB has zero admins and the user's
-    email matches BOOTSTRAP_ADMIN_EMAIL, promote them once.
+    email is listed in BOOTSTRAP_ADMIN_EMAIL (comma-separated), promote them once.
     """
     email = (user.email or "").strip().lower()
     now = datetime.now(timezone.utc)
@@ -48,8 +48,12 @@ def upsert_profile_for_user(
     elif email and row.email != email:
         row.email = email
 
-    bootstrap = (settings.bootstrap_admin_email or "").strip().lower()
-    if bootstrap and email == bootstrap and admin_count(db) == 0:
+    bootstrap = {
+        e.strip().lower()
+        for e in (settings.bootstrap_admin_email or "").split(",")
+        if e.strip()
+    }
+    if email and email in bootstrap and admin_count(db) == 0:
         row.is_admin = True
 
     row.updated_at = now
