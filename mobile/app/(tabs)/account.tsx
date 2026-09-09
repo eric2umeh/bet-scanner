@@ -254,6 +254,7 @@ export default function AccountScreen() {
       setSection('home');
     } catch (e) {
       flash(e instanceof Error ? e.message : String(e), true);
+      // Keep email filled so they can tap Sign in with the same address.
     } finally {
       setAuthBusy(false);
     }
