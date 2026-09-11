@@ -17,7 +17,7 @@ from app.services.safe_builder import (
     evaluate_match,
     normalize_pick_market,
 )
-from app.services.ng_market_filters import is_youth_or_reserve_match
+from app.services.ng_market_filters import is_ng_surebet_unreliable
 from app.services.tip_learning import (
     build_learning_model,
     enrich_picks_with_learning,
@@ -133,7 +133,7 @@ def scan_safe_picks(
         # Skip kickoffs already started/finished — not placeable as new bets
         if not match_still_bettable(match, now=now):
             continue
-        if match is not None and is_youth_or_reserve_match(
+        if match is not None and is_ng_surebet_unreliable(
             match.home_team,
             match.away_team,
             competition_code=match.competition_code,
@@ -164,6 +164,7 @@ def scan_safe_picks(
                 dog_high=Decimal(str(settings.safe_dog_high)),
                 dog_flex=Decimal(str(settings.safe_dog_flex)),
                 fav_max_flex=Decimal(str(settings.safe_fav_max_flex)),
+                prefer_home=bool(getattr(settings, "safe_prefer_home", True)),
             )
             if pick is None:
                 continue
@@ -276,6 +277,7 @@ def evaluate_prices_dict(
         dog_high=Decimal(str(settings.safe_dog_high)),
         dog_flex=Decimal(str(settings.safe_dog_flex)),
         fav_max_flex=Decimal(str(settings.safe_fav_max_flex)),
+        prefer_home=bool(getattr(settings, "safe_prefer_home", True)),
     )
     if pick is None:
         return {
