@@ -238,7 +238,7 @@ export default function TodayScreen() {
   const [dateFilter, setDateFilter] = useState(() => toLocalIsoDate());
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
-  const [minLeanPct, setMinLeanPct] = useState(0);
+  const [minLeanPct, setMinLeanPct] = useState(80);
   const [loggedFilter, setLoggedFilter] = useState<LoggedFilter>('all');
   const [status, setStatus] = useState('Pull down to refresh tips');
   const [busy, setBusy] = useState(false);
@@ -398,7 +398,8 @@ export default function TodayScreen() {
     const goalCalls = books.map((bookmaker) =>
       scanGoalMarkets({
         bookmaker,
-        markets: 'ou_0_5,ou_1_5,ou_2_5,btts,tt_2_5',
+        // Settled history: O/U 0.5 & 1.5 Over held up; BTTS / O/U 2.5 did not.
+        markets: 'ou_0_5,ou_1_5',
         ...bankroll,
         ...oddsAge,
       }).catch(() => ({ picks: [] as TipPick[] }))
