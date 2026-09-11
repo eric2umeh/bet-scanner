@@ -35,7 +35,8 @@ export const TOOL_INFO = {
   home: {
     title: 'Home',
     message:
-      'Shows tip-bearing fixtures for the date you pick. An admin host uses Load matches to sync odds (morning/afternoon); everyone else sees those shared tips automatically.\n\n' +
+      'Shows tip-bearing fixtures for the date you pick. Defaults lean toward home 1X / home win and Over 0.5·1.5 at ≥80% lean; obscure UNK leagues, BTTS, and soft O/U 2.5 are filtered out.\n\n' +
+      'An admin host uses Load matches to sync odds; everyone else sees those shared tips automatically.\n\n' +
       'Admins manage who can Load matches under Account → Users & Roles.\n\n' +
       'Free tips opens Value picks. Brief opens Daily update.',
   },
