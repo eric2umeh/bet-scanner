@@ -23,7 +23,7 @@ from app.config import Settings
 from app.models import Match
 from app.services.bankroll import potential_return, unit_stake_ngn
 from app.services.match_bettable import match_still_bettable
-from app.services.ng_market_filters import is_youth_or_reserve_match, singles_only_hint
+from app.services.ng_market_filters import is_ng_surebet_unreliable, singles_only_hint
 
 GOAL_MARKETS = ("ou_0_5", "ou_1_5", "ou_2_5", "btts", "tt_2_5")
 
@@ -83,10 +83,11 @@ def scan_goal_market_picks(
     max_odds = Decimal(str(settings.arb_max_odds))
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(minutes=max_age)
-    min_lean = float(getattr(settings, "goal_lean_min_confidence", 60.0))
-    tt_lean = float(getattr(settings, "goal_tt_min_confidence", 30.0))
+    min_lean = float(getattr(settings, "goal_lean_min_confidence", 80.0))
+    tt_lean = float(getattr(settings, "goal_tt_min_confidence", 40.0))
     # O/U 2.5 hits ~45–55% in many leagues — need a real short price, not a soft lean.
-    ou25_lean = float(getattr(settings, "goal_ou25_min_confidence", 70.0))
+    ou25_lean = float(getattr(settings, "goal_ou25_min_confidence", 88.0))
+    btts_lean = float(getattr(settings, "goal_btts_min_confidence", 92.0))
     tt_odds_rows = 0
 
     by_match: dict[int, dict[str, dict[str, dict]]] = {}
@@ -123,7 +124,7 @@ def scan_goal_market_picks(
         match = matches.get(mid)
         if not match_still_bettable(match, now=now):
             continue
-        if match is not None and is_youth_or_reserve_match(
+        if match is not None and is_ng_surebet_unreliable(
             match.home_team,
             match.away_team,
             competition_code=match.competition_code,
@@ -150,9 +151,9 @@ def scan_goal_market_picks(
                 # O/U 2.5 at long-ish prices is coin-flip — only keep a clear short side.
                 if market_key == "ou_2_5":
                     price = float(pick["odds"])
-                    if pick["selection"] == "over" and price > 1.65:
+                    if pick["selection"] == "over" and price > 1.55:
                         continue
-                    if pick["selection"] == "under" and price > 1.78:
+                    if pick["selection"] == "under" and price > 1.65:
                         continue
                 picks.append(
                     _pack_pick(mid, match, book, pick, stake, bankroll_ngn=bankroll_ngn)
@@ -167,7 +168,7 @@ def scan_goal_market_picks(
                     profile="market_lean_btts",
                     max_odds=max_odds,
                 )
-                if pick and float(pick.get("confidence_pct") or 0) >= min_lean:
+                if pick and float(pick.get("confidence_pct") or 0) >= btts_lean:
                     picks.append(
                         _pack_pick(mid, match, book, pick, stake, bankroll_ngn=bankroll_ngn)
                     )
@@ -261,10 +262,10 @@ def _keep_ou_pick(pick: dict, market: str) -> bool:
     Bias toward higher historical hit-rate styles.
 
     - ou_0_5 / ou_1_5: only Over (prefer goals; skip Under 0.5 / Under 1.5)
-    - ou_2_5: keep Over or Under when that side is shorter
+    - ou_2_5: Over only (Under 2.5 was ~55% in settled tips)
     """
     sel = str(pick.get("selection") or "").lower()
-    if market in ("ou_0_5", "ou_1_5"):
+    if market in ("ou_0_5", "ou_1_5", "ou_2_5"):
         return sel == "over"
     return sel in {"over", "under"}
 
