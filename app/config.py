@@ -119,22 +119,25 @@ class Settings(BaseSettings):
     # Default unit = this % of bankroll (1% of ₦50k = ₦500)
     bankroll_unit_pct: float = 1.0
     # Underdog odds thresholds (home/away only)
-    safe_dog_high: float = 6.0          # underdog >= 6 → Safe DC candidate (no upper cap)
+    safe_dog_high: float = 7.0          # underdog >= 7 → clearer favourite (was 6)
     safe_dog_flex: float = 10.0         # >10 + pick_market=1x2 → flex multi tag
     # Favourite max odds for flex-multi profile (1x2 mode only)
     safe_fav_max_flex: float = 1.50
     # Default market style: double_chance | 1x2 (user can override per scan)
     safe_pick_market: str = "double_chance"
+    # When true, only home favourites (1X / home 1X2) — skip away X2 / away win
+    safe_prefer_home: bool = True
     # Hide historically weak Safe picks from scans when enough history exists
     safe_hide_weak_picks: bool = True
     # Goal-market lean = de-vigged fair % of the short side (not a crystal ball).
-    # Higher = fewer tips. O/U 0.5 / 1.5 use this; O/U 2.5 uses GOAL_OU25_MIN_CONFIDENCE.
-    goal_lean_min_confidence: float = 60.0
-    # O/U 2.5 is closer to a coin-flip — require a stronger short-side lean (~70% fair).
-    goal_ou25_min_confidence: float = 70.0
+    # Raised after settled tip review: <80% lean underperformed; O/U 0.5/1.5 Over held up.
+    goal_lean_min_confidence: float = 80.0
+    # O/U 2.5 near coin-flip in our logs even at high lean — require extreme short price.
+    goal_ou25_min_confidence: float = 88.0
+    # BTTS was ~50% hit even at high lean — effectively off unless extremely short.
+    goal_btts_min_confidence: float = 92.0
     # Team 3+ (tt_2_5): lean = de-vig fair % of Over (Under is almost always shorter).
-    # ~30 means Over has roughly a 30%+ fair shot — usable longshots, not 10% no-hopers.
-    goal_tt_min_confidence: float = 30.0
+    goal_tt_min_confidence: float = 40.0
 
     # --- Phase 4: Telegram alerts (optional) ---
     telegram_enabled: bool = False

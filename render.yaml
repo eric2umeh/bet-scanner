@@ -75,13 +75,19 @@ services:
         sync: false
       - key: ADMIN_SYNC_WITH_API_KEY
         value: "true"
-      # O/U 2.5 lean floor (de-vig fair %). Higher = fewer soft Overs.
+      # Tip quality floors (from settled tip review)
       - key: GOAL_OU25_MIN_CONFIDENCE
-        value: "70"
+        value: "88"
       - key: GOAL_LEAN_MIN_CONFIDENCE
-        value: "60"
+        value: "80"
+      - key: GOAL_BTTS_MIN_CONFIDENCE
+        value: "92"
       - key: GOAL_TT_MIN_CONFIDENCE
-        value: "30"
+        value: "40"
+      - key: SAFE_DOG_HIGH
+        value: "7"
+      - key: SAFE_PREFER_HOME
+        value: "true"
 
   # Cron usually needs a paid plan (~$1+/mo). Free alternative: GitHub Action
   # (.github/workflows/daily-ops.yml) hitting POST /ops/daily-run.
