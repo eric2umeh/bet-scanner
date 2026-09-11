@@ -80,6 +80,7 @@ def evaluate_match(
     dog_high: Decimal = Decimal("7"),
     dog_flex: Decimal = Decimal("10"),
     fav_max_flex: Decimal = Decimal("1.50"),
+    prefer_home: bool = True,
 ) -> SafePick | None:
     """
     Apply Safe Builder rules to one match's 1X2 prices.
@@ -87,9 +88,13 @@ def evaluate_match(
     pick_market:
       double_chance (default) → 1X / X2
       1x2                     → straight favourite
+
+    prefer_home: only keep home favourites (1X / home) — skip away X2 / away.
     """
     mode = normalize_pick_market(pick_market)
     fav_side, fav_odds, dog_side, dog_odds = _sides(prices)
+    if prefer_home and fav_side != "home":
+        return None
     dc_sel, dc_label = double_chance_for_favourite(fav_side)
 
     # "6 and above": underdog odds must be at least dog_high (no upper limit).
@@ -104,7 +109,7 @@ def evaluate_match(
             selection=dc_sel,
             odds=None,  # DC price often not in 1X2 feed; user checks book
             rationale=(
-                f"Underdog {dog_side}@{dog_odds} > {dog_high} → "
+                f"Underdog {dog_side}@{dog_odds} ≥ {dog_high} → "
                 f"double chance {dc_sel} ({dc_label}). "
                 f"Favourite side is {fav_side}@{fav_odds}; "
                 f"covers that team winning or the draw."
