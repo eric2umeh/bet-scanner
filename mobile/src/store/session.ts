@@ -6,6 +6,7 @@ import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
 
 let cachedAccessToken: string | null = null;
 let cachedEmail: string | null = null;
+let cachedUserId: string | null = null;
 const listeners = new Set<() => void>();
 
 /** Fail fast if Supabase is slow / unreachable. */
@@ -28,9 +29,14 @@ export function getSessionEmail(): string | null {
   return cachedEmail;
 }
 
+export function getSessionUserId(): string | null {
+  return cachedUserId;
+}
+
 function applySession(session: Session | null) {
   cachedAccessToken = session?.access_token ?? null;
   cachedEmail = session?.user?.email ?? null;
+  cachedUserId = session?.user?.id ?? null;
   notify();
 }
 
