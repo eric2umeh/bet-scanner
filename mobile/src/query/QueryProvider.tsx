@@ -20,10 +20,16 @@ export function AppQueryProvider({ children }: PropsWithChildren) {
       client={queryClient}
       persistOptions={{
         persister: asyncStoragePersister,
+        maxAge: 1000 * 60 * 60 * 24 * 7,
         dehydrateOptions: {
           shouldDehydrateQuery: (q) => {
             const key = q.queryKey[0];
-            return key === 'tips' || key === 'tipStats';
+            return (
+              key === 'tips' ||
+              key === 'tipStats' ||
+              key === 'homeFeed' ||
+              key === 'pendingLoggedTips'
+            );
           },
         },
       }}
