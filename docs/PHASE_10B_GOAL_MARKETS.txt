@@ -18,7 +18,7 @@ WHAT SHIPPED
 
   Predictions
     - GET /predictions/scan?markets=ou_2_5,btts&bookmaker=sportybet
-    - Market-lean tips (favourite / shorter side) — not guarantees
+    - Market-confidence tips (favourite / shorter side) — not guarantees
 
   Safe Builder
     - Attaches real Double Chance @ price when feed has it

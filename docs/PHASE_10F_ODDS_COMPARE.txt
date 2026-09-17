@@ -14,7 +14,7 @@ WHAT SHIPPED
     - Tally: how many selections each book wins (+ ties)
     - Odds age (warn when stale > ~3h)
     - Market chips: All / 1X2 / DC / O/U / BTTS
-    - Per market lean label
+    - Per market ahead label (SportyBet / Bet9ja)
     - Price gap Δ (+absolute and %) on the better book
     - Correct 2-col vs 3-col grids
     - + buttons → add best (or Sporty on tie) to Log selected
