@@ -62,6 +62,19 @@ module.exports = {
         ITSAppUsesNonExemptEncryption: false,
       },
     },
+    plugins: [
+      'expo-router',
+      'expo-secure-store',
+      'expo-updates',
+      [
+        'expo-notifications',
+        {
+          icon: './assets/images/icon.png',
+          color: '#0F8A5F',
+          defaultChannel: 'bet-scout',
+        },
+      ],
+    ],
     android: {
       package: 'com.betscanner.app',
       versionCode: 1,
@@ -71,12 +84,14 @@ module.exports = {
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
+      ...(process.env.GOOGLE_SERVICES_JSON
+        ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
+        : {}),
     },
     web: {
       bundler: 'metro',
       favicon: './assets/images/favicon.png',
     },
-    plugins: ['expo-router', 'expo-secure-store', 'expo-updates'],
     extra: {
       router: {},
       eas: {
