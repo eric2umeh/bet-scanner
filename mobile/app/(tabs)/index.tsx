@@ -217,7 +217,7 @@ function emptyStateForFilter(
     tt_2_5: {
       title: 'No Team 3+ tips',
       body:
-        'Team scores 3+ needs Team Totals prices and Over fair ≥ ~30% in a 1.55–4.00 band. Tap Load matches; try MelBet / All books; lower Lean %.',
+        'Team scores 3+ needs Team Totals prices and Over fair ≥ ~30% in a 1.55–4.00 band. Tap Load matches; try Bet9ja / All books; lower Lean %.',
     },
   };
   return map[filter];
