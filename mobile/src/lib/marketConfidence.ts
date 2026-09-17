@@ -1,9 +1,9 @@
-/** Goal-market “confidence” is odds-gap lean strength — not predicted win %. */
+/** Tip “confidence” is market strength (odds gap / de-vig fair %) — not predicted win %. */
 
 const YOUTH_RE =
   /\b(u\d{1,2})\b|youth|reserve|academy|\b(junior|juniors)\b|\bii\b|\bb\s+team\b/i;
 
-export function isGoalMarketLean(market: string): boolean {
+export function isConfidenceMarket(market: string): boolean {
   const m = String(market || '').toLowerCase();
   return (
     m === 'ou_0_5' ||
@@ -18,8 +18,8 @@ export function isGoalMarketLean(market: string): boolean {
 
 export function formatConfidencePct(market: string, pct: number | null | undefined): string | null {
   if (pct == null || Number.isNaN(pct)) return null;
-  if (isGoalMarketLean(market)) {
-    return `lean ${pct}%`;
+  if (isConfidenceMarket(market)) {
+    return `confidence ${pct}%`;
   }
   return `${pct}%`;
 }
