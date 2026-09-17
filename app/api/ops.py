@@ -20,7 +20,7 @@ router = APIRouter(prefix="/ops", tags=["ops"])
 @router.post(
     "/daily-run",
     response_model=DailyOpsResponse,
-    summary="Morning run: fixtures → odds → settle → brief (+ optional Telegram)",
+    summary="Morning run: fixtures → odds → settle → brief (+ Telegram / push)",
 )
 def daily_run(
     body: DailyOpsRequest,
@@ -39,6 +39,7 @@ def daily_run(
         auto_settle=body.auto_settle,
         build_brief=body.build_brief,
         notify_telegram=body.notify_telegram,
+        notify_push=body.notify_push,
         bankroll_ngn=body.bankroll_ngn,
         unit_pct=body.unit_pct,
         pick_market=body.pick_market,

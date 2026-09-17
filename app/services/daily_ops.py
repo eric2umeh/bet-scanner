@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.services.ai_brief import build_decision_brief, format_brief_telegram
+from app.services.push_notify import notify_morning_digest, notify_tips_settled
 from app.services.sync_matches import sync_matches_for_today
 from app.services.sync_odds import sync_odds
 from app.services.telegram_notify import send_telegram_message
@@ -36,6 +37,7 @@ def run_daily_ops(
     auto_settle: bool = True,
     build_brief: bool = True,
     notify_telegram: bool = False,
+    notify_push: bool = True,
     bankroll_ngn: Decimal | None = None,
     unit_pct: Decimal | None = None,
     pick_market: str | None = None,
@@ -136,6 +138,27 @@ def run_daily_ops(
     learning = learning_to_dict(build_learning_model(db))
     board = tipster_leaderboard(db, min_settled=1)
 
+    def _step_title(step: str) -> str:
+        titles = {
+            "sync_fixtures": "Match list refreshed",
+            "sync_odds": "Odds updated",
+            "auto_settle": "Tips settled",
+            "brief": "Brief ready",
+        }
+        return titles.get(step, step.replace("_", " ").title())
+
+    ok = len(errors) == 0
+    if ok:
+        summary = "Morning update complete — " + ", ".join(
+            _step_title(s["step"]) for s in steps
+        )
+    else:
+        failed = [s["step"] for s in steps if not s.get("ok")]
+        summary = (
+            "Morning update finished with issues"
+            + (f" ({', '.join(failed)})" if failed else "")
+        )
+
     telegram_info = None
     if notify_telegram:
         text_parts = ["Bet Scout — daily ops", ""]
@@ -153,27 +176,27 @@ def run_daily_ops(
             text_parts.append(format_brief_telegram(brief))
         telegram_info = send_telegram_message(settings, "\n".join(text_parts))
 
-    ok = len(errors) == 0
-
-    def _step_title(step: str) -> str:
-        titles = {
-            "sync_fixtures": "Match list refreshed",
-            "sync_odds": "Odds updated",
-            "auto_settle": "Tips settled",
-            "brief": "Brief ready",
-        }
-        return titles.get(step, step.replace("_", " ").title())
-
-    if ok:
-        summary = "Morning update complete — " + ", ".join(
-            _step_title(s["step"]) for s in steps
-        )
-    else:
-        failed = [s["step"] for s in steps if not s.get("ok")]
-        summary = (
-            "Morning update finished with issues"
-            + (f" ({', '.join(failed)})" if failed else "")
-        )
+    push_info = None
+    if notify_push:
+        push_bits: dict = {}
+        try:
+            push_bits["settled"] = notify_tips_settled(db, settle_result)
+        except Exception as exc:  # noqa: BLE001
+            push_bits["settled"] = {"ok": False, "message": str(exc)}
+        try:
+            safe_n = None
+            if brief and isinstance(brief.get("safe"), dict):
+                safe_n = brief["safe"].get("count")
+            settled_n = (settle_result or {}).get("settled_count") or 0
+            push_bits["morning"] = notify_morning_digest(
+                db,
+                summary=summary,
+                safe_count=safe_n,
+                settled_count=int(settled_n) if settled_n else None,
+            )
+        except Exception as exc:  # noqa: BLE001
+            push_bits["morning"] = {"ok": False, "message": str(exc)}
+        push_info = push_bits
 
     return {
         "ok": ok,
@@ -192,5 +215,6 @@ def run_daily_ops(
         },
         "tipsters_ranked": board.get("count", 0),
         "telegram": telegram_info,
+        "push": push_info,
         "message": summary,
     }

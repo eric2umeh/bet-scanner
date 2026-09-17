@@ -44,6 +44,7 @@ export function runDailyOps(opts: {
   auto_settle?: boolean;
   build_brief?: boolean;
   notify_telegram?: boolean;
+  notify_push?: boolean;
   prefer_llm?: boolean;
 }) {
   // Fixture sync + settle + brief regularly exceeds the default 55s wake timeout.
@@ -55,6 +56,7 @@ export function runDailyOps(opts: {
       auto_settle: opts.auto_settle !== false,
       build_brief: opts.build_brief !== false,
       notify_telegram: !!opts.notify_telegram,
+      notify_push: opts.notify_push !== false,
       bankroll_ngn: opts.bankroll_ngn,
       unit_pct: opts.unit_pct,
       pick_market: opts.pick_market || 'double_chance',
