@@ -117,9 +117,7 @@ export default function MatchDetailScreen() {
     try {
       const [s, b] = await Promise.all([
         fetchLatestOdds({ bookmaker: 'sportybet', match_id: matchId }),
-        fetchLatestOdds({ bookmaker: 'melbet', match_id: matchId }).catch(() =>
-          fetchLatestOdds({ bookmaker: 'bet9ja', match_id: matchId }).catch(() => [])
-        ),
+        fetchLatestOdds({ bookmaker: 'bet9ja', match_id: matchId }).catch(() => []),
       ]);
       setSporty(Array.isArray(s) ? s : []);
       setBet9ja(Array.isArray(b) ? b : []);
@@ -237,7 +235,7 @@ export default function MatchDetailScreen() {
         marketWinsSb > marketWinsB9
           ? 'SportyBet lean'
           : marketWinsB9 > marketWinsSb
-            ? 'MelBet lean'
+            ? 'Bet9ja lean'
             : 'Even';
 
       blocks.push({
@@ -388,7 +386,7 @@ export default function MatchDetailScreen() {
                   </View>
                   <View style={styles.stat}>
                     <Text style={styles.statVal}>{oddsBlocks.winsB9}</Text>
-                    <Text style={styles.statLabel}>MelBet best</Text>
+                    <Text style={styles.statLabel}>Bet9ja best</Text>
                   </View>
                   <View style={styles.stat}>
                     <Text style={styles.statVal}>{oddsBlocks.ties}</Text>
@@ -460,8 +458,8 @@ export default function MatchDetailScreen() {
                         const c = block.cells[i];
                         if (c.a == null && c.b == null) return null;
                         const book =
-                          c.tie || (c.bestA && !c.bestB) || c.b == null ? 'sportybet' : 'melbet';
-                        const price = book === 'melbet' ? c.b : c.a;
+                          c.tie || (c.bestA && !c.bestB) || c.b == null ? 'sportybet' : 'bet9ja';
+                        const price = book === 'bet9ja' ? c.b : c.a;
                         if (price == null) return null;
                         const sel =
                           block.marketKey === 'double_chance' ? k.toUpperCase() : k;
