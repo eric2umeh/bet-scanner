@@ -40,7 +40,7 @@ services:
       - key: ODDS_API_IO_KEY
         sync: false
       - key: ODDS_API_IO_BOOKMAKERS
-        value: SportyBet,1xBet
+        value: SportyBet,Bet9ja
       - key: ODDS_API_IO_EVENT_LIMIT
         value: "12"
       - key: FIXTURE_PROVIDERS
