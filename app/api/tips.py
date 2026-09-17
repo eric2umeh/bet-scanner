@@ -465,6 +465,12 @@ def auto_settle_endpoint(
                 "Try again in a moment or settle tips manually (Won/Lost)."
             ),
         ) from exc
+    try:
+        from app.services.push_notify import notify_tips_settled
+
+        notify_tips_settled(db, result)
+    except Exception:  # noqa: BLE001 — settle still succeeded
+        pass
     return AutoSettleResponse(
         settled_count=result["settled_count"],
         voided_count=result.get("voided_count", 0),
