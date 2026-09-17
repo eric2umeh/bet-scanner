@@ -64,12 +64,12 @@ export const FAQ_ITEMS: FaqItem[] = [
       keywords: ['multi', 'combined', 'odds', 'accumulator', 'bet builder', 'parlay', 'sportybet', 'bet9ja'],
     },
     {
-      id: 'lean-filter',
+      id: 'confidence-filter',
       category: 'Home',
-      question: 'What does the Lean % filter do?',
+      question: 'What does the Confidence % filter do?',
       answer:
-        'Lean % is how strongly the market prices one side shorter than the other (odds gap) — not a predicted win rate. On Home and Tips, open Filters (or Lean on wide screens) and set ≥ 75 to hide weaker tips. Reset clears the filter.',
-      keywords: ['lean', 'confidence', 'filter', 'percent', '75'],
+        'Confidence % is how strongly the market prices one side shorter than the other (odds gap) — not a predicted win rate. On Home and Tips, open Filters (or Confidence on wide screens) and set ≥ 75 to hide weaker tips. Reset clears the filter.',
+      keywords: ['confidence', 'lean', 'filter', 'percent', '75'],
     },
   {
     id: 'today-filter',
@@ -84,8 +84,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Home',
     question: 'Which goal markets hit more often?',
     answer:
-      'Over 0.5 (at least one goal) and Over 1.5 usually hit more often than Over 2.5, but odds are shorter. Under 0.5 (0-0) is rare so we skip it. Team scores 3+ is a longshot — only shown when the book heavily favours that side. Lean % is not win probability; prefer Safe double chance for steadier results. Avoid U21/U23 accumulators.',
-    keywords: ['win rate', 'over 0.5', 'over 1.5', 'under', 'team 3', 'lean', 'confidence'],
+      'Over 0.5 (at least one goal) and Over 1.5 usually hit more often than Over 2.5, but odds are shorter. Under 0.5 (0-0) is rare so we skip it. Team scores 3+ is a longshot — only shown when the book heavily favours that side. Confidence % is not win probability; prefer Safe double chance for steadier results. Avoid U21/U23 accumulators.',
+    keywords: ['win rate', 'over 0.5', 'over 1.5', 'under', 'team 3', 'confidence'],
   },
   {
     id: 'tips-tabs',
