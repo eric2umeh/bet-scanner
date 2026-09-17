@@ -248,7 +248,7 @@ export default function AccountScreen() {
       flash(
         session
           ? `Signed up as ${getSessionEmail() || email}.`
-          : 'Account created. Check your email to confirm, then sign in.'
+          : 'Account created. Tap Sign in with the same email and password.'
       );
       setPassword('');
       setSection('home');
