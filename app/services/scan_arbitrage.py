@@ -175,7 +175,7 @@ def scan_arbs(
         match = db.get(Match, match_id)
         if match is None or not match_still_bettable(match, now=now):
             continue
-        # Skip youth / lower-tier / UNK comps — often unsearchable on MelBet or
+        # Skip youth / lower-tier / UNK comps — often unsearchable on Bet9ja or
         # only offer alternate O/U lines on SportyBet vs our feed.
         if is_ng_surebet_unreliable(
             match.home_team or "",

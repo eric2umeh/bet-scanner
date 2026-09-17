@@ -17,7 +17,7 @@ _YOUTH_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Lower divisions / obscure leagues are often missing on MelBet search or only
+# Lower divisions / obscure leagues are often missing on Bet9ja search or only
 # offer alternate totals lines on SportyBet (e.g. 3.5 instead of feed’s 2.5).
 _LOWER_TIER_RE = re.compile(
     r"first\s+league|2nd\s+division|division\s*[23]|segunda|terceira|"
@@ -49,7 +49,7 @@ def is_ng_surebet_unreliable(
     competition_name: str | None = None,
 ) -> bool:
     """
-    True when a surebet is unlikely to be placeable on SportyBet/MelBet:
+    True when a surebet is unlikely to be placeable on SportyBet/Bet9ja:
     youth/reserve, lower-tier leagues, or unknown competition codes.
     """
     if is_youth_or_reserve_match(
