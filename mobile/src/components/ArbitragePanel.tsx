@@ -139,7 +139,7 @@ type Props = {
 export function ArbitragePanel({ onFlash }: Props) {
   const navigation = useNavigation();
   const modal = useAppModal();
-  const [configuredBooks, setConfiguredBooks] = useState<string[]>(['sportybet', 'melbet']);
+  const [configuredBooks, setConfiguredBooks] = useState<string[]>(['sportybet', 'bet9ja']);
   const [opps, setOpps] = useState<ArbOpportunity[]>([]);
   const [history, setHistory] = useState<TipOut[]>([]);
   const [tab, setTab] = useState<TabId>('scan');
@@ -567,7 +567,7 @@ export function ArbitragePanel({ onFlash }: Props) {
               <Text style={styles.emptyText}>
                 {dateFilter
                   ? `Nothing for ${dateFilter}. Clear the date (×) to see other days, or Find Nigeria surebets again.`
-                  : 'True arbs are rare on SportyBet/MelBet. Sync Home first, then Find Nigeria surebets. International includes European books from the-odds-api (not SportyBet).'}
+                  : 'True arbs are rare on SportyBet/Bet9ja. Sync Home first, then Find Nigeria surebets. International includes European books from the-odds-api (not SportyBet).'}
               </Text>
             </View>
           ) : null}
