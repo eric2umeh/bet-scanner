@@ -25,7 +25,7 @@ def format_value_pick_text(pick: dict) -> str:
             f"→ return ~₦{pick.get('potential_return_ngn')}"
         ),
         "",
-        "Risked pick (not a surebet). Verify live before placing.",
+        "Can still lose. Check the live odds on the book before you place.",
     ]
     warn = pick.get("warning")
     if warn:
