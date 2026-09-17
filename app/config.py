@@ -12,6 +12,7 @@ Learning note:
 
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,6 +21,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,
     )
 
     app_name: str = "Bet Scout"
@@ -129,14 +131,23 @@ class Settings(BaseSettings):
     safe_prefer_home: bool = True
     # Hide historically weak Safe picks from scans when enough history exists
     safe_hide_weak_picks: bool = True
-    # Goal-market lean = de-vigged fair % of the short side (not a crystal ball).
-    # Raised after settled tip review: <80% lean underperformed; O/U 0.5/1.5 Over held up.
-    goal_lean_min_confidence: float = 80.0
-    # O/U 2.5 near coin-flip in our logs even at high lean — require extreme short price.
+    # Goal-market confidence = de-vigged fair % of the short side (not a crystal ball).
+    # Raised after settled tip review: <80% confidence underperformed; O/U 0.5/1.5 Over held up.
+    # Env: GOAL_MIN_CONFIDENCE (also accepts legacy GOAL_LEAN_MIN_CONFIDENCE).
+    goal_min_confidence: float = Field(
+        default=80.0,
+        validation_alias=AliasChoices(
+            "goal_min_confidence",
+            "GOAL_MIN_CONFIDENCE",
+            "goal_lean_min_confidence",
+            "GOAL_LEAN_MIN_CONFIDENCE",
+        ),
+    )
+    # O/U 2.5 near coin-flip in our logs even at high confidence — require extreme short price.
     goal_ou25_min_confidence: float = 88.0
-    # BTTS was ~50% hit even at high lean — effectively off unless extremely short.
+    # BTTS was ~50% hit even at high confidence — effectively off unless extremely short.
     goal_btts_min_confidence: float = 92.0
-    # Team 3+ (tt_2_5): lean = de-vig fair % of Over (Under is almost always shorter).
+    # Team 3+ (tt_2_5): confidence = de-vig fair % of Over (Under is almost always shorter).
     goal_tt_min_confidence: float = 40.0
 
     # --- Phase 4: Telegram alerts (optional) ---
