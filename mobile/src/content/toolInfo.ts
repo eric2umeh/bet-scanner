@@ -4,7 +4,7 @@ export const TOOL_INFO = {
   value: {
     title: 'Value picks',
     message:
-      'Finds matches where one of your configured books (e.g. SportyBet or MelBet) offers a clearer price than the average of those books.\n\n' +
+      'Finds matches where one of your configured books (e.g. SportyBet or Bet9ja) offers a clearer price than the average of those books.\n\n' +
       'Tap Scan value after Load matches on Home. A higher “edge %” means a better price vs that average — still risked money; confirm live before staking.\n\n' +
       'Uses your bankroll and unit % from Account → Settings. Needs fresh odds on at least 2 books for the same match.',
   },
