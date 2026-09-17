@@ -1,0 +1,52 @@
+PHASE 14C — PUSH NOTIFICATIONS (Expo)
+======================================
+
+Goal
+----
+Phone alerts for people who do not use Telegram:
+  1) Morning digest after daily ops (fixtures/odds/settle/brief)
+  2) Tip settled (won / lost / void) for the signed-in owner
+
+Stack
+-----
+  Mobile: expo-notifications + expo-device
+  Backend: push_tokens table + Expo Push HTTP API (exp.host)
+  Hooks:   POST /ops/daily-run (notify_push=true) + POST /tips/auto-settle
+
+API
+---
+  GET  /push/status          (Bearer required)
+  POST /push/register        { token, platform, notify_morning?, notify_settled? }
+  POST /push/unregister      { token? }
+
+User flow
+---------
+  1) Sign in on Android (or iOS later)
+  2) Account → Settings → Enable push alerts (+ Morning / Tip settled toggles)
+  3) Allow OS notification permission
+  4) Daily cron / GitHub Action runs ops with notify_push=true
+  5) Phone gets “Bet Scout — morning update” and/or “tips settled”
+
+Notes
+-----
+  - Web browser: no push (UI says so).
+  - Simulator: usually no real push token.
+  - Play / EAS production builds need FCM credentials in Expo for reliable Android
+    push (EAS → credentials). Expo Go can work for quick tests.
+  - Tips without owner_id (legacy) do not get settled pushes.
+  - Complements Telegram (Phase 4/7); does not replace it.
+
+Files
+-----
+  app/models/push_token.py
+  app/services/push_notify.py
+  app/api/push.py
+  app/schemas/push.py
+  app/services/daily_ops.py
+  mobile/src/lib/pushNotifications.ts
+  mobile/src/store/pushPrefs.ts
+  mobile/app/(tabs)/account.tsx
+  mobile/app/_layout.tsx
+  mobile/app.config.js (expo-notifications plugin)
+  .github/workflows/daily-ops.yml
+  docs/PHASE_14C_PUSH.txt

@@ -224,6 +224,14 @@ export const FAQ_ITEMS: FaqItem[] = [
     keywords: ['value', 'scan', 'log', 'stake'],
   },
   {
+    id: 'push-alerts',
+    category: 'Account',
+    question: 'How do phone push alerts work?',
+    answer:
+      'Sign in on the Android/iOS app → Account → Settings → turn on Push alerts. You can get a morning update when daily ops runs, and a note when your logged tips settle (won/lost/void). Browser web does not receive push; Telegram digests are separate (server config).',
+    keywords: ['push', 'notification', 'alert', 'morning', 'settle', 'phone'],
+  },
+  {
     id: 'slip-compare',
     category: 'Tools',
     question: 'How does Compare slip work?',

@@ -32,6 +32,8 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [PHASE_12B_TIPSTERS_NATIVE.txt](./PHASE_12B_TIPSTERS_NATIVE.txt) | Expo Tipsters: codes, settle, leaderboard |
 | [PHASE_12C_SUPABASE_AUTH.txt](./PHASE_12C_SUPABASE_AUTH.txt) | Optional Supabase email login + tip owner |
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
+| [PHASE_14A_PLAY_STORE.txt](./PHASE_14A_PLAY_STORE.txt) | Google Play / store listing notes |
+| [PHASE_14C_PUSH.txt](./PHASE_14C_PUSH.txt) | Expo push: morning digest + tip settled |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 
 Code stays in `app/`, `scripts/`, etc.  
