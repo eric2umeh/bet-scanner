@@ -1409,7 +1409,7 @@
           setStatus(`Signed in as ${sessionEmail || email}.`);
           document.getElementById('authPassword').value = '';
         } else {
-          setStatus('Account created. Check your email to confirm, then sign in.');
+          setStatus('Account created. Sign in with the same email and password.');
         }
       } catch (e) {
         setStatus(formatAuthError(e, 'sign_up'), true);
