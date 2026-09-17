@@ -78,7 +78,7 @@ services:
       # Tip quality floors (from settled tip review)
       - key: GOAL_OU25_MIN_CONFIDENCE
         value: "88"
-      - key: GOAL_LEAN_MIN_CONFIDENCE
+      - key: GOAL_MIN_CONFIDENCE
         value: "80"
       - key: GOAL_BTTS_MIN_CONFIDENCE
         value: "92"
