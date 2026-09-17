@@ -159,11 +159,11 @@ def scan_value_1x2(
 
             age_min = (now - best_at).total_seconds() / 60.0
             warning = (
-                "Risked pick — not a surebet. Edge is theoretical vs de-vigged "
-                "consensus of your books. Verify live and settle tips to learn."
+                "This can still lose — it is not a locked profit. "
+                "Open the book and check the odds are still this high before you bet."
             )
             if ev >= Decimal("15"):
-                warning += " ⚠ EV ≥15% is unusually high — prices may be stale/mismatched."
+                warning += " ⚠ Extra careful: +15% looks very high — the price may be old or wrong."
 
             book_lines = []
             for b in sorted(full_books):
