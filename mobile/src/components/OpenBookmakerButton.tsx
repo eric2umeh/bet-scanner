@@ -13,7 +13,7 @@ import { colors } from '../theme/colors';
 type Props = {
   home: string;
   away: string;
-  /** Book key (sportybet, melbet, …). Falls back to SportyBet if empty. */
+  /** Book key (sportybet, bet9ja, …). Falls back to SportyBet if empty. */
   bookmaker?: string | null;
   /** Compact link style for Today cards. */
   compact?: boolean;
