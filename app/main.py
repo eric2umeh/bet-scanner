@@ -28,6 +28,7 @@ from app.api.matches import router as matches_router
 from app.api.odds import router as odds_router
 from app.api.ops import router as ops_router
 from app.api.predictions import router as predictions_router
+from app.api.push import router as push_router
 from app.api.safe_builder import router as safe_builder_router
 from app.api.telegram import router as telegram_router
 from app.api.tips import router as tips_router
@@ -96,6 +97,7 @@ app.include_router(tipsters_router)
 app.include_router(convert_router)
 app.include_router(ops_router)
 app.include_router(telegram_router)
+app.include_router(push_router)
 
 
 @app.get("/privacy", include_in_schema=False)
