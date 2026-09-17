@@ -210,17 +210,17 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'value-what',
     category: 'Value',
-    question: 'What is a value (+EV) pick?',
+    question: 'What is a value pick?',
     answer:
-      'A value pick is a bet where one book’s price is higher than the “fair” odds estimated from all books combined. Positive expected value (EV %) means the price looks better than the market consensus.',
-    keywords: ['value', 'ev', 'plus ev', 'edge', 'fair odds'],
+      'A value pick means one book is offering a higher (better) price than the average of your books for the same outcome. Higher “better by %” looks more attractive — but you can still lose. Always check the price live before you bet.',
+    keywords: ['value', 'ev', 'plus ev', 'edge', 'fair odds', 'better price'],
   },
   {
     id: 'value-how',
     category: 'Value',
     question: 'How do I use Value picks?',
     answer:
-      'Open Tools → Value picks. Tap Scan value (syncs odds + scans) using your bankroll and unit % from Account → Settings. Review EV % and suggested stake, then log from Home if you placed a pick.',
+      'Open Tools → Value picks → Find better prices. Read the match, book, and suggested stake. Open that bookmaker, confirm the odds, place the bet yourself, then log it on Home/Tips if you want to track results.',
     keywords: ['value', 'scan', 'log', 'stake'],
   },
   {
