@@ -4,9 +4,12 @@ export const TOOL_INFO = {
   value: {
     title: 'Value picks',
     message:
-      'Finds matches where one of your configured books (e.g. SportyBet or Bet9ja) offers a clearer price than the average of those books.\n\n' +
-      'Tap Scan value after Load matches on Home. A higher “edge %” means a better price vs that average — still risked money; confirm live before staking.\n\n' +
-      'Uses your bankroll and unit % from Account → Settings. Needs fresh odds on at least 2 books for the same match.',
+      'Looks for a book (SportyBet or Bet9ja) offering a higher price than the average of your books for the same bet.\n\n' +
+      '1) Load matches on Home\n' +
+      '2) Tap Find better prices\n' +
+      '3) If you like a pick, open that book and confirm the odds, then place the bet yourself\n\n' +
+      '“Better by X%” = how much higher that price is vs the average. It can still lose.\n\n' +
+      'Stake size uses your bankroll and unit % in Account → Settings.',
   },
   morning: {
     title: 'Daily update',
