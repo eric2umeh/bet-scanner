@@ -64,10 +64,10 @@ export function ConnectionBanner() {
 
   const message =
     kind === 'offline'
-      ? 'No internet connection. Tips and prices will not update until you are back online.'
+      ? 'No internet — showing last saved Home matches & Safe picks. Prices and tips will not update until you are back online.'
       : kind === 'db'
         ? 'Server is up but the database is busy or full (connection pool). Wait a minute, then pull down to refresh. Avoid running many local + Render copies at once.'
-        : 'Cannot reach the Bet Scout server. It may be waking up — wait a minute and pull down to refresh.';
+        : 'Cannot reach the Bet Scout server. Showing saved Home data if you have it — wait a minute and pull down to refresh.';
 
   return (
     <View style={[styles.wrap, { paddingTop: Math.max(insets.top, 8) }]}>
