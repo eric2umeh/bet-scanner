@@ -20,7 +20,7 @@ from app.services.tip_settle import selection_won
 
 
 def _confidence_display(tip: Tip) -> float | None:
-    """Stored lean %, or recompute from fav/dog odds when older rows lack the column."""
+    """Stored confidence %, or recompute from fav/dog odds when older rows lack the column."""
     if tip.confidence_pct is not None:
         return round(float(tip.confidence_pct), 1)
     fav, dog = tip.fav_odds, tip.dog_odds
@@ -552,7 +552,7 @@ def _group_tips_into_cards(tips: list) -> list[list]:
     return entries
 
 
-def _card_max_lean(group: list) -> float:
+def _card_max_confidence(group: list) -> float:
     vals: list[float] = []
     for tip in group:
         raw = getattr(tip, "confidence_pct", None)
@@ -579,7 +579,7 @@ def list_tips(
     hide_void: bool = False,
     owner_id: str | None = None,
     bookmaker: str | None = None,
-    min_lean_pct: float | None = None,
+    min_confidence_pct: float | None = None,
 ) -> dict:
     """
     Paginated tip list by UI cards (multi slip = 1, single = 1).
@@ -591,7 +591,7 @@ def list_tips(
     page_size = max(1, min(int(limit), 100))
     off = max(0, int(offset))
     needle = (q or "").strip()
-    lean_floor = float(min_lean_pct) if min_lean_pct is not None else 0.0
+    confidence_floor = float(min_confidence_pct) if min_confidence_pct is not None else 0.0
 
     base = select(Tip).join(Match, Tip.match_id == Match.id)
     base = _apply_tip_list_filters(
@@ -615,13 +615,13 @@ def list_tips(
     # Over-fetch tip rows so multi slips still group into enough UI cards.
     need_cards = off + page_size
     overfetch = min(800, max(need_cards * 8 + 24, 80))
-    if needle or lean_floor > 0:
+    if needle or confidence_floor > 0:
         overfetch = min(800, max(overfetch, 400))
     rows = list(db.scalars(stmt.limit(overfetch)).unique().all())
     cards = _group_tips_into_cards(rows)
-    if lean_floor > 0:
+    if confidence_floor > 0:
         # Keep whole multi if strongest leg meets floor (legs stay together).
-        cards = [c for c in cards if _card_max_lean(c) >= lean_floor]
+        cards = [c for c in cards if _card_max_confidence(c) >= confidence_floor]
     capped = len(rows) >= overfetch
     if capped:
         # Exact total unknown without a full scan; expose enough for paging.

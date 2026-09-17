@@ -1,5 +1,5 @@
 """
-Goal-market lean tips from stored odds.
+Goal-market confidence tips from stored odds.
 
 Markets:
   - ou_0_5 / ou_1_5 / ou_2_5 (match totals)
@@ -10,7 +10,7 @@ Win-rate focus (research / recreational practice):
   - Over 0.5 and Over 1.5 hit more often than Over 2.5 in most leagues.
   - Under 0.5 (0-0) is rare — we skip Under 0.5.
   - Team over 2.5 (3+ goals by one side) is a longshot — only show when heavily short.
-  - These still follow the *shorter* book price (market lean), not a Poisson model.
+  - These still follow the *shorter* book price (market confidence), not a Poisson model.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -62,7 +62,7 @@ def scan_goal_market_picks(
     markets: set[str] | None = None,
 ) -> dict:
     """
-    Build lean tips for goal markets.
+    Build confidence tips for goal markets.
 
     Default: ou_0_5, ou_1_5, ou_2_5, btts, tt_2_5.
     """
@@ -83,11 +83,11 @@ def scan_goal_market_picks(
     max_odds = Decimal(str(settings.arb_max_odds))
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(minutes=max_age)
-    min_lean = float(getattr(settings, "goal_lean_min_confidence", 80.0))
-    tt_lean = float(getattr(settings, "goal_tt_min_confidence", 40.0))
-    # O/U 2.5 hits ~45–55% in many leagues — need a real short price, not a soft lean.
-    ou25_lean = float(getattr(settings, "goal_ou25_min_confidence", 88.0))
-    btts_lean = float(getattr(settings, "goal_btts_min_confidence", 92.0))
+    min_conf = float(getattr(settings, "goal_min_confidence", 80.0))
+    tt_conf = float(getattr(settings, "goal_tt_min_confidence", 40.0))
+    # O/U 2.5 hits ~45–55% in many leagues — need a real short price, not soft confidence.
+    ou25_conf = float(getattr(settings, "goal_ou25_min_confidence", 88.0))
+    btts_conf = float(getattr(settings, "goal_btts_min_confidence", 92.0))
     tt_odds_rows = 0
 
     by_match: dict[int, dict[str, dict[str, dict]]] = {}
@@ -135,17 +135,17 @@ def scan_goal_market_picks(
             for market_key in ("ou_0_5", "ou_1_5", "ou_2_5"):
                 if market_key not in wanted or market_key not in mkts:
                     continue
-                pick = _lean_two_way(
+                pick = _confidence_two_way(
                     mkts[market_key],
                     market=market_key,
                     label_a="over",
                     label_b="under",
-                    profile=f"market_lean_{market_key}",
+                    profile=f"market_confidence_{market_key}",
                     max_odds=max_odds,
                 )
                 if not pick or not _keep_ou_pick(pick, market_key):
                     continue
-                floor = ou25_lean if market_key == "ou_2_5" else min_lean
+                floor = ou25_conf if market_key == "ou_2_5" else min_conf
                 if float(pick.get("confidence_pct") or 0) < floor:
                     continue
                 # O/U 2.5 at long-ish prices is coin-flip — only keep a clear short side.
@@ -160,15 +160,15 @@ def scan_goal_market_picks(
                 )
 
             if "btts" in wanted and "btts" in mkts:
-                pick = _lean_two_way(
+                pick = _confidence_two_way(
                     mkts["btts"],
                     market="btts",
                     label_a="yes",
                     label_b="no",
-                    profile="market_lean_btts",
+                    profile="market_confidence_btts",
                     max_odds=max_odds,
                 )
-                if pick and float(pick.get("confidence_pct") or 0) >= btts_lean:
+                if pick and float(pick.get("confidence_pct") or 0) >= btts_conf:
                     picks.append(
                         _pack_pick(mid, match, book, pick, stake, bankroll_ngn=bankroll_ngn)
                     )
@@ -188,18 +188,18 @@ def scan_goal_market_picks(
                         continue
                     # Team 3+ is almost never the short price (Under is fav). Requiring
                     # Over < Under wiped the market. Keep Over in a usable band and
-                    # score lean as de-vig fair % of Over.
+                    # score confidence as de-vig fair % of Over.
                     if over_price < Decimal("1.55") or over_price > Decimal("4.00"):
                         continue
                     conf = _fair_pct(over_price, under_price)
-                    if conf < tt_lean:
+                    if conf < tt_conf:
                         continue
                     captured = max(
                         mkts["tt_2_5"][over_k]["captured_at"],
                         mkts["tt_2_5"][under_k]["captured_at"],
                     )
                     pick = {
-                        "profile": "market_lean_tt",
+                        "profile": "market_confidence_tt",
                         "market": "tt_2_5",
                         "selection": over_k,
                         "odds": over_price,
@@ -213,7 +213,7 @@ def scan_goal_market_picks(
                         "odds_captured_at": captured,
                         "pick_market": "tt_2_5",
                         "confidence_pct": conf,
-                        "confidence_label": "team 3+ lean",
+                        "confidence_label": "team 3+ confidence",
                     }
                     picks.append(
                         _pack_pick(mid, match, book, pick, stake, bankroll_ngn=bankroll_ngn)
@@ -242,7 +242,7 @@ def scan_goal_market_picks(
         elif tt_tips == 0:
             msg += (
                 f" Team Totals present on {tt_odds_rows} book·match row(s) "
-                f"but none cleared Over fair ≥{tt_lean:.0f}% in the 1.55–4.00 band."
+                f"but none cleared Over fair ≥{tt_conf:.0f}% in the 1.55–4.00 band."
             )
 
     return {
@@ -270,7 +270,7 @@ def _keep_ou_pick(pick: dict, market: str) -> bool:
     return sel in {"over", "under"}
 
 
-def _lean_two_way(
+def _confidence_two_way(
     sels: dict,
     *,
     market: str,
@@ -300,13 +300,13 @@ def _lean_two_way(
         "other_selection": other,
         "other_odds": other_price,
         "rationale": (
-            f"Market lean on {market}: {selection}@{price} is shorter than "
+            f"Market confidence on {market}: {selection}@{price} is shorter than "
             f"{other}@{other_price}. Verify live — not a guarantee."
         ),
         "odds_captured_at": captured,
         "pick_market": market,
         "confidence_pct": _confidence(pa, pb),
-        "confidence_label": "market lean",
+        "confidence_label": "market confidence",
     }
 
 
@@ -315,7 +315,7 @@ def _confidence(a: Decimal, b: Decimal) -> float:
     De-vigged fair probability (%) of the shorter (favourite) side.
 
     Old formula `52 + gap*40` capped at 78, so many O/U 2.5 Overs looked like
-    ~75% lean when true fair prob was only ~55–65% — filter at 75% was misleading.
+    ~75% confidence when true fair prob was only ~55–65% — filter at 75% was misleading.
     """
     pa, pb = float(a), float(b)
     if pa <= 1 or pb <= 1:
