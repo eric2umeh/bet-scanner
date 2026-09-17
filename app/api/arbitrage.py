@@ -61,7 +61,7 @@ def scan_arbitrage(
     bookmakers: str | None = Query(
         default=None,
         description=(
-            "Comma list e.g. sportybet,melbet. "
+            "Comma list e.g. sportybet,bet9ja. "
             "Omit = configured ODDS_API_IO_BOOKMAKERS. "
             "Pass all to include every book in the DB (Pinnacle, Unibet, …)."
         ),

@@ -370,7 +370,7 @@ def list_tips_endpoint(
     ),
     bookmaker: str | None = Query(
         default=None,
-        description="Filter by book key (e.g. sportybet, melbet)",
+        description="Filter by book key (e.g. sportybet, bet9ja)",
     ),
     min_lean_pct: float | None = Query(
         default=None,

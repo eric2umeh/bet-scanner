@@ -46,7 +46,7 @@ def scan_value(
     unit_pct: Decimal | None = Query(default=None, gt=0, le=10),
     bookmakers: str | None = Query(
         default=None,
-        description="Comma list (default: ODDS_API_IO_BOOKMAKERS, e.g. sportybet,melbet)",
+        description="Comma list (default: ODDS_API_IO_BOOKMAKERS, e.g. sportybet,bet9ja)",
     ),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
