@@ -217,7 +217,7 @@ function emptyStateForFilter(
     tt_2_5: {
       title: 'No Team 3+ tips',
       body:
-        'Team scores 3+ needs Team Totals prices and Over fair ≥ ~30% in a 1.55–4.00 band. Tap Load matches; try Bet9ja / All books; lower Confidence %.',
+        'Team 3+ needs Team Totals (home/away Over 2.5) from the odds feed. SportyBet and Bet9ja often don’t send those markets — so this chip can stay empty even after Load matches. O/U and Safe tips still work.',
     },
   };
   return map[filter];
@@ -398,8 +398,9 @@ export default function TodayScreen() {
     const goalCalls = books.map((bookmaker) =>
       scanGoalMarkets({
         bookmaker,
-        // Settled history: O/U 0.5 & 1.5 Over held up; BTTS / O/U 2.5 did not.
-        markets: 'ou_0_5,ou_1_5',
+        // Settled history: O/U 0.5 & 1.5 Over held up; BTTS / soft O/U 2.5 did not.
+        // Team 3+ stays optional — often empty on SportyBet/Bet9ja (no Team Totals in feed).
+        markets: 'ou_0_5,ou_1_5,tt_2_5',
         ...bankroll,
         ...oddsAge,
       }).catch(() => ({ picks: [] as TipPick[] }))
