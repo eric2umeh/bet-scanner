@@ -22,12 +22,12 @@ import { scanSafeBuilder } from '../../src/api/safe';
 import { logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
 import { BrandLogo } from '../../src/components/BrandLogo';
-import { BookLeanFilters } from '../../src/components/BookLeanFilters';
+import { BookConfidenceFilters } from '../../src/components/BookConfidenceFilters';
 import { DatePickerField } from '../../src/components/DatePickerField';
 import { FreeHomeExtras } from '../../src/components/FreeHomeExtras';
 import { HorizontalChipScroll } from '../../src/components/HorizontalChipScroll';
 import { HelpHeaderButton } from '../../src/components/HelpHeaderButton';
-import { LeanBar } from '../../src/components/LeanBar';
+import { ConfidenceBar } from '../../src/components/ConfidenceBar';
 import { OpenBookmakerButton } from '../../src/components/OpenBookmakerButton';
 import { PaginationBar } from '../../src/components/PaginationBar';
 import { ScreenInfoButton } from '../../src/components/ScreenInfoButton';
@@ -147,7 +147,7 @@ type LoggedFilter = 'all' | 'logged' | 'unlogged';
 function emptyStateForFilter(
   filter: MarketFilter,
   opts: {
-    minLeanPct: number;
+    minConfidencePct: number;
     searchQ: string;
     totalTips: number;
     loggedFilter: LoggedFilter;
@@ -161,9 +161,9 @@ function emptyStateForFilter(
       body: `Nothing with tips on ${opts.dateFilter}. Pick another day, clear the date (×) to see all upcoming, or Load matches closer to kickoff.`,
     };
   }
-  const leanHint =
-    opts.minLeanPct > 0
-      ? ` Lower Lean % (now ≥${opts.minLeanPct}) or tap Clear in Filters.`
+  const confidenceHint =
+    opts.minConfidencePct > 0
+      ? ` Lower Confidence % (now ≥${opts.minConfidencePct}) or tap Clear in Filters.`
       : ' Try Load matches.';
   const searchHint = opts.searchQ.trim()
     ? ' Clear search if you narrowed the list.'
@@ -181,43 +181,43 @@ function emptyStateForFilter(
   if (opts.totalTips === 0) {
     return {
       title: 'No tips yet',
-      body: 'Tap Load matches to sync prices. Tips appear when the book shows a clear lean.',
+      body: 'Tap Load matches to sync prices. Tips appear when the book shows a clear confidence.',
     };
   }
 
   const map: Record<MarketFilter, { title: string; body: string }> = {
     all: {
       title: 'No matches match your filters',
-      body: `Tips exist, but search/book/lean/logged hid them.${searchHint}${leanHint}${loggedHint}${dateHint}`,
+      body: `Tips exist, but search/book/confidence/logged hid them.${searchHint}${confidenceHint}${loggedHint}${dateHint}`,
     },
     double_chance: {
       title: 'No Double chance tips',
-      body: `No 1X/X2 Safe tips for this view.${leanHint}${searchHint}${loggedHint}${dateHint}`,
+      body: `No 1X/X2 Safe tips for this view.${confidenceHint}${searchHint}${loggedHint}${dateHint}`,
     },
     '1x2': {
       title: 'No Winner tips',
-      body: `No 1X2 favourite tips for this view.${leanHint}${searchHint}${loggedHint}${dateHint}`,
+      body: `No 1X2 favourite tips for this view.${confidenceHint}${searchHint}${loggedHint}${dateHint}`,
     },
     ou_0_5: {
-      title: 'No O/U 0.5 leans',
-      body: `No Over 0.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}${dateHint}`,
+      title: 'No O/U 0.5 tips',
+      body: `No Over 0.5 tips in this view — try Load matches / lower Confidence %.${searchHint}${loggedHint}${dateHint}`,
     },
     ou_1_5: {
-      title: 'No O/U 1.5 leans',
-      body: `No Over 1.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}${dateHint}`,
+      title: 'No O/U 1.5 tips',
+      body: `No Over 1.5 tips in this view — try Load matches / lower Confidence %.${searchHint}${loggedHint}${dateHint}`,
     },
     ou_2_5: {
-      title: 'No O/U 2.5 leans',
-      body: `No O/U 2.5 tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}${dateHint}`,
+      title: 'No O/U 2.5 tips',
+      body: `No O/U 2.5 tips in this view — try Load matches / lower Confidence %.${searchHint}${loggedHint}${dateHint}`,
     },
     btts: {
-      title: 'No BTTS leans',
-      body: `No BTTS Yes/No tips in this view — try Load matches / lower Lean %.${searchHint}${loggedHint}${dateHint}`,
+      title: 'No BTTS tips',
+      body: `No BTTS Yes/No tips in this view — try Load matches / lower Confidence %.${searchHint}${loggedHint}${dateHint}`,
     },
     tt_2_5: {
       title: 'No Team 3+ tips',
       body:
-        'Team scores 3+ needs Team Totals prices and Over fair ≥ ~30% in a 1.55–4.00 band. Tap Load matches; try Bet9ja / All books; lower Lean %.',
+        'Team scores 3+ needs Team Totals prices and Over fair ≥ ~30% in a 1.55–4.00 band. Tap Load matches; try Bet9ja / All books; lower Confidence %.',
     },
   };
   return map[filter];
@@ -238,7 +238,7 @@ export default function TodayScreen() {
   const [dateFilter, setDateFilter] = useState(() => toLocalIsoDate());
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
-  const [minLeanPct, setMinLeanPct] = useState(80);
+  const [minConfidencePct, setMinConfidencePct] = useState(80);
   const [loggedFilter, setLoggedFilter] = useState<LoggedFilter>('all');
   const [status, setStatus] = useState('Pull down to refresh tips');
   const [busy, setBusy] = useState(false);
@@ -322,9 +322,9 @@ export default function TodayScreen() {
         continue;
       }
       if (filter !== 'all' && String(p.market).toLowerCase() !== filter) continue;
-      if (minLeanPct > 0) {
-        const lean = Number(p.confidence_pct);
-        if (!Number.isFinite(lean) || lean < minLeanPct) continue;
+      if (minConfidencePct > 0) {
+        const conf = Number(p.confidence_pct);
+        if (!Number.isFinite(conf) || conf < minConfidencePct) continue;
       }
       if (loggedFilter === 'logged' && !pickIsLogged(p)) continue;
       if (loggedFilter === 'unlogged' && pickIsLogged(p)) continue;
@@ -332,7 +332,7 @@ export default function TodayScreen() {
       map[p.match_id].push(p);
     }
     return map;
-  }, [filteredPicks, filter, minLeanPct, matches, clockTick, loggedFilter, pickIsLogged, dateFilter]);
+  }, [filteredPicks, filter, minConfidencePct, matches, clockTick, loggedFilter, pickIsLogged, dateFilter]);
 
   const visibleMatches = useMemo(() => {
     void clockTick;
@@ -365,7 +365,7 @@ export default function TodayScreen() {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [searchQ, bookFilter, filter, pageSize, minLeanPct, loggedFilter, dateFilter]);
+  }, [searchQ, bookFilter, filter, pageSize, minConfidencePct, loggedFilter, dateFilter]);
 
   useEffect(() => {
     if (totalPages > 0 && pageIndex > totalPages - 1) {
@@ -614,12 +614,12 @@ export default function TodayScreen() {
     }
   }
 
-  const leanAwarePicks = useMemo(() => {
+  const confidenceAwarePicks = useMemo(() => {
     let list = filteredPicks;
-    if (minLeanPct > 0) {
+    if (minConfidencePct > 0) {
       list = list.filter((p) => {
-        const lean = Number(p.confidence_pct);
-        return Number.isFinite(lean) && lean >= minLeanPct;
+        const conf = Number(p.confidence_pct);
+        return Number.isFinite(conf) && conf >= minConfidencePct;
       });
     }
     if (loggedFilter === 'logged') {
@@ -628,19 +628,19 @@ export default function TodayScreen() {
       list = list.filter((p) => !pickIsLogged(p));
     }
     return list;
-  }, [filteredPicks, minLeanPct, loggedFilter, pickIsLogged]);
+  }, [filteredPicks, minConfidencePct, loggedFilter, pickIsLogged]);
 
   const chipCounts = useMemo(() => {
     const counts: Partial<Record<MarketFilter, number>> = {
-      all: leanAwarePicks.length,
+      all: confidenceAwarePicks.length,
     };
-    for (const p of leanAwarePicks) {
+    for (const p of confidenceAwarePicks) {
       const m = String(p.market || '').toLowerCase() as MarketFilter;
       if (m === 'all') continue;
       counts[m] = (counts[m] || 0) + 1;
     }
     return counts;
-  }, [leanAwarePicks]);
+  }, [confidenceAwarePicks]);
 
   const fixturesOnSelectedDate = useMemo(() => {
     // Tip-bearing only (same rule as the visible list).
@@ -656,7 +656,7 @@ export default function TodayScreen() {
   }, [matches, dateFilter, clockTick, picksByMatch]);
 
   const filterEmpty = emptyStateForFilter(filter, {
-    minLeanPct,
+    minConfidencePct,
     searchQ,
     totalTips: picks.length,
     loggedFilter,
@@ -757,12 +757,12 @@ export default function TodayScreen() {
             placeholder="Date"
             style={styles.dateField}
           />
-          <BookLeanFilters
+          <BookConfidenceFilters
             books={availableBooks}
             bookValue={bookFilter}
             onBookChange={setBookFilter}
-            leanValue={minLeanPct}
-            onLeanChange={setMinLeanPct}
+            confidenceValue={minConfidencePct}
+            onConfidenceChange={setMinConfidencePct}
             loggedValue={loggedFilter}
             onLoggedChange={setLoggedFilter}
           />
@@ -909,7 +909,7 @@ export default function TodayScreen() {
                             </Text>
                           ) : null}
                         </View>
-                        <LeanBar pct={p.confidence_pct} compact />
+                        <ConfidenceBar pct={p.confidence_pct} compact />
                       </Pressable>
                     );
                   })

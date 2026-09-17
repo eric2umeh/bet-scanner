@@ -3,7 +3,7 @@ Tip logging + hit-rate endpoints (Phase 4).
 
   POST /tips                     — log one tip manually
   POST /tips/log-safe-scan       — scan Safe Builder + save new tips
-  POST /tips/log-predictions-scan — log O/U 2.5 + BTTS lean tips
+  POST /tips/log-predictions-scan — log O/U 2.5 + BTTS confidence tips
   POST /tips/log-batch           — log exactly selected tips (Phase 10C)
   GET  /tips                     — list tips
   GET  /tips/stats               — hit rate
@@ -185,7 +185,7 @@ def log_predictions_scan(
     settings: Settings = Depends(get_settings),
 ) -> LogPredictionsScanResponse:
     """
-    Log goal-market lean tips so Auto-settle / hit-rate can track them.
+    Log goal-market confidence tips so Auto-settle / hit-rate can track them.
 
     Note: this logs the current scan for the book — not a manual checkbox
     selection. Prefer “Log this tip” on a match card for exact slips.
@@ -372,11 +372,18 @@ def list_tips_endpoint(
         default=None,
         description="Filter by book key (e.g. sportybet, bet9ja)",
     ),
+    min_confidence_pct: float | None = Query(
+        default=None,
+        ge=0,
+        le=100,
+        description="Minimum confidence % (card kept if strongest leg ≥ this)",
+    ),
     min_lean_pct: float | None = Query(
         default=None,
         ge=0,
         le=100,
-        description="Minimum lean/confidence % (card kept if strongest leg ≥ this)",
+        include_in_schema=False,
+        description="Deprecated alias for min_confidence_pct",
     ),
     q: str | None = Query(default=None, description="Search teams, market, book"),
     date_from: date | None = Query(default=None, description="Created on/after (UTC date)"),
@@ -392,7 +399,9 @@ def list_tips_endpoint(
         source=source,
         market=market,
         bookmaker=bookmaker,
-        min_lean_pct=min_lean_pct,
+        min_confidence_pct=(
+            min_confidence_pct if min_confidence_pct is not None else min_lean_pct
+        ),
         q=q,
         date_from=date_from,
         date_to=date_to,
