@@ -23,10 +23,10 @@ import {
   type TipOut,
 } from '../../src/api/tips';
 import { isAuthError, userFacingError } from '../../src/api/client';
-import { BookLeanFilters } from '../../src/components/BookLeanFilters';
+import { BookConfidenceFilters } from '../../src/components/BookConfidenceFilters';
 import { DatePickerField } from '../../src/components/DatePickerField';
 import { HorizontalChipScroll } from '../../src/components/HorizontalChipScroll';
-import { LeanBar } from '../../src/components/LeanBar';
+import { ConfidenceBar } from '../../src/components/ConfidenceBar';
 import { PaginationBar } from '../../src/components/PaginationBar';
 import { SignInRequiredBanner } from '../../src/components/SignInRequiredBanner';
 import { SwipeableRow } from '../../src/components/SwipeableRow';
@@ -38,7 +38,7 @@ import { markScoreRefreshRan } from '../../src/store/autoSettle';
 import { queryKeys } from '../../src/query/client';
 import { bookLabel, marketLabel } from '../../src/lib/tipKey';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
-import { youthMatchHint } from '../../src/lib/marketLean';
+import { youthMatchHint } from '../../src/lib/marketConfidence';
 import { subscribeTipsList } from '../../src/store/tipsEvents';
 import { LoadingRadar } from '../../src/components/LoadingRadar';
 import { colors } from '../../src/theme/colors';
@@ -235,7 +235,7 @@ function LegResultBadge({ result, compact }: { result: string; compact?: boolean
   );
 }
 
-/** Same layout as Today: pick lines + lean bar. */
+/** Same layout as Today: pick lines + confidence bar. */
 function PickLines({ t }: { t: TipOut }) {
   const odds = t.odds_price != null ? String(t.odds_price) : null;
   const youthHint = youthMatchHint(t.home_team, t.away_team);
@@ -255,7 +255,7 @@ function PickLines({ t }: { t: TipOut }) {
           </Text>
         ) : null}
       </View>
-      <LeanBar pct={t.confidence_pct} compact />
+      <ConfidenceBar pct={t.confidence_pct} compact />
     </View>
   );
 }
@@ -279,12 +279,12 @@ export default function TipsScreen() {
   const [dateFilter, setDateFilter] = useState('');
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('all');
   const [bookFilter, setBookFilter] = useState<string>('all');
-  const [minLeanPct, setMinLeanPct] = useState(0);
+  const [minConfidencePct, setMinConfidencePct] = useState(0);
 
   const debouncedQ = useDebouncedValue(searchQ, 450);
   const debouncedDate = useDebouncedValue(dateFilter, 200);
 
-  const listKey = `${tab}|${marketFilter}|${bookFilter}|${minLeanPct}|${debouncedQ}|${debouncedDate}|${pageSize}`;
+  const listKey = `${tab}|${marketFilter}|${bookFilter}|${minConfidencePct}|${debouncedQ}|${debouncedDate}|${pageSize}`;
   const prevListKey = useRef(listKey);
 
   const fetchParams = useCallback(
@@ -294,12 +294,12 @@ export default function TipsScreen() {
       result: tab === 'active' ? 'pending' : 'settled',
       market: marketFilter === 'all' ? undefined : marketFilter,
       bookmaker: bookFilter === 'all' ? undefined : bookFilter,
-      min_lean_pct: minLeanPct > 0 ? minLeanPct : undefined,
+      min_confidence_pct: minConfidencePct > 0 ? minConfidencePct : undefined,
       q: debouncedQ || undefined,
       date_from: debouncedDate || undefined,
       date_to: debouncedDate || undefined,
     }),
-    [pageSize, tab, marketFilter, bookFilter, minLeanPct, debouncedQ, debouncedDate]
+    [pageSize, tab, marketFilter, bookFilter, minConfidencePct, debouncedQ, debouncedDate]
   );
 
   const statsQuery = useQuery({
@@ -623,12 +623,12 @@ export default function TipsScreen() {
                 clearButtonMode="while-editing"
               />
               <DatePickerField value={dateFilter} onChange={setDateFilter} placeholder="Date" />
-              <BookLeanFilters
+              <BookConfidenceFilters
                 books={availableBooks}
                 bookValue={bookFilter}
                 onBookChange={setBookFilter}
-                leanValue={minLeanPct}
-                onLeanChange={setMinLeanPct}
+                confidenceValue={minConfidencePct}
+                onConfidenceChange={setMinConfidencePct}
               />
             </View>
 

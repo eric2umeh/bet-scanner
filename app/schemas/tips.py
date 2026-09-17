@@ -117,7 +117,7 @@ class LogSafeScanResponse(BaseModel):
 
 
 class LogPredictionsScanRequest(BaseModel):
-    """Phase 10B — log O/U 2.5 + BTTS lean tips you placed."""
+    """Phase 10B — log O/U 2.5 + BTTS confidence tips you placed."""
 
     bookmaker: str = "sportybet"
     bankroll_ngn: Decimal = Field(default=Decimal("50000"), gt=0)
