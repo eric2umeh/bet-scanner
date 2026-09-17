@@ -9,3 +9,8 @@ export async function invalidateTipsCache() {
   await queryClient.refetchQueries({ queryKey: queryKeys.tipStats });
   notifyTipsListChanged();
 }
+
+export async function invalidateHomeFeedCache() {
+  await queryClient.invalidateQueries({ queryKey: queryKeys.homeFeed });
+  await queryClient.refetchQueries({ queryKey: queryKeys.homeFeed });
+}
