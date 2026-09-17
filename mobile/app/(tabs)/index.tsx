@@ -14,13 +14,13 @@ import {
 } from 'react-native';
 
 import { isRequestCancelled, pingHealth, userFacingError } from '../../src/api/client';
-import { fetchBettableMatches, syncFixtures } from '../../src/api/matches';
-import { fetchPublicAppConfig } from '../../src/api/appConfig';
+import { syncFixtures } from '../../src/api/matches';
 import { syncOdds } from '../../src/api/odds';
-import { scanGoalMarkets } from '../../src/api/predictions';
-import { scanSafeBuilder } from '../../src/api/safe';
 import { logTipBatch } from '../../src/api/tips';
 import { invalidateTipsCache } from '../../src/query/invalidate';
+import { queryClient, queryKeys } from '../../src/query/client';
+import { useHomeFeed } from '../../src/hooks/useHomeFeed';
+import type { HomeFeed } from '../../src/api/homeFeed';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { BookConfidenceFilters } from '../../src/components/BookConfidenceFilters';
 import { DatePickerField } from '../../src/components/DatePickerField';
@@ -41,7 +41,6 @@ import { useIsAdmin } from '../../src/hooks/useIsAdmin';
 import { formatMatchTitle } from '../../src/lib/matchDisplay';
 import { isMatchBettable } from '../../src/lib/matchBettable';
 import { bookLabel, marketLabel, tipKey } from '../../src/lib/tipKey';
-import { setMatchCache } from '../../src/store/matchCache';
 import {
   isTipLogged,
   initLoggedTips,
@@ -64,7 +63,7 @@ import { LoadingRadar } from '../../src/components/LoadingRadar';
 import { RequireSignIn } from '../../src/components/RequireSignIn';
 import { colors } from '../../src/theme/colors';
 import { webScrollBottom } from '../../src/theme/webScroll';
-import type { Match, TipPick } from '../../src/types/api';
+import type { TipPick } from '../../src/types/api';
 
 type MarketFilter =
   | 'all'
@@ -77,7 +76,6 @@ type MarketFilter =
   | 'tt_2_5';
 
 const isWeb = Platform.OS === 'web';
-const UPCOMING_DAYS = 21;
 const PAGE_SIZE_DEFAULT = 10;
 
 function toLocalIsoDate(d: Date = new Date()): string {
@@ -228,9 +226,18 @@ export default function TodayScreen() {
   const navigation = useNavigation();
   const modal = useAppModal();
   const isAdmin = useIsAdmin();
+  const {
+    feed,
+    isFetching: homeFetching,
+    isError: homeError,
+    error: homeErr,
+    isFetched: homeFetched,
+    dataUpdatedAt,
+    refetchHome,
+  } = useHomeFeed();
+  const matches = feed?.matches ?? [];
+  const picks = feed?.picks ?? [];
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [picks, setPicks] = useState<TipPick[]>([]);
   const [filter, setFilter] = useState<MarketFilter>('all');
   const [bookFilter, setBookFilter] = useState<string>('all');
   const [searchQ, setSearchQ] = useState('');
@@ -241,7 +248,8 @@ export default function TodayScreen() {
   const [minConfidencePct, setMinConfidencePct] = useState(80);
   const [loggedFilter, setLoggedFilter] = useState<LoggedFilter>('all');
   const [status, setStatus] = useState('Pull down to refresh tips');
-  const [busy, setBusy] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const busy = syncBusy || homeFetching;
   const syncAbortRef = useRef<AbortController | null>(null);
   const [selectedN, setSelectedN] = useState(0);
   const [asMulti, setAsMulti] = useState(true);
@@ -373,74 +381,10 @@ export default function TodayScreen() {
     }
   }, [totalPages, pageIndex]);
 
-  const loadScans = useCallback(async (s: AppSettings, books: string[]) => {
-    const bankroll = {
-      bankroll_ngn: s.bankroll,
-      unit_pct: s.unitPct,
-    };
-    // Always load DC + Winner so Today chips work regardless of Account → Safe tip style.
-    // Same 24h window as bettable — evening kickoffs stay tippable after a morning sync.
-    const oddsAge = { max_odds_age_minutes: 24 * 60 };
-    const safeCalls = books.flatMap((bookmaker) => [
-      scanSafeBuilder({
-        bookmaker,
-        pick_market: 'double_chance',
-        ...bankroll,
-        ...oddsAge,
-      }).catch(() => ({ picks: [] as TipPick[] })),
-      scanSafeBuilder({
-        bookmaker,
-        pick_market: '1x2',
-        ...bankroll,
-        ...oddsAge,
-      }).catch(() => ({ picks: [] as TipPick[] })),
-    ]);
-    const goalCalls = books.map((bookmaker) =>
-      scanGoalMarkets({
-        bookmaker,
-        // Settled history: O/U 0.5 & 1.5 Over held up; BTTS / soft O/U 2.5 did not.
-        // Team 3+ stays optional — often empty on SportyBet/Bet9ja (no Team Totals in feed).
-        markets: 'ou_0_5,ou_1_5,tt_2_5',
-        ...bankroll,
-        ...oddsAge,
-      }).catch(() => ({ picks: [] as TipPick[] }))
-    );
-    const results = await Promise.all([...safeCalls, ...goalCalls]);
-    const all = dedupePicks(results.flatMap((r) => r.picks || []));
-    setPicks(all);
-    return { n: all.length, picks: all };
-  }, []);
-
-  const loadMatchList = useCallback(async (books: string[]) => {
-    const bettable = await fetchBettableMatches(UPCOMING_DAYS, books.join(','));
-    return bettable;
-  }, []);
-
-  function enrichMatchesFromPicks(list: Match[], tipList: TipPick[]): Match[] {
-    const byId = new Map(list.map((m) => [m.id, m]));
-    for (const p of tipList) {
-      if (!p.match_id || byId.has(p.match_id)) continue;
-      byId.set(p.match_id, {
-        id: p.match_id,
-        competition_code: p.competition_code || 'UNK',
-        competition_name: p.competition_code || 'Unknown',
-        home_team: p.home_team || 'Home',
-        away_team: p.away_team || 'Away',
-        kickoff_at: p.kickoff_at || new Date().toISOString(),
-        status: 'SCHEDULED',
-        home_score: null,
-        away_score: null,
-      });
-    }
-    return Array.from(byId.values()).sort(
-      (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
-    );
-  }
-
   const cancelSync = useCallback(() => {
     syncAbortRef.current?.abort();
     syncAbortRef.current = null;
-    setBusy(false);
+    setSyncBusy(false);
     setStatus('Cancelled.');
   }, []);
 
@@ -450,7 +394,7 @@ export default function TodayScreen() {
       syncAbortRef.current?.abort();
       const ctrl = new AbortController();
       syncAbortRef.current = ctrl;
-      setBusy(true);
+      setSyncBusy(true);
       let syncSlow = false;
       try {
         const s = settings || (await loadSettings());
@@ -466,69 +410,39 @@ export default function TodayScreen() {
             await syncOdds({ signal: ctrl.signal });
           } catch (e) {
             if (isRequestCancelled(e)) throw e;
-            // Odds often land in the DB even when the HTTP response times out on
-            // Render — still load Today so the phone/web UI updates without a full reload.
             syncSlow = true;
-            setStatus('Sync is slow — loading what is saved…');
+            setStatus('Sync is slow — loading saved tips…');
           }
         }
         if (ctrl.signal.aborted) return;
-        const cfg = await fetchPublicAppConfig();
-        const books = cfg.odds_bookmakers?.length
-          ? cfg.odds_bookmakers
-          : ['sportybet', 'onexbet'];
-        const [health, bettable] = await Promise.all([
-          pingHealth().catch(() => null),
-          loadMatchList(books),
-        ]);
+        await refetchHome();
         if (ctrl.signal.aborted) return;
-        const { n, picks: all } = await loadScans(s, books);
-        if (ctrl.signal.aborted) return;
-        const merged = enrichMatchesFromPicks(bettable, all);
-        setPageIndex(0);
-        setMatches(merged);
-        setMatchCache(merged, all);
-        pruneSelection(new Set(merged.map((m) => m.id)));
         refetchLoggedTipsIfStale();
-        const base = merged.length
-          ? `${merged.length} match${merged.length === 1 ? '' : 'es'} · ${n} tip${n === 1 ? '' : 's'}${withOdds ? ' · updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
+        const health = await pingHealth().catch(() => null);
+        setPageIndex(0);
+        const latest = queryClient.getQueryData<HomeFeed>(queryKeys.homeFeed);
+        const tipN = latest?.picks.length ?? 0;
+        const matchN = latest?.matches.length ?? 0;
+        const base = matchN
+          ? `${matchN} match${matchN === 1 ? '' : 'es'} · ${tipN} tip${tipN === 1 ? '' : 's'}${withOdds ? ' · updated' : ''}${health?.version ? ` · v${health.version}` : ''}`
           : withOdds
             ? 'Updated — no matches with tips yet. Try again closer to kickoff.'
-            : 'No matches yet — tap Load matches to sync.';
+            : 'No matches yet — tap Load matches when online.';
         setStatus(syncSlow ? `${base} · sync still catching up` : base);
       } catch (e) {
         if (isRequestCancelled(e) || ctrl.signal.aborted) return;
-        // Always try to paint whatever is already in the DB so Load matches
-        // never requires a browser reload to show results.
-        try {
-          const s = settings || (await loadSettings());
-          const cfg = await fetchPublicAppConfig().catch(() => null);
-          const books = cfg?.odds_bookmakers?.length
-            ? cfg.odds_bookmakers
-            : ['sportybet', 'onexbet'];
-          const bettable = await loadMatchList(books);
-          const { n, picks: all } = await loadScans(s, books);
-          const merged = enrichMatchesFromPicks(bettable, all);
-          if (merged.length) {
-            setPageIndex(0);
-            setMatches(merged);
-            setMatchCache(merged, all);
-            pruneSelection(new Set(merged.map((m) => m.id)));
-            setStatus(
-              `${merged.length} match${merged.length === 1 ? '' : 'es'} · ${n} tip${n === 1 ? '' : 's'} · ${userFacingError(e)}`
-            );
-            return;
-          }
-        } catch {
-          /* fall through to plain error */
+        const cached = queryClient.getQueryData<HomeFeed>(queryKeys.homeFeed);
+        if (cached?.matches.length || cached?.picks.length) {
+          setStatus(`Showing saved tips · ${userFacingError(e)}`);
+          return;
         }
         setStatus(userFacingError(e));
       } finally {
         if (syncAbortRef.current === ctrl) syncAbortRef.current = null;
-        setBusy(false);
+        setSyncBusy(false);
       }
     },
-    [loadScans, loadMatchList, settings, refetchLoggedTipsIfStale]
+    [settings, refetchHome, refetchLoggedTipsIfStale]
   );
 
   const onSyncOdds = useCallback(() => {
@@ -570,8 +484,36 @@ export default function TodayScreen() {
     });
   }, [navigation, onSyncOdds, cancelSync, busy, isAdmin]);
 
+  // Home feed loads via TanStack Query (persisted for offline). Status tracks cache/network.
   useEffect(() => {
-    void refresh({ withOdds: false });
+    if (!feed) {
+      if (homeFetching) setStatus('Loading tips…');
+      else if (homeFetched && homeError) setStatus(userFacingError(homeErr));
+      return;
+    }
+    const tipN = feed.picks.length;
+    const matchN = feed.matches.length;
+    pruneSelection(new Set(feed.matches.map((m) => m.id)));
+    let base = matchN
+      ? `${matchN} match${matchN === 1 ? '' : 'es'} · ${tipN} tip${tipN === 1 ? '' : 's'}`
+      : 'No tip-bearing matches in saved data';
+    if (homeError) {
+      base += ` · showing saved · ${userFacingError(homeErr)}`;
+    } else if (dataUpdatedAt) {
+      const mins = Math.max(0, Math.round((Date.now() - dataUpdatedAt) / 60_000));
+      if (mins >= 2) {
+        base +=
+          mins >= 60
+            ? ` · saved ${Math.round(mins / 60)}h ago`
+            : ` · saved ${mins}m ago`;
+      }
+    }
+    if (homeFetching) base += ' · refreshing…';
+    setStatus(base);
+  }, [feed, homeFetching, homeError, homeErr, homeFetched, dataUpdatedAt]);
+
+  useEffect(() => {
+    void loadSettings().then(setSettings);
   }, []);
 
   async function onLogSelected() {
@@ -587,7 +529,7 @@ export default function TodayScreen() {
       });
       return;
     }
-    setBusy(true);
+    setSyncBusy(true);
     try {
       const s = settings || (await loadSettings());
       // Same-match correlated markets can't be a normal multi on most books — force singles.
@@ -611,7 +553,7 @@ export default function TodayScreen() {
         message: userFacingError(e),
       });
     } finally {
-      setBusy(false);
+      setSyncBusy(false);
     }
   }
 
