@@ -5,7 +5,7 @@ import * as Linking from 'expo-linking';
 import { bookLabel } from './tipKey';
 
 type BookOpenConfig = {
-  /** Normalized key (sportybet, melbet, …). */
+  /** Normalized key (sportybet, bet9ja, …). */
   key: string;
   homeUrl: string;
   /**
@@ -95,7 +95,7 @@ export function bookmakerSearchQuery(home: string, away: string): string {
   const sh = significantWords(h);
   const sa = significantWords(a);
   // Prefer a short unique token; if both sides have distinctive names, join them
-  // so MelBet/SportyBet search can still hit obscure fixtures.
+  // so Bet9ja/SportyBet search can still hit obscure fixtures.
   let primary = preferSearchName(h, a);
   if (sh && sa && sh.toLowerCase() !== sa.toLowerCase()) {
     const joined = `${sh} ${sa}`.trim();
