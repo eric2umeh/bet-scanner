@@ -30,6 +30,6 @@ jobs:
           curl -fsS -X POST "$BASE/ops/daily-run" \
             -H "Content-Type: application/json" \
             -H "X-API-Key: $OPS_API_KEY" \
-            -d '{"sync_fixtures":true,"sync_odds":true,"auto_settle":true,"build_brief":true,"notify_telegram":false}'
+            -d '{"sync_fixtures":true,"sync_odds":true,"auto_settle":true,"build_brief":true,"notify_telegram":false,"notify_push":true}'
           echo
           echo "daily-ops OK"

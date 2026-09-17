@@ -36,6 +36,7 @@ def main() -> int:
     parser.add_argument("--no-settle", action="store_true")
     parser.add_argument("--no-brief", action="store_true")
     parser.add_argument("--telegram", action="store_true", help="Send Telegram digest")
+    parser.add_argument("--no-push", action="store_true", help="Skip Expo push notifications")
     parser.add_argument("--no-llm", action="store_true", help="Force template explains")
     args = parser.parse_args()
 
@@ -51,6 +52,7 @@ def main() -> int:
             auto_settle=not args.no_settle,
             build_brief=not args.no_brief,
             notify_telegram=args.telegram,
+            notify_push=not args.no_push,
             prefer_llm=not args.no_llm,
         )
     finally:
@@ -66,6 +68,8 @@ def main() -> int:
             print(f"  - {e}")
     if result.get("telegram"):
         print("telegram:", result["telegram"].get("message"))
+    if result.get("push"):
+        print("push:", result["push"])
     return 0 if result.get("ok") else 1
 
 
