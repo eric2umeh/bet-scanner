@@ -10,10 +10,10 @@ type Props = {
 };
 
 /**
- * Legacy-style lean / confidence meter (pct label + pill progress bar).
+ * Confidence meter (pct label + pill progress bar).
  * Matches dashboard.html `.conf` / `.conf-bar`.
  */
-export function LeanBar({ pct, style, compact }: Props) {
+export function ConfidenceBar({ pct, style, compact }: Props) {
   const raw = Number(pct);
   const n = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
   const label = n ? `${Number(n.toFixed(1))}%` : '—';
@@ -30,7 +30,7 @@ export function LeanBar({ pct, style, compact }: Props) {
   return (
     <View
       style={[styles.wrap, compact && styles.wrapCompact, style]}
-      accessibilityLabel={n ? `Lean ${label}` : 'No lean'}
+      accessibilityLabel={n ? `Confidence ${label}` : 'No confidence'}
     >
       <Text style={[styles.pct, compact && styles.pctCompact]}>{label}</Text>
       <View style={[styles.track, compact && styles.trackCompact]}>
