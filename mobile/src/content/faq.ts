@@ -36,8 +36,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Home',
     question: 'How do I open a match in my bookmaker app?',
     answer:
-      'On Home, tap the book name with ↗ under a match (e.g. “SportyBet ↗” or “MelBet ↗”), or “Open in …” on the match screen. The label follows the book filter you picked, or the tip’s bookmaker. SportyBet opens /m/search?key=… so their site runs the search itself (browsers block us from typing into another site). Other books often lack a public search URL — we open football and copy the team name for paste. If several fixtures appear, pick the right one on the book.',
-    keywords: ['sportybet', 'melbet', '1xbet', 'open', 'app', 'deep', 'link', 'search', 'place', 'bookmaker'],
+      'On Home, tap the book name with ↗ under a match (e.g. “SportyBet ↗” or “Bet9ja ↗”), or “Open in …” on the match screen. The label follows the book filter you picked, or the tip’s bookmaker. SportyBet opens /m/search?key=… so their site runs the search itself (browsers block us from typing into another site). Other books often lack a public search URL — we open football and copy the team name for paste. If several fixtures appear, pick the right one on the book.',
+    keywords: ['sportybet', 'bet9ja', '1xbet', 'open', 'app', 'deep', 'link', 'search', 'place', 'bookmaker'],
   },
   {
     id: 'today-logged-filter',
@@ -60,8 +60,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Home',
     question: 'Why don’t multi odds match SportyBet?',
       answer:
-        'Bet Scout multi estimate multiplies each leg’s decimal odds. That matches a normal Multiple when each leg is a different match. Same-match legs (e.g. DC + O/U + BTTS) are correlated: SportyBet usually strikes out Multiple; MelBet and similar books either block related outcomes in a normal accumulator or push you to Bet Builder (re-priced, not odds × odds). Bet Scout disables Log as multi for same-match slips and logs singles. Always confirm live on your book.',
-      keywords: ['multi', 'combined', 'odds', 'accumulator', 'bet builder', 'parlay', 'sportybet', 'melbet'],
+        'Bet Scout multi estimate multiplies each leg’s decimal odds. That matches a normal Multiple when each leg is a different match. Same-match legs (e.g. DC + O/U + BTTS) are correlated: SportyBet usually strikes out Multiple; Bet9ja and similar books either block related outcomes in a normal accumulator or push you to Bet Builder (re-priced, not odds × odds). Bet Scout disables Log as multi for same-match slips and logs singles. Always confirm live on your book.',
+      keywords: ['multi', 'combined', 'odds', 'accumulator', 'bet builder', 'parlay', 'sportybet', 'bet9ja'],
     },
     {
       id: 'lean-filter',
@@ -108,16 +108,16 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'Why are there no surebets?',
     answer:
-      'True arbs are rare. Odds must be fresh, and tiny edges disappear fast. Refresh Home, then Find surebets closer to kickoff. The scanner needs ≥2 books with overlapping O/U, BTTS, or 1X2 prices — one book alone will never show a cross-book surebet. Youth, unknown (UNK), and lower-tier leagues are skipped because SportyBet/MelBet often lack the match or only offer a different O/U line (e.g. 3.5 instead of 2.5).',
-    keywords: ['no', 'empty', 'rare', 'none', 'surebet', 'unk', 'youth', 'melbet'],
+      'True arbs are rare. Odds must be fresh, and tiny edges disappear fast. Refresh Home, then Find surebets closer to kickoff. The scanner needs ≥2 books with overlapping O/U, BTTS, or 1X2 prices — one book alone will never show a cross-book surebet. Youth, unknown (UNK), and lower-tier leagues are skipped because SportyBet/Bet9ja often lack the match or only offer a different O/U line (e.g. 3.5 instead of 2.5).',
+    keywords: ['no', 'empty', 'rare', 'none', 'surebet', 'unk', 'youth', 'bet9ja'],
   },
   {
     id: 'arb-confirm-live',
     category: 'Arbitrage',
-    question: 'Why can’t I find the surebet match or O/U 2.5 on SportyBet/MelBet?',
+    question: 'Why can’t I find the surebet match or O/U 2.5 on SportyBet/Bet9ja?',
     answer:
-      'Feeds can lag the live book. SportyBet may suspend 2.5 and only show 3.5; MelBet may hide lower-league fixtures from search. Always open each leg, confirm the same market line, and skip the arb if either book differs. We already hide many youth/UNK/lower-tier fixtures from Find Nigeria surebets.',
-    keywords: ['sportybet', 'melbet', '2.5', '3.5', 'search', 'missing', 'confirm'],
+      'Feeds can lag the live book. SportyBet may suspend 2.5 and only show 3.5; Bet9ja may hide lower-league fixtures from search. Always open each leg, confirm the same market line, and skip the arb if either book differs. We already hide many youth/UNK/lower-tier fixtures from Find Nigeria surebets.',
+    keywords: ['sportybet', 'bet9ja', '2.5', '3.5', 'search', 'missing', 'confirm'],
   },
   {
     id: 'auth-key',
@@ -132,8 +132,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Odds & API',
     question: 'How do I set my bookmaker pair?',
     answer:
-      '1) On odds-api.io dashboard, enable exactly 2 recreational books (e.g. SportyBet + MelBet). 2) In local .env and Render → Environment set ODDS_API_IO_BOOKMAKERS=SportyBet,MelBet (same spelling as the dashboard). 3) Restart/redeploy the API, then tap ↻ on Home.',
-    keywords: ['bookmaker', 'pair', 'odds-api', 'sportybet', 'melbet', '1xbet', 'env'],
+      '1) On odds-api.io dashboard, enable exactly 2 recreational books (e.g. SportyBet + Bet9ja). 2) In local .env and Render → Environment set ODDS_API_IO_BOOKMAKERS=SportyBet,Bet9ja (same spelling as the dashboard). 3) Restart/redeploy the API, then tap ↻ on Home.',
+    keywords: ['bookmaker', 'pair', 'odds-api', 'sportybet', 'bet9ja', '1xbet', 'env'],
   },
   {
     id: 'safe-dog',
@@ -188,7 +188,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Arbitrage',
     question: 'Can I swap Bet9ja for another bookmaker?',
     answer:
-      'Yes — on the free odds-api.io plan you pick any 2 recreational books in their dashboard, then set ODDS_API_IO_BOOKMAKERS in root .env (e.g. SportyBet,MelBet or SportyBet,1xBet). Restart the API and pull down on Home to refresh. True surebets stay rare; a second book with more overlapping fixtures helps more than a thin book.',
+      'Yes — on the free odds-api.io plan you pick any 2 recreational books in their dashboard, then set ODDS_API_IO_BOOKMAKERS in root .env (e.g. SportyBet,Bet9ja or SportyBet,1xBet). Restart the API and pull down on Home to refresh. True surebets stay rare; a second book with more overlapping fixtures helps more than a thin book.',
     keywords: ['bet9ja', 'betking', '1xbet', 'bookmaker', 'change', 'swap', 'odds-api'],
   },
   {
