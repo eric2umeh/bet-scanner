@@ -60,7 +60,7 @@ export function ValuePanel({ onFlash }: Props) {
       setPicks(list);
       setValuePickCount(list.length);
       if (!list.length) {
-        onFlash?.('No value picks right now.');
+        onFlash?.('No better prices right now.');
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -79,8 +79,8 @@ export function ValuePanel({ onFlash }: Props) {
     const text = [
       `${p.home_team} vs ${p.away_team}`,
       `${selLabel(p.selection)} @${p.odds} on ${bookLabel(p.bookmaker)}`,
-      `Edge ${p.ev_pct}% · fair ~${p.fair_odds} · stake ₦${p.suggested_stake_ngn}`,
-      p.rationale || '',
+      `Better by ${p.ev_pct}% · usual price ~${p.fair_odds} · try stake ₦${p.suggested_stake_ngn}`,
+      p.warning || '',
     ]
       .filter(Boolean)
       .join('\n');
@@ -106,6 +106,11 @@ export function ValuePanel({ onFlash }: Props) {
         />
       }
     >
+      <Text style={styles.lead}>
+        Finds when SportyBet or Bet9ja is paying more than usual for the same bet. Check the
+        price in the book app before you stake — you can still lose.
+      </Text>
+
       <Pressable
         style={[styles.btnPrimary, busy && styles.disabled]}
         disabled={busy}
@@ -114,7 +119,7 @@ export function ValuePanel({ onFlash }: Props) {
         {busy ? (
           <LoadingRadar size="small" color={colors.onAccent} />
         ) : (
-          <Text style={styles.btnPrimaryText}>Scan value</Text>
+          <Text style={styles.btnPrimaryText}>Find better prices</Text>
         )}
       </Pressable>
 
@@ -122,10 +127,9 @@ export function ValuePanel({ onFlash }: Props) {
 
       {!picks.length && !busy ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>No value picks</Text>
+          <Text style={styles.emptyTitle}>No better prices right now</Text>
           <Text style={styles.emptyText}>
-            Tap Scan value after Load matches on Home. Tap the info icon in the header for how
-            this works.
+            Load matches on Home first, then tap Find better prices here.
           </Text>
         </View>
       ) : null}
@@ -146,13 +150,13 @@ export function ValuePanel({ onFlash }: Props) {
             {p.kickoff_at ? ` · ${new Date(p.kickoff_at).toLocaleString()}` : ''}
           </Text>
           <View style={styles.evRow}>
-            <Text style={styles.evBadge}>Edge {String(p.ev_pct)}%</Text>
+            <Text style={styles.evBadge}>Better by {String(p.ev_pct)}%</Text>
             <Text style={styles.pickLine}>
               {selLabel(p.selection)} @{String(p.odds)} · {bookLabel(p.bookmaker)}
             </Text>
           </View>
           <Text style={styles.stake}>
-            Fair ~{String(p.fair_odds)} · suggested stake ₦{String(p.suggested_stake_ngn)}
+            Usual price ~{String(p.fair_odds)} · try stake ₦{String(p.suggested_stake_ngn)}
           </Text>
           {p.warning ? <Text style={styles.warn}>{p.warning}</Text> : null}
           <Pressable style={styles.copyBtn} onPress={() => void onCopyValue(p)}>
@@ -167,6 +171,12 @@ export function ValuePanel({ onFlash }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, paddingBottom: 40 },
+  lead: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 12,
+  },
   btnPrimary: {
     backgroundColor: colors.accent,
     borderRadius: 12,
