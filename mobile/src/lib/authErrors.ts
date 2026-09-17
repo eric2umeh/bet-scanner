@@ -24,7 +24,7 @@ export function formatAuthError(err: unknown, action: 'sign_in' | 'sign_up'): st
   const lower = `${code} ${message}`.toLowerCase();
 
   if (lower.includes('email not confirmed') || code === 'email_not_confirmed') {
-    return 'This email is not confirmed yet. Open the link in your inbox, then sign in.';
+    return 'This account is not active yet. Try Sign in again, or ask support to activate your email.';
   }
   if (
     lower.includes('user already registered') ||
