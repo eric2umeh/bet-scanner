@@ -13,6 +13,7 @@ import { scanValue, type ValuePick } from '../api/edge';
 import { fetchPublicAppConfig } from '../api/appConfig';
 import { syncOdds } from '../api/odds';
 import { useIsAdmin } from '../hooks/useIsAdmin';
+import { invalidateHomeFeedCache } from '../query/invalidate';
 import { bookLabel } from '../lib/tipKey';
 import { shareOrCopyText } from '../lib/shareText';
 import { loadSettings } from '../store/settings';
@@ -46,6 +47,7 @@ export function ValuePanel({ onFlash }: Props) {
       const s = await loadSettings();
       if (withOddsSync && isAdmin) {
         await syncOdds();
+        void invalidateHomeFeedCache();
       }
       const cfg = await fetchPublicAppConfig().catch(() => null);
       const books = cfg?.odds_bookmakers?.length
