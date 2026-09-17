@@ -11,8 +11,8 @@ type Props = {
   onCommit?: (minPct: number) => void;
 };
 
-/** Lean ≥ controls (presets + number). Used inside filter sheets. */
-export function LeanPctPanel({ value, onChange, onCommit }: Props) {
+/** Confidence ≥ controls (presets + number). Used inside filter sheets. */
+export function ConfidencePctPanel({ value, onChange, onCommit }: Props) {
   const active = value > 0;
 
   function commit(n: number) {
@@ -33,7 +33,7 @@ export function LeanPctPanel({ value, onChange, onCommit }: Props) {
   return (
     <View>
       <View style={styles.head}>
-        <Text style={styles.label}>Lean ≥</Text>
+        <Text style={styles.label}>Confidence ≥</Text>
         <TextInput
           style={styles.input}
           keyboardType="number-pad"
@@ -59,7 +59,9 @@ export function LeanPctPanel({ value, onChange, onCommit }: Props) {
           </Pressable>
         ) : null}
       </View>
-      <Text style={styles.hint}>Hide tips below this lean strength (odds gap, not win rate).</Text>
+      <Text style={styles.hint}>
+        Hide tips below this confidence (market strength / odds gap — not win rate).
+      </Text>
       <View style={styles.presets}>
         {PRESETS.map((p) => {
           const on = (p === 0 && !active) || (p > 0 && value === p);
