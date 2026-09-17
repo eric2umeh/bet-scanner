@@ -19,7 +19,7 @@ import {
 import { fetchPublicAppConfig } from '../api/appConfig';
 import { isRequestCancelled, userFacingError } from '../api/client';
 import { createTip, fetchTipsPage, type TipOut } from '../api/tips';
-import { BookLeanFilters } from './BookLeanFilters';
+import { BookConfidenceFilters } from './BookConfidenceFilters';
 import { DatePickerField } from './DatePickerField';
 import { HelpHeaderButton } from './HelpHeaderButton';
 import { HorizontalChipScroll } from './HorizontalChipScroll';
@@ -550,13 +550,13 @@ export function ArbitragePanel({ onFlash }: Props) {
               placeholder="Date"
               style={styles.dateField}
             />
-            <BookLeanFilters
+            <BookConfidenceFilters
               books={booksForFilter}
               bookValue={bookFilter}
               onBookChange={setBookFilter}
-              leanValue={0}
-              onLeanChange={() => {}}
-              hideLean
+              confidenceValue={0}
+              onConfidenceChange={() => {}}
+              hideConfidence
               forceCombined
             />
           </View>
