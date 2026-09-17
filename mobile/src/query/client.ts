@@ -20,6 +20,8 @@ export const asyncStoragePersister = createAsyncStoragePersister({
 export const queryKeys = {
   tipStats: ['tipStats'] as const,
   authStatus: ['authStatus'] as const,
+  /** Home matches + Safe/goal picks (Phase 14D offline). */
+  homeFeed: ['homeFeed'] as const,
   /** Pending tips used for Today strikethrough — scoped per signed-in user. */
   pendingLoggedTips: (userId: string | null | undefined) =>
     ['pendingLoggedTips', userId || 'anon'] as const,
