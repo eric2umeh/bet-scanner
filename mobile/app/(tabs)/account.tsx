@@ -35,6 +35,16 @@ import {
   unitStakeNgn,
   type AppSettings,
 } from '../../src/store/settings';
+import {
+  loadPushPrefs,
+  savePushPrefs,
+  type PushPrefsLocal,
+} from '../../src/store/pushPrefs';
+import {
+  disablePushOnThisDevice,
+  pushSupported,
+  syncPushRegistration,
+} from '../../src/lib/pushNotifications';
 import { PasswordInput } from '../../src/components/PasswordInput';
 import { LoadingRadar } from '../../src/components/LoadingRadar';
 import { useIsAdmin } from '../../src/hooks/useIsAdmin';
@@ -51,6 +61,12 @@ export default function AccountScreen() {
   const isAdmin = useIsAdmin();
   const [section, setSection] = useState<Section>('home');
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [pushPrefs, setPushPrefs] = useState<PushPrefsLocal>({
+    enabled: true,
+    notifyMorning: true,
+    notifySettled: true,
+  });
+  const [pushBusy, setPushBusy] = useState(false);
   const [bankroll, setBankroll] = useState('50000');
   const [unitPct, setUnitPct] = useState('1');
   const [pickMarket, setPickMarket] = useState<'double_chance' | '1x2'>('double_chance');
@@ -90,8 +106,13 @@ export default function AccountScreen() {
   }
 
   const loadMe = useCallback(async () => {
-    const [s, key] = await Promise.all([loadSettings(), loadAccessKey()]);
+    const [s, key, push] = await Promise.all([
+      loadSettings(),
+      loadAccessKey(),
+      loadPushPrefs(),
+    ]);
     setSettings(s);
+    setPushPrefs(push);
     setBankroll(String(s.bankroll));
     setUnitPct(String(s.unitPct));
     setPickMarket(s.pickMarket);
@@ -229,6 +250,15 @@ export default function AccountScreen() {
       flash(`Signed in as ${getSessionEmail() || email}.`);
       setPassword('');
       setSection('home');
+      if (pushSupported()) {
+        const prefs = await loadPushPrefs();
+        if (prefs.enabled) {
+          void syncPushRegistration({
+            notifyMorning: prefs.notifyMorning,
+            notifySettled: prefs.notifySettled,
+          });
+        }
+      }
     } catch (e) {
       flash(e instanceof Error ? e.message : String(e), true);
     } finally {
@@ -252,6 +282,15 @@ export default function AccountScreen() {
       );
       setPassword('');
       setSection('home');
+      if (session && pushSupported()) {
+        const prefs = await loadPushPrefs();
+        if (prefs.enabled) {
+          void syncPushRegistration({
+            notifyMorning: prefs.notifyMorning,
+            notifySettled: prefs.notifySettled,
+          });
+        }
+      }
     } catch (e) {
       flash(e instanceof Error ? e.message : String(e), true);
       // Keep email filled so they can tap Sign in with the same address.
@@ -263,6 +302,9 @@ export default function AccountScreen() {
   async function onSignOut() {
     setAuthBusy(true);
     try {
+      if (pushSupported()) {
+        await disablePushOnThisDevice().catch(() => {});
+      }
       await signOut();
       flash('Signed out.');
       setSection('home');
@@ -270,6 +312,50 @@ export default function AccountScreen() {
       flash(e instanceof Error ? e.message : String(e), true);
     } finally {
       setAuthBusy(false);
+    }
+  }
+
+  async function onTogglePushEnabled(next: boolean) {
+    setPushBusy(true);
+    try {
+      const prefs = { ...pushPrefs, enabled: next };
+      await savePushPrefs(prefs);
+      setPushPrefs(prefs);
+      if (!next) {
+        const r = await disablePushOnThisDevice();
+        flash(r.message, !r.ok);
+        return;
+      }
+      const r = await syncPushRegistration({
+        notifyMorning: prefs.notifyMorning,
+        notifySettled: prefs.notifySettled,
+      });
+      flash(r.message, !r.ok);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : String(e), true);
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  async function onUpdatePushPref(
+    key: 'notifyMorning' | 'notifySettled',
+    next: boolean
+  ) {
+    setPushBusy(true);
+    try {
+      const prefs = { ...pushPrefs, [key]: next, enabled: true };
+      await savePushPrefs(prefs);
+      setPushPrefs(prefs);
+      const r = await syncPushRegistration({
+        notifyMorning: prefs.notifyMorning,
+        notifySettled: prefs.notifySettled,
+      });
+      flash(r.message, !r.ok);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : String(e), true);
+    } finally {
+      setPushBusy(false);
     }
   }
 
@@ -414,7 +500,7 @@ export default function AccountScreen() {
             <MenuRow
               icon="sliders"
               title="Settings"
-              subtitle="Bankroll, unit %, Safe pick style"
+              subtitle="Bankroll, alerts, Safe pick style"
               onPress={() => setSection('settings')}
             />
             <MenuRow
@@ -605,6 +691,51 @@ export default function AccountScreen() {
           {settings ? (
             <Text style={styles.muted}>Suggested unit ≈ ₦{unitStakeNgn(settings)}</Text>
           ) : null}
+
+          {pushSupported() ? (
+            <>
+              <Text style={[styles.label, { marginTop: 16 }]}>Phone alerts</Text>
+              <Text style={styles.hint}>
+                Morning update + when your tips settle (won/lost). Needs a signed-in Play/App
+                build — not the browser.
+              </Text>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>Enable push alerts</Text>
+                <Switch
+                  value={pushPrefs.enabled}
+                  onValueChange={(v) => void onTogglePushEnabled(v)}
+                  disabled={pushBusy || !sessionEmail}
+                  trackColor={{ true: colors.accent }}
+                />
+              </View>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>Morning digest</Text>
+                <Switch
+                  value={pushPrefs.notifyMorning}
+                  onValueChange={(v) => void onUpdatePushPref('notifyMorning', v)}
+                  disabled={pushBusy || !sessionEmail || !pushPrefs.enabled}
+                  trackColor={{ true: colors.accent }}
+                />
+              </View>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>Tip settled</Text>
+                <Switch
+                  value={pushPrefs.notifySettled}
+                  onValueChange={(v) => void onUpdatePushPref('notifySettled', v)}
+                  disabled={pushBusy || !sessionEmail || !pushPrefs.enabled}
+                  trackColor={{ true: colors.accent }}
+                />
+              </View>
+              {!sessionEmail ? (
+                <Text style={styles.hint}>Sign in first to register this phone.</Text>
+              ) : null}
+            </>
+          ) : (
+            <Text style={[styles.hint, { marginTop: 12 }]}>
+              Push alerts are for the Android/iOS app. Use Telegram (if configured) on web.
+            </Text>
+          )}
+
           {showDeveloperTools ? (
             <>
               <Text style={styles.label}>App access key (developer)</Text>
@@ -714,6 +845,14 @@ const styles = StyleSheet.create({
   },
   section: { color: colors.ink, fontWeight: '800', fontSize: 16, marginBottom: 8 },
   label: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 10, marginBottom: 4 },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 10,
+  },
+  switchLabel: { color: colors.ink, fontSize: 14, fontWeight: '600', flex: 1 },
   input: {
     backgroundColor: colors.surface,
     borderColor: colors.line,

@@ -15,7 +15,13 @@ import { ModalProvider } from '../src/components/modal';
 import { AppQueryProvider } from '../src/query/QueryProvider';
 import { loadAccessKey } from '../src/store/accessKey';
 import { isOnboardingDone } from '../src/store/onboarding';
-import { initSession } from '../src/store/session';
+import { getAccessToken, initSession, subscribeSession } from '../src/store/session';
+import { loadPushPrefs } from '../src/store/pushPrefs';
+import {
+  configureNotificationHandler,
+  pushSupported,
+  syncPushRegistration,
+} from '../src/lib/pushNotifications';
 import { LoadingRadar } from '../src/components/LoadingRadar';
 import { colors } from '../src/theme/colors';
 
@@ -89,13 +95,39 @@ export default function RootLayout() {
       await SystemUI.setBackgroundColorAsync(colors.bg).catch(() => {});
       const key = await loadAccessKey();
       await initSession();
+      await configureNotificationHandler();
       if (cancelled) return;
       setCachedAccessKey(key || null);
       setGateReady(true);
+      if (pushSupported() && getAccessToken()) {
+        const prefs = await loadPushPrefs();
+        if (prefs.enabled) {
+          void syncPushRegistration({
+            notifyMorning: prefs.notifyMorning,
+            notifySettled: prefs.notifySettled,
+          });
+        }
+      }
     })();
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    if (!pushSupported()) return;
+    return subscribeSession(() => {
+      if (!getAccessToken()) return;
+      void (async () => {
+        const prefs = await loadPushPrefs();
+        if (prefs.enabled) {
+          void syncPushRegistration({
+            notifyMorning: prefs.notifyMorning,
+            notifySettled: prefs.notifySettled,
+          });
+        }
+      })();
+    });
   }, []);
 
   if (!loaded || !gateReady) {
