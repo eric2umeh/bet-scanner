@@ -297,7 +297,7 @@ export function BetSlipFab({ asMulti, onAsMultiChange, onLog, busy }: Props) {
             </View>
             {sameMatchMulti ? (
               <Text style={styles.comboWarn}>
-                Same match (e.g. O/U + BTTS): most books (SportyBet, MelBet, …) block a normal
+                Same match (e.g. O/U + BTTS): most books (SportyBet, Bet9ja, …) block a normal
                 Multiple for correlated markets — Multiple is struck out; use Singles or Bet
                 Builder. Bet Scout logs these as separate tips.
               </Text>
