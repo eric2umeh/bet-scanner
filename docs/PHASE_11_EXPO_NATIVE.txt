@@ -38,6 +38,7 @@ STACK CHOICES (LOCKED)
                   Phase 12B = Tipsters on Expo (done; Me → Advanced)
                   Phase 12C = Supabase Auth (done; optional until env set)
                   Phase 13B = EAS OTA, auth ownership, offline tips (done)
+                  Phase 14D = Home feed offline via TanStack Query (see PHASE_14D_OFFLINE.txt)
 
 
 --------------------------------------------------------------------------------
