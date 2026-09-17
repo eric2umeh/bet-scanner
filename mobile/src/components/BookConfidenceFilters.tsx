@@ -12,7 +12,7 @@ import {
 import { bookLabel } from '../lib/tipKey';
 import { WEB_APP_MAX_WIDTH } from '../theme/layout';
 import { colors } from '../theme/colors';
-import { LeanPctPanel } from './LeanPctPanel';
+import { ConfidencePctPanel } from './ConfidencePctPanel';
 
 export type LoggedFilterValue = 'all' | 'logged' | 'unlogged';
 
@@ -20,21 +20,21 @@ type Props = {
   books: string[];
   bookValue: string;
   onBookChange: (value: string) => void;
-  leanValue: number;
-  onLeanChange: (minPct: number) => void;
+  confidenceValue: number;
+  onConfidenceChange: (minPct: number) => void;
   /** When set, Logged status is included in the Filters control. */
   loggedValue?: LoggedFilterValue;
   onLoggedChange?: (value: LoggedFilterValue) => void;
-  /** Hide Lean section (e.g. Arb uses profit filter separately). */
-  hideLean?: boolean;
+  /** Hide Confidence section (e.g. Arb uses profit filter separately). */
+  hideConfidence?: boolean;
   /** Force one combined Filters button (default: auto by width). */
   forceCombined?: boolean;
 };
 
 const WIDE_MIN = 720;
 
-function leanTriggerLabel(value: number) {
-  return value > 0 ? `Lean ≥${value}%` : 'Lean all';
+function confidenceTriggerLabel(value: number) {
+  return value > 0 ? `Confidence ≥${value}%` : 'Confidence all';
 }
 
 function bookTriggerLabel(books: string[], value: string) {
@@ -98,26 +98,26 @@ function LoggedOptions({
 }
 
 /**
- * Bookmaker + Lean (+ optional Logged) filters.
+ * Bookmaker + Confidence (+ optional Logged) filters.
  * Narrow: one Filters sheet. Wide: separate triggers.
  */
-export function BookLeanFilters({
+export function BookConfidenceFilters({
   books,
   bookValue,
   onBookChange,
-  leanValue,
-  onLeanChange,
+  confidenceValue,
+  onConfidenceChange,
   loggedValue,
   onLoggedChange,
-  hideLean,
+  hideConfidence,
   forceCombined,
 }: Props) {
   const { width, height } = useWindowDimensions();
   const combined = forceCombined ?? width < WIDE_MIN;
   const showLogged = loggedValue != null && onLoggedChange != null;
-  const showLean = !hideLean;
+  const showConfidence = !hideConfidence;
   const [openBook, setOpenBook] = useState(false);
-  const [openLean, setOpenLean] = useState(false);
+  const [openConfidence, setOpenConfidence] = useState(false);
   const [openLogged, setOpenLogged] = useState(false);
   const [openAll, setOpenAll] = useState(false);
   const sheetMaxW = Math.min(WEB_APP_MAX_WIDTH, Math.max(280, width - 32));
@@ -133,17 +133,17 @@ export function BookLeanFilters({
 
   const filtersActive =
     bookValue !== 'all' ||
-    (showLean && leanValue > 0) ||
+    (showConfidence && confidenceValue > 0) ||
     (showLogged && loggedValue !== 'all');
 
   const combinedLabel = useMemo(() => {
     const parts: string[] = [];
     if (bookValue !== 'all') parts.push(bookLabel(bookValue));
-    if (showLean && leanValue > 0) parts.push(`≥${leanValue}%`);
+    if (showConfidence && confidenceValue > 0) parts.push(`≥${confidenceValue}%`);
     if (showLogged && loggedValue === 'logged') parts.push('Logged');
     if (showLogged && loggedValue === 'unlogged') parts.push('Unlogged');
-    return parts.length ? parts.join(' · ') : showLean || showLogged ? 'Filters' : 'All books';
-  }, [bookValue, leanValue, loggedValue, showLean, showLogged]);
+    return parts.length ? parts.join(' · ') : showConfidence || showLogged ? 'Filters' : 'All books';
+  }, [bookValue, confidenceValue, loggedValue, showConfidence, showLogged]);
 
   if (combined) {
     return (
@@ -173,7 +173,7 @@ export function BookLeanFilters({
                     <Pressable
                       onPress={() => {
                         onBookChange('all');
-                        if (showLean) onLeanChange(0);
+                        if (showConfidence) onConfidenceChange(0);
                         if (showLogged) onLoggedChange('all');
                       }}
                       hitSlop={8}
@@ -211,20 +211,20 @@ export function BookLeanFilters({
                         </Pressable>
                       );
                     })}
-                    {(showLean || showLogged) ? <View style={styles.divider} /> : null}
+                    {(showConfidence || showLogged) ? <View style={styles.divider} /> : null}
                   </>
                 ) : (
                   <Text style={styles.emptyBooks}>No bookmakers in current results.</Text>
                 )}
 
-                {showLean ? (
+                {showConfidence ? (
                   <>
-                    <Text style={styles.section}>Lean %</Text>
-                    <LeanPctPanel
-                      value={leanValue}
-                      onChange={onLeanChange}
+                    <Text style={styles.section}>Confidence %</Text>
+                    <ConfidencePctPanel
+                      value={confidenceValue}
+                      onChange={onConfidenceChange}
                       onCommit={(v) => {
-                        onLeanChange(v);
+                        onConfidenceChange(v);
                         setOpenAll(false);
                       }}
                     />
@@ -233,7 +233,7 @@ export function BookLeanFilters({
 
                 {showLogged ? (
                   <>
-                    {showLean ? <View style={styles.divider} /> : null}
+                    {showConfidence ? <View style={styles.divider} /> : null}
                     <Text style={styles.section}>Logged</Text>
                     <LoggedOptions
                       value={loggedValue}
@@ -305,36 +305,36 @@ export function BookLeanFilters({
         </>
       ) : null}
 
-      {showLean ? (
+      {showConfidence ? (
         <>
           <Pressable
-            style={[styles.trigger, leanValue > 0 && styles.triggerActive]}
-            onPress={() => setOpenLean(true)}
+            style={[styles.trigger, confidenceValue > 0 && styles.triggerActive]}
+            onPress={() => setOpenConfidence(true)}
             accessibilityRole="button"
-            accessibilityLabel={leanTriggerLabel(leanValue)}
+            accessibilityLabel={confidenceTriggerLabel(confidenceValue)}
           >
             <Text
-              style={[styles.triggerText, leanValue > 0 && styles.triggerTextActive]}
+              style={[styles.triggerText, confidenceValue > 0 && styles.triggerTextActive]}
               numberOfLines={1}
             >
-              {leanTriggerLabel(leanValue)}
+              {confidenceTriggerLabel(confidenceValue)}
             </Text>
             <Text style={styles.chevron}>▾</Text>
           </Pressable>
 
-          <Modal visible={openLean} transparent animationType="fade" onRequestClose={() => setOpenLean(false)}>
-            <Pressable style={styles.backdrop} onPress={() => setOpenLean(false)}>
+          <Modal visible={openConfidence} transparent animationType="fade" onRequestClose={() => setOpenConfidence(false)}>
+            <Pressable style={styles.backdrop} onPress={() => setOpenConfidence(false)}>
               <View style={[styles.sheet, { maxWidth: sheetMaxW }]} onStartShouldSetResponder={() => true}>
                 <View style={styles.sheetHead}>
-                  <Text style={styles.titleInline}>Lean %</Text>
-                  <SheetClose onClose={() => setOpenLean(false)} />
+                  <Text style={styles.titleInline}>Confidence %</Text>
+                  <SheetClose onClose={() => setOpenConfidence(false)} />
                 </View>
-                <LeanPctPanel
-                  value={leanValue}
-                  onChange={onLeanChange}
+                <ConfidencePctPanel
+                  value={confidenceValue}
+                  onChange={onConfidenceChange}
                   onCommit={(v) => {
-                    onLeanChange(v);
-                    setOpenLean(false);
+                    onConfidenceChange(v);
+                    setOpenConfidence(false);
                   }}
                 />
               </View>
