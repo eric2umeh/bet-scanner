@@ -198,7 +198,7 @@ export default function MatchDetailScreen() {
     const blocks: {
       id: string;
       title: string;
-      lean: string;
+      aheadLabel: string;
       keys: string[];
       labels: string[];
       marketKey: string;
@@ -231,17 +231,17 @@ export default function MatchDetailScreen() {
           marketWinsB9 += 1;
         }
       });
-      const lean =
+      const aheadLabel =
         marketWinsSb > marketWinsB9
-          ? 'SportyBet lean'
+          ? 'SportyBet ahead'
           : marketWinsB9 > marketWinsSb
-            ? 'Bet9ja lean'
+            ? 'Bet9ja ahead'
             : 'Even';
 
       blocks.push({
         id: mk.id,
         title: mk.title,
-        lean,
+        aheadLabel,
         keys: mk.keys,
         labels: mk.labels,
         marketKey: mk.market === '1X2' ? '1x2' : mk.market,
@@ -421,7 +421,7 @@ export default function MatchDetailScreen() {
                   <View key={block.id} style={styles.card}>
                     <Text style={styles.cardTitle}>
                       {block.title}{' '}
-                      <Text style={styles.mutedInline}>· {block.lean}</Text>
+                      <Text style={styles.mutedInline}>· {block.aheadLabel}</Text>
                     </Text>
                     <View style={styles.oddsHead}>
                       <Text style={[styles.oddsCell, styles.head]}>Book</Text>
