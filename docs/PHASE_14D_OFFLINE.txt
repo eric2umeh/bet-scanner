@@ -1,0 +1,59 @@
+================================================================================
+PHASE 14D — DEEPER OFFLINE + TANSTACK QUERY (HOME FEED)
+================================================================================
+
+Goal:
+  Extend Phase 13B (Tips tab cache only) so Home — matches + Safe / goal picks —
+  also works on bad or missing network via persisted TanStack Query.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  14D-1  Shared home feed fetch
+    - mobile/src/api/homeFeed.ts — bettable matches + Safe builder + goal scans
+    - Dedupes picks; enriches match list from tip legs
+
+  14D-2  useHomeFeed + persist
+    - mobile/src/hooks/useHomeFeed.ts — queryKey homeFeed, offlineFirst, 7d gc
+    - Writes matchCache when data arrives (Bet Slip / other screens)
+    - QueryProvider dehydrates homeFeed (+ tips / tipStats / pendingLoggedTips)
+    - maxAge 7 days
+
+  14D-3  Home screen
+    - app/(tabs)/index.tsx uses useHomeFeed instead of local loadScans state
+    - Soft refresh = refetchHome; admin Load matches = fixtures/odds sync then refetch
+    - Status line: match/tip counts, “saved Xm ago”, “showing saved” on error
+
+  14D-4  Banner + invalidation
+    - ConnectionBanner mentions saved Home matches & Safe picks when offline
+    - invalidateHomeFeedCache after admin odds sync (Value panel)
+
+
+--------------------------------------------------------------------------------
+HOW TO SMOKE-TEST
+--------------------------------------------------------------------------------
+
+  1. Open Home online → wait until matches + tips load.
+  2. Airplane mode (or disable Wi‑Fi) → kill and reopen app (or soft navigate).
+  3. Home should still show last saved fixtures/picks; banner explains offline.
+  4. Pull to refresh while offline → stays on saved data / shows error + saved.
+  5. Go online → pull refresh → counts update; “saved … ago” clears.
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  mobile/src/api/homeFeed.ts
+  mobile/src/hooks/useHomeFeed.ts
+  mobile/src/query/client.ts
+  mobile/src/query/QueryProvider.tsx
+  mobile/src/query/invalidate.ts
+  mobile/app/(tabs)/index.tsx
+  mobile/src/components/ConnectionBanner.tsx
+  mobile/src/components/ValuePanel.tsx
+  docs/PHASE_14D_OFFLINE.txt
+
+================================================================================
