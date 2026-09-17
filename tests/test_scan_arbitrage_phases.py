@@ -56,7 +56,7 @@ def test_finalize_rejects_age_spread():
             "captured_at": now - timedelta(minutes=5),
         },
         {
-            "bookmaker": "melbet",
+            "bookmaker": "bet9ja",
             "market": "ou_2_5",
             "selection": "under",
             "odds": Decimal("2.10"),
@@ -98,7 +98,7 @@ def test_finalize_accepts_fresh_cross_book():
             "captured_at": now - timedelta(minutes=2),
         },
         {
-            "bookmaker": "melbet",
+            "bookmaker": "bet9ja",
             "market": "btts",
             "selection": "no",
             "odds": Decimal("2.20"),
