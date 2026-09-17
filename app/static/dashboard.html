@@ -2084,9 +2084,9 @@
             summaryLines.push(`${mk.title} ${mk.labels[i]}: Bet9ja @ ${c.b} (vs ${c.a ?? '—'})`);
           }
         });
-        const lean =
-          marketWinsSb > marketWinsB9 ? 'SportyBet lean'
-            : marketWinsB9 > marketWinsSb ? 'Bet9ja lean'
+        const aheadLabel =
+          marketWinsSb > marketWinsB9 ? 'SportyBet ahead'
+            : marketWinsB9 > marketWinsSb ? 'Bet9ja ahead'
               : 'Even';
 
         const pickBtns = mk.keys.map((k, i) => {
@@ -2102,7 +2102,7 @@
 
         blocks.push(`
           <div class="odds-market" data-odds-mkt="${esc(mk.id)}">
-            <div class="odds-market-title">${esc(mk.title)} <span>${esc(lean)} · higher = better for you</span></div>
+            <div class="odds-market-title">${esc(mk.title)} <span>${esc(aheadLabel)} · higher = better for you</span></div>
             <div class="odds-head ${cols}"><span>Book</span>${mk.labels.map(l => `<span>${esc(l)}</span>`).join('')}</div>
             <div class="odds-row ${cols}">
               <span>${bookPill('sportybet')}</span>
