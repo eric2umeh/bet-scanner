@@ -12,6 +12,8 @@ class DailyOpsRequest(BaseModel):
     auto_settle: bool = True
     build_brief: bool = True
     notify_telegram: bool = False
+    # Phase 14C — Expo push (morning digest + tip settled). Default on.
+    notify_push: bool = True
     bankroll_ngn: Decimal | None = Field(default=None, gt=0)
     unit_pct: Decimal | None = Field(default=None, gt=0, le=10)
     pick_market: str = "double_chance"
@@ -30,4 +32,5 @@ class DailyOpsResponse(BaseModel):
     learning: dict[str, Any]
     tipsters_ranked: int
     telegram: dict[str, Any] | None = None
+    push: dict[str, Any] | None = None
     message: str
