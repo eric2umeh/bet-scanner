@@ -34,6 +34,7 @@ export type LeaderboardRow = {
   settled?: number;
   won?: number;
   lost?: number;
+  pending?: number;
   hit_rate_pct?: number | null;
   roi_pct?: number | null;
   [key: string]: unknown;
