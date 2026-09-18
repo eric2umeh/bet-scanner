@@ -37,6 +37,7 @@ _SKIP_PREFIXES = (
     "/ai",
     "/telegram",
     "/push",
+    "/scout",
     "/bankroll",
     "/predictions",
     "/safe-builder",

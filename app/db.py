@@ -94,6 +94,7 @@ def init_db() -> None:
         Base.metadata.create_all(bind=engine)
         _ensure_tip_columns()
         _ensure_user_profile_columns()
+        _ensure_scout_columns()
     except Exception as exc:  # noqa: BLE001 — startup must stay up for /health
         print(
             "WARNING: init_db could not reach the database.\n"
@@ -130,6 +131,24 @@ def _ensure_tip_columns() -> None:
         # Fresh local DBs / missing tips table are fine — create_all handles them.
         pass
 
+
+def _ensure_scout_columns() -> None:
+    """Create scouted_codes indexes/columns if an older partial table exists."""
+    statements = [
+        "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS risk_band VARCHAR(16) DEFAULT 'unknown'",
+        "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS source_label VARCHAR(128)",
+        "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS source_url VARCHAR(512)",
+        "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS folds INTEGER",
+        "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS combined_odds NUMERIC(14, 3)",
+        "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS title VARCHAR(240)",
+        "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS notes TEXT",
+    ]
+    try:
+        with engine.begin() as conn:
+            for sql in statements:
+                conn.exec_driver_sql(sql)
+    except Exception:
+        pass
 
 def _ensure_user_profile_columns() -> None:
     """Add contact fields when upgrading an older user_profiles table."""

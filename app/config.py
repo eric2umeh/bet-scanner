@@ -174,6 +174,11 @@ class Settings(BaseSettings):
     ops_default_bankroll_ngn: float = 50000
     ops_brief_max_explains: int = 3
 
+    # --- Phase 15A: Code Scout web ingest ---
+    # Semicolon-separated: bookmaker|label|url ; …
+    # Empty = built-in SportyBet community pages (SureCodes24, BettingInAfrica).
+    scout_web_sources: str = ""
+
     @property
     def sqlalchemy_database_url(self) -> str:
         """
