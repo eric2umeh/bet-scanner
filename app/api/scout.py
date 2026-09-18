@@ -27,6 +27,7 @@ from app.services.scout_codes import (
     purge_past_scouted_codes,
     upsert_scouted_code,
 )
+from app.services.scout_confidence import enrich_scouted_codes
 from app.services.scout_ingest import (
     ingest_text_blob,
     refresh_all_sources,
@@ -171,7 +172,7 @@ def list_codes(
 
     msg = (
         f"{len(rows)} scouted {book} code(s) from today onward. "
-        "Risk band is a heuristic from odds/folds — not a tip."
+        "Confidence only when legs or folds+odds exist — else Unverified."
         if rows
         else (
             f"No scouted codes for {book} today yet. Pull to refresh, or ask an admin to run Scout refresh."
@@ -179,10 +180,21 @@ def list_codes(
             else f"No scouted codes for {book} from today onward."
         )
     )
+    payloads = enrich_scouted_codes(db, rows, persist=True)
+    out_codes = [
+        ScoutedCodeOut(
+            **code_to_dict(
+                r,
+                legs_count=p.get("legs_count", 0),
+                legs_matched=p.get("legs_matched", 0),
+            )
+        )
+        for r, p in zip(rows, payloads, strict=True)
+    ]
     return ScoutListResponse(
-        count=len(rows),
+        count=len(out_codes),
         bookmaker=book,
-        codes=[ScoutedCodeOut(**code_to_dict(r)) for r in rows],
+        codes=out_codes,
         message=msg,
     )
 
@@ -199,13 +211,17 @@ def refresh_codes(
 ) -> ScoutRefreshResponse:
     upserted, sources = refresh_all_sources(db, settings)
     purged = purge_past_scouted_codes(db, tz_name=_tz(settings))
+    # Re-score today's feed so confidence is fresh after ingest
+    for book in ("sportybet", "bet9ja"):
+        rows = list_scouted_codes(db, bookmaker=book, tz_name=_tz(settings), limit=200)
+        enrich_scouted_codes(db, rows, persist=True)
     return ScoutRefreshResponse(
         status="ok",
         upserted=upserted,
         sources=sources,
         message=(
             f"Upserted {upserted} code sighting(s) from {', '.join(sources) or 'no sources'}"
-            f"; removed {purged} past-dated."
+            f"; removed {purged} past-dated; confidence refreshed."
         ),
     )
 
@@ -242,7 +258,16 @@ def create_code(
             status_code=400,
             detail="Code date is in the past — Scout only keeps today → future.",
         )
-    return ScoutedCodeOut(**code_to_dict(row))
+    # upsert already ran confidence; re-enrich with odds context for legs match count
+    payloads = enrich_scouted_codes(db, [row], persist=True)
+    p = payloads[0] if payloads else {}
+    return ScoutedCodeOut(
+        **code_to_dict(
+            row,
+            legs_count=p.get("legs_count", 0),
+            legs_matched=p.get("legs_matched", 0),
+        )
+    )
 
 
 class ScoutIngestTextBody(BaseModel):
