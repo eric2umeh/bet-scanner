@@ -1,6 +1,7 @@
 from app.models.match import Match
 from app.models.odd import Odd
 from app.models.push_token import PushToken
+from app.models.scout_code import ScoutedCode
 from app.models.tip import Tip
 from app.models.tipster import BookingCode, Tipster
 from app.models.user_profile import UserProfile
@@ -13,4 +14,5 @@ __all__ = [
     "BookingCode",
     "UserProfile",
     "PushToken",
+    "ScoutedCode",
 ]

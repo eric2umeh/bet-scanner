@@ -32,6 +32,7 @@ export default function OnboardingScreen() {
         bankroll: Math.max(1000, Number(bankroll) || 50000),
         unitPct: Math.min(10, Math.max(0.1, Number(unitPct) || 1)),
         pickMarket,
+        preferredBook: 'sportybet',
       };
       await saveSettings(next);
       // Access key is developer-only (Account → Settings when signed in as developer).
@@ -48,6 +49,7 @@ export default function OnboardingScreen() {
     bankroll: Math.max(1000, Number(bankroll) || 50000),
     unitPct: Math.min(10, Math.max(0.1, Number(unitPct) || 1)),
     pickMarket,
+    preferredBook: 'sportybet',
   };
 
   return (

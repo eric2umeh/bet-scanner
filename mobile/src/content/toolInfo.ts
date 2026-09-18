@@ -23,6 +23,13 @@ export const TOOL_INFO = {
       'Paste a bet slip in plain text (teams + markets). Bet Scout looks up prices on your configured books so you can spot which book is better per leg.\n\n' +
       'Does not place bets for you — copy the summary and stake in the book app.',
   },
+  scout: {
+    title: 'Code Scout',
+    message:
+      'Lists booking codes scouted for your selected book (SportyBet or Bet9ja). Filter by date, odds, folds, and risk band, then Copy code into the bookmaker app.\n\n' +
+      'Risk band is a heuristic from combined odds / folds — not a prediction. Leg-level audits come later.\n\n' +
+      'Change default book under Account → Settings.',
+  },
   tipsters: {
     title: 'Tipsters',
     message:
@@ -56,6 +63,6 @@ export const TOOL_INFO = {
   tools: {
     title: 'Tools',
     message:
-      'Extra utilities: Daily update, Value picks, Compare slip, and Tipsters. Surebets has its own tab. Bankroll lives under Account.',
+      'Extra utilities: Code Scout, Daily update, Value picks, Compare slip, and Tipsters. Surebets has its own tab. Bankroll lives under Account.',
   },
 } as const;

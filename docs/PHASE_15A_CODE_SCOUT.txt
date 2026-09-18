@@ -1,0 +1,77 @@
+================================================================================
+PHASE 15A — CODE SCOUT FEED + APP LOCK
+================================================================================
+
+Goal:
+  Brand moment: auto-list booking codes for the selected bookmaker (SportyBet /
+  Bet9ja), with filters + copy. Also optional device biometrics App Lock.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  15A-1  Scouted codes backend
+    - Table scouted_codes (book + code unique)
+    - GET /scout/codes — filter days, odds, folds, risk_band, sort
+    - POST /scout/refresh — admin web ingest
+    - POST /scout/codes — admin manual add
+    - POST /scout/ingest-text — admin Twitter/tipster paste parse
+    - Auto web ingest when SportyBet feed is empty (refresh_if_empty)
+
+  15A-2  Web sources (v1)
+    - SureCodes24 + BettingInAfrica SportyBet pages (public HTML)
+    - shareCode= URL + table parsers
+    - SportyBet Code Hub has no stable public JSON API — not scraped directly
+    - Env SCOUT_WEB_SOURCES = book|label|url;book|label|url (optional)
+
+  15A-3  Mobile Code Scout
+    - Tools → Code Scout
+    - Bookmaker switch (persists preferredBook in settings)
+    - Filters: period, sort (odds/folds/date), risk band
+    - Copy code + Open book (SportyBet share link)
+    - Risk band = safer / stretch / lottery heuristic from odds/folds
+
+  15A-4  App Lock (biometrics)
+    - expo-local-authentication
+    - Account → Settings → App Lock
+    - Unlock on open / return to foreground (Android & iOS; skipped on web)
+
+
+--------------------------------------------------------------------------------
+HOW TO SMOKE-TEST
+--------------------------------------------------------------------------------
+
+  Code Scout
+  1. Sign in → Tools → Code Scout.
+  2. Prefer SportyBet; pull to refresh — codes should appear (or admin Refresh).
+  3. Filter odds / risk; Copy code; paste into SportyBet Load Code.
+  4. Switch to Bet9ja — feed scopes (may be empty until sources added).
+
+  App Lock
+  1. On a device build: Account → Settings → App Lock on.
+  2. Background the app → reopen → fingerprint / Face ID / PIN unlock.
+  3. Web: toggle message says lock is native-only.
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/models/scout_code.py
+  app/schemas/scout.py
+  app/services/scout_codes.py
+  app/services/scout_ingest.py
+  app/api/scout.py
+  app/main.py, app/db.py, app/config.py, app/middleware/expo_spa.py
+  mobile/src/api/scout.ts
+  mobile/src/components/CodeScoutPanel.tsx
+  mobile/app/tools/scout.tsx
+  mobile/app/(tabs)/tools.tsx
+  mobile/src/store/settings.ts (preferredBook)
+  mobile/src/store/appLock.ts
+  mobile/src/components/AppLockGate.tsx
+  mobile/app/_layout.tsx, account.tsx, app.config.js
+  docs/PHASE_15A_CODE_SCOUT.txt
+
+================================================================================

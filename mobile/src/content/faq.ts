@@ -240,6 +240,22 @@ export const FAQ_ITEMS: FaqItem[] = [
     keywords: ['slip', 'compare', 'converter', 'booking', 'code', 'paste'],
   },
   {
+    id: 'code-scout',
+    category: 'Tools',
+    question: 'What is Code Scout?',
+    answer:
+      'Code Scout lists booking codes found for your preferred book (SportyBet or Bet9ja). Filter by date, odds, folds, and risk band, then copy a code into the bookmaker app. Risk band is a rough label from odds/folds — not a guaranteed tip. Change preferred book under Account → Settings.',
+    keywords: ['scout', 'booking', 'code', 'sportybet', 'hub', 'odds', 'folds'],
+  },
+  {
+    id: 'app-lock',
+    category: 'Account',
+    question: 'How do I lock the app with fingerprint?',
+    answer:
+      'On Android or iOS: Account → Settings → turn on App Lock. Bet Scout will ask for fingerprint, Face ID, or your device PIN when you open or return to the app. Browser web does not support App Lock.',
+    keywords: ['fingerprint', 'biometric', 'face id', 'lock', 'pin', 'security'],
+  },
+  {
     id: 'tipsters',
     category: 'Tipsters',
     question: 'How do tipsters and booking codes work?',

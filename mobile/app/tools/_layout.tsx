@@ -41,6 +41,13 @@ export default function ToolsLayout() {
           }}
         />
         <Stack.Screen
+          name="scout"
+          options={{
+            title: 'Code Scout',
+            headerRight: () => <HeaderRight info={TOOL_INFO.scout} />,
+          }}
+        />
+        <Stack.Screen
           name="slip"
           options={{
             title: 'Compare slip',

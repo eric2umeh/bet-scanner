@@ -40,6 +40,7 @@ STACK CHOICES (LOCKED)
                   Phase 13B = EAS OTA, auth ownership, offline tips (done)
                   Phase 14D = Home feed offline via TanStack Query (see PHASE_14D_OFFLINE.txt)
                   Phase 14E = Product polish / tipster leaderboard (see PHASE_14E_PRODUCT_POLISH.txt)
+                  Phase 15A = Code Scout feed + App Lock (see PHASE_15A_CODE_SCOUT.txt)
 
 
 --------------------------------------------------------------------------------

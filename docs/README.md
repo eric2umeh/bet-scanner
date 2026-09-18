@@ -36,6 +36,7 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [PHASE_14C_PUSH.txt](./PHASE_14C_PUSH.txt) | Expo push: morning digest + tip settled |
 | [PHASE_14D_OFFLINE.txt](./PHASE_14D_OFFLINE.txt) | Home feed offline via TanStack Query |
 | [PHASE_14E_PRODUCT_POLISH.txt](./PHASE_14E_PRODUCT_POLISH.txt) | Onboarding, tipster leaderboard, error/loading polish |
+| [PHASE_15A_CODE_SCOUT.txt](./PHASE_15A_CODE_SCOUT.txt) | Code Scout feed + App Lock biometrics |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 
 Code stays in `app/`, `scripts/`, etc.  
