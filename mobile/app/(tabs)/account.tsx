@@ -819,7 +819,8 @@ export default function AccountScreen() {
             </>
           ) : (
             <Text style={[styles.hint, { marginTop: 12 }]}>
-              Push alerts are for the Android/iOS app. Use Telegram (if configured) on web.
+              Push alerts need a Play/App or development build — not Expo Go or the browser. Use
+              Telegram (if configured) on web.
             </Text>
           )}
 
