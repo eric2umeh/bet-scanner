@@ -21,7 +21,14 @@ from app.schemas.scout import (
     ScoutRefreshResponse,
 )
 from app.services.scout_codes import code_to_dict, list_scouted_codes, upsert_scouted_code
-from app.services.scout_ingest import ingest_text_blob, ingest_web_sources
+from app.services.scout_ingest import ingest_text_blob, ingest_twitter_handles, ingest_web_sources
+
+
+def refresh_all_sources(db: Session, settings: Settings) -> tuple[int, list[str]]:
+    n1, s1 = ingest_web_sources(db, settings)
+    n2, s2 = ingest_twitter_handles(db, settings)
+    return n1 + n2, list(dict.fromkeys([*s1, *s2]))
+
 
 router = APIRouter(prefix="/scout", tags=["scout"])
 
@@ -34,7 +41,10 @@ def list_codes(
     max_odds: float | None = Query(default=None, ge=1.01),
     min_folds: int | None = Query(default=None, ge=1, le=50),
     max_folds: int | None = Query(default=None, ge=1, le=50),
-    risk_band: str | None = Query(default=None, description="safer|stretch|lottery|unknown|all"),
+    risk_band: str | None = Query(
+        default=None,
+        description="safer|stretch|lottery|unknown|all|good (good = safer+stretch)",
+    ),
     sort: str = Query(
         default="odds_desc",
         description="odds_desc|odds_asc|folds_desc|folds_asc|date_desc|date_asc",
@@ -42,7 +52,7 @@ def list_codes(
     limit: int = Query(default=80, ge=1, le=200),
     refresh_if_empty: bool = Query(
         default=True,
-        description="If no rows for this book, run a one-shot web ingest",
+        description="If no rows for this book, run a one-shot web+twitter ingest",
     ),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -51,21 +61,49 @@ def list_codes(
     if book not in ("sportybet", "bet9ja"):
         raise HTTPException(status_code=400, detail="bookmaker must be sportybet or bet9ja")
 
-    rows = list_scouted_codes(
-        db,
-        bookmaker=book,
-        days=days,
-        min_odds=min_odds,
-        max_odds=max_odds,
-        min_folds=min_folds,
-        max_folds=max_folds,
-        risk_band=risk_band,
-        sort=sort,
-        limit=limit,
-    )
-
-    if refresh_if_empty and not rows and book == "sportybet":
-        ingest_web_sources(db, settings)
+    band = (risk_band or "").strip().lower() or None
+    # "good" = exclude lottery / unknown — safer + stretch only
+    if band == "good":
+        # Fetch a bit wider then filter in Python (two bands)
+        rows_safer = list_scouted_codes(
+            db,
+            bookmaker=book,
+            days=days,
+            min_odds=min_odds,
+            max_odds=max_odds,
+            min_folds=min_folds,
+            max_folds=max_folds,
+            risk_band="safer",
+            sort=sort,
+            limit=limit,
+        )
+        rows_stretch = list_scouted_codes(
+            db,
+            bookmaker=book,
+            days=days,
+            min_odds=min_odds,
+            max_odds=max_odds,
+            min_folds=min_folds,
+            max_folds=max_folds,
+            risk_band="stretch",
+            sort=sort,
+            limit=limit,
+        )
+        seen: set[int] = set()
+        rows = []
+        for r in [*rows_safer, *rows_stretch]:
+            if r.id in seen:
+                continue
+            seen.add(r.id)
+            rows.append(r)
+        # Re-sort lightly by odds desc if that was requested
+        if sort in ("odds_desc", "", None):
+            rows.sort(
+                key=lambda r: float(r.combined_odds or 0),
+                reverse=True,
+            )
+        rows = rows[:limit]
+    else:
         rows = list_scouted_codes(
             db,
             bookmaker=book,
@@ -74,10 +112,61 @@ def list_codes(
             max_odds=max_odds,
             min_folds=min_folds,
             max_folds=max_folds,
-            risk_band=risk_band,
+            risk_band=band,
             sort=sort,
             limit=limit,
         )
+
+    if refresh_if_empty and not rows and book == "sportybet":
+        refresh_all_sources(db, settings)
+        if band == "good":
+            rows_safer = list_scouted_codes(
+                db,
+                bookmaker=book,
+                days=days,
+                min_odds=min_odds,
+                max_odds=max_odds,
+                min_folds=min_folds,
+                max_folds=max_folds,
+                risk_band="safer",
+                sort=sort,
+                limit=limit,
+            )
+            rows_stretch = list_scouted_codes(
+                db,
+                bookmaker=book,
+                days=days,
+                min_odds=min_odds,
+                max_odds=max_odds,
+                min_folds=min_folds,
+                max_folds=max_folds,
+                risk_band="stretch",
+                sort=sort,
+                limit=limit,
+            )
+            seen2: set[int] = set()
+            rows = []
+            for r in [*rows_safer, *rows_stretch]:
+                if r.id in seen2:
+                    continue
+                seen2.add(r.id)
+                rows.append(r)
+            if sort in ("odds_desc", "", None):
+                rows.sort(key=lambda r: float(r.combined_odds or 0), reverse=True)
+            rows = rows[:limit]
+        else:
+            rows = list_scouted_codes(
+                db,
+                bookmaker=book,
+                days=days,
+                min_odds=min_odds,
+                max_odds=max_odds,
+                min_folds=min_folds,
+                max_folds=max_folds,
+                risk_band=band,
+                sort=sort,
+                limit=limit,
+            )
 
     msg = (
         f"{len(rows)} scouted {book} code(s). Risk band is a heuristic from odds/folds — not a tip."
@@ -99,14 +188,14 @@ def list_codes(
 @router.post(
     "/refresh",
     response_model=ScoutRefreshResponse,
-    summary="Refresh scout feed from configured web sources (admin)",
+    summary="Refresh scout feed from web + Twitter handles (admin)",
 )
 def refresh_codes(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
     _admin: AuthUser = Depends(require_admin),
 ) -> ScoutRefreshResponse:
-    upserted, sources = ingest_web_sources(db, settings)
+    upserted, sources = refresh_all_sources(db, settings)
     return ScoutRefreshResponse(
         status="ok",
         upserted=upserted,
