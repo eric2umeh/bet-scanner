@@ -9,9 +9,10 @@ import {
   View,
 } from 'react-native';
 
-import { API_URL } from '../src/api/client';
-import { markOnboardingDone } from '../src/store/onboarding';
+import { API_URL, userFacingError } from '../src/api/client';
 import { BrandLogo } from '../src/components/BrandLogo';
+import { LoadingRadar } from '../src/components/LoadingRadar';
+import { markOnboardingDone } from '../src/store/onboarding';
 import { saveSettings, unitStakeNgn, type AppSettings } from '../src/store/settings';
 import { colors } from '../src/theme/colors';
 
@@ -37,7 +38,7 @@ export default function OnboardingScreen() {
       await markOnboardingDone();
       router.replace('/(tabs)');
     } catch (e) {
-      setHint(e instanceof Error ? e.message : String(e));
+      setHint(userFacingError(e));
     } finally {
       setBusy(false);
     }
@@ -56,11 +57,16 @@ export default function OnboardingScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <BrandLogo size="xl" showWordmark stacked style={{ marginBottom: 16 }} />
-      <Text style={styles.title}>Quick setup</Text>
+      <Text style={styles.title}>Welcome to Bet Scout</Text>
       <Text style={styles.muted}>
-        Set your bankroll and how you like Safe tips. You can change everything later under Account.
+        Set your bankroll and Safe tip style. Change anything later under Account → Settings.
       </Text>
-      <Text style={styles.muted}>Server · {API_URL.replace(/^https?:\/\//, '')}</Text>
+      <Text style={styles.muted}>
+        After you finish, sign in on Account so tips, tipsters, and history stay with your account.
+      </Text>
+      {__DEV__ ? (
+        <Text style={styles.devLine}>Dev server · {API_URL.replace(/^https?:\/\//, '')}</Text>
+      ) : null}
 
       <Text style={styles.label}>Bankroll (₦)</Text>
       <TextInput
@@ -98,8 +104,19 @@ export default function OnboardingScreen() {
 
       {hint ? <Text style={styles.error}>{hint}</Text> : null}
 
-      <Pressable style={[styles.btn, busy && styles.disabled]} disabled={busy} onPress={onFinish}>
-        <Text style={styles.btnText}>Get started</Text>
+      <Pressable
+        style={[styles.btn, busy && styles.disabled]}
+        disabled={busy}
+        onPress={() => void onFinish()}
+      >
+        {busy ? (
+          <View style={styles.btnInner}>
+            <LoadingRadar color={colors.onAccent} style={{ marginRight: 8 }} />
+            <Text style={styles.btnText}>Saving…</Text>
+          </View>
+        ) : (
+          <Text style={styles.btnText}>Get started</Text>
+        )}
       </Pressable>
     </ScrollView>
   );
@@ -108,9 +125,9 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 20, paddingBottom: 48, gap: 8 },
-  kicker: { color: colors.accent, fontWeight: '700', fontSize: 13, letterSpacing: 0.5 },
-  title: { color: colors.ink, fontSize: 30, fontWeight: '700', marginTop: 4 },
+  title: { color: colors.ink, fontSize: 28, fontWeight: '700', marginTop: 4 },
   muted: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  devLine: { color: colors.muted, fontSize: 11, marginTop: 4, opacity: 0.8 },
   label: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 12 },
   input: {
     backgroundColor: colors.card,
@@ -140,6 +157,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
+  btnInner: { flexDirection: 'row', alignItems: 'center' },
   disabled: { opacity: 0.6 },
   btnText: { color: colors.onAccent, fontWeight: '700', fontSize: 16 },
   error: { color: colors.bad, marginTop: 8, fontSize: 13 },
