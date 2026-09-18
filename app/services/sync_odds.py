@@ -144,6 +144,18 @@ def sync_odds(db: Session, settings: Settings) -> dict:
     if errors:
         message += " Some books failed — check your bookmaker pair on odds-api.io."
 
+    # Phase 15A — refresh Code Scout feed whenever admin Load matches pulls odds.
+    try:
+        from app.services.scout_ingest import safe_refresh_scout
+
+        scout = safe_refresh_scout(db, settings)
+        if scout.get("upserted"):
+            message += f" · Scout +{scout['upserted']} codes"
+        elif scout.get("message") and not scout.get("ok"):
+            message += " · Scout refresh skipped"
+    except Exception:  # noqa: BLE001
+        pass
+
     return {
         "inserted": inserted,
         "matches_touched": len(match_ids),
