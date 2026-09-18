@@ -52,6 +52,13 @@ function riskColor(band: string) {
   return colors.muted;
 }
 
+function confColor(pct: number | null | undefined, verification?: string | null) {
+  if (pct == null || (verification || '') === 'unverified') return colors.muted;
+  if (pct >= 65) return colors.good;
+  if (pct >= 45) return colors.warn;
+  return colors.bad;
+}
+
 function fmtOdds(v: number | string | null | undefined) {
   if (v == null || v === '') return '—';
   const n = Number(v);
@@ -63,6 +70,17 @@ function whenLabel(iso?: string | null) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function confidenceLine(row: ScoutedCode) {
+  const label = (row.confidence_label || '').trim();
+  const pct = row.confidence_pct;
+  const v = (row.verification || 'unverified').toLowerCase();
+  if (v === 'unverified' || pct == null) {
+    return label || 'Unverified — copy only.';
+  }
+  const base = `${Math.round(Number(pct))}%`;
+  return label ? `${base} · ${label}` : `${base} confidence`;
 }
 
 type FilterDraft = {
@@ -268,7 +286,7 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
             <Text style={styles.emptyText}>
               {bookmaker === 'bet9ja'
                 ? 'Bet9ja sources are thin — switch book in Filters, or ask an admin to refresh.'
-                : 'Pull down to refresh, or open Filters to widen period / risk.'}
+                : 'Pull down to refresh, or open Filters to change book / risk.'}
             </Text>
           </View>
         ) : null}
@@ -281,6 +299,14 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
                 {(row.risk_band || 'unknown').toUpperCase()}
               </Text>
             </View>
+            <Text
+              style={[
+                styles.confLine,
+                { color: confColor(row.confidence_pct, row.verification) },
+              ]}
+            >
+              {confidenceLine(row)}
+            </Text>
             <Text style={styles.meta}>
               @{fmtOdds(row.combined_odds)}
               {row.folds != null ? ` · ${row.folds} folds` : ''}
@@ -303,8 +329,9 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
         ))}
 
         <Text style={styles.footerNote}>
-          SportyBet Code Hub is not a stable public API — Bet Scout starts from public code lists +
-          share links. Always confirm the slip inside the bookmaker before staking.
+          Opaque booking codes without legs stay Unverified — copy only. Confidence appears when
+          slip legs match stored odds, or when folds + combined odds are present. Always confirm
+          the slip inside the bookmaker before staking.
         </Text>
       </ScrollView>
 
@@ -462,6 +489,7 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   code: { color: colors.ink, fontWeight: '800', fontSize: 18, letterSpacing: 1 },
   band: { fontWeight: '800', fontSize: 11 },
+  confLine: { fontSize: 12, fontWeight: '600', marginTop: 4, marginBottom: 2 },
   meta: { color: colors.muted, fontSize: 12, lineHeight: 17 },
   titleLine: { color: colors.ink, fontSize: 13, marginTop: 2 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
