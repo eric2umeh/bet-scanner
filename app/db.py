@@ -142,6 +142,10 @@ def _ensure_scout_columns() -> None:
         "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS combined_odds NUMERIC(14, 3)",
         "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS title VARCHAR(240)",
         "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS notes TEXT",
+        "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS legs_json TEXT",
+        "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS verification VARCHAR(16) DEFAULT 'unverified'",
+        "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS confidence_pct NUMERIC(5, 1)",
+        "ALTER TABLE scouted_codes ADD COLUMN IF NOT EXISTS confidence_label VARCHAR(120)",
     ]
     try:
         with engine.begin() as conn:
