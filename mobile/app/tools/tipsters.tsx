@@ -7,10 +7,11 @@ export default function TipstersToolScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Tipster tracker</Text>
+        <Text style={styles.heroTitle}>Your tipsters</Text>
         <Text style={styles.heroText}>
-          Log booking codes from Instagram, Telegram, or Twitter. Settle won/lost when you know the
-          result — the leaderboard ranks hit rate over time.
+          Track booking codes from Instagram, Telegram, or Twitter for this signed-in account.
+          Add stake and odds when you can — settle Won / Lost so your private leaderboard can rank
+          hit rate and ROI.
         </Text>
       </View>
       <TipstersPanel active />
