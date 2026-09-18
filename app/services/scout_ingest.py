@@ -16,7 +16,11 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.services.scout_codes import risk_band_for_odds, upsert_scouted_code
+from app.services.scout_codes import (
+    purge_past_scouted_codes,
+    risk_band_for_odds,
+    upsert_scouted_code,
+)
 
 # SportyBet-style short codes + optional odds nearby
 CODE_TOKEN = re.compile(r"\b([A-Z0-9]{5,8})\b")
@@ -329,6 +333,7 @@ def ingest_twitter_handles(db: Session, settings: Settings) -> tuple[int, list[s
 
     templates = configured_twitter_rss_templates(settings)
     skip_lottery = bool(getattr(settings, "scout_twitter_skip_lottery", True))
+    tz_name = getattr(settings, "app_timezone", None) or "Africa/Lagos"
     upserted = 0
     used: list[str] = []
 
@@ -377,7 +382,7 @@ def ingest_twitter_handles(db: Session, settings: Settings) -> tuple[int, list[s
                 band = risk_band_for_odds(row.get("combined_odds"), row.get("folds"))
                 if skip_lottery and band == "lottery":
                     continue
-                upsert_scouted_code(
+                saved = upsert_scouted_code(
                     db,
                     code_text=row["code_text"],
                     bookmaker=row["bookmaker"],
@@ -389,9 +394,11 @@ def ingest_twitter_handles(db: Session, settings: Settings) -> tuple[int, list[s
                     title=row.get("title") or f"{label} · {row['code_text']}",
                     notes=(text[:400] if text else None),
                     scouted_at=row.get("scouted_at"),
+                    tz_name=tz_name,
                 )
-                upserted += 1
-                got_any = True
+                if saved is not None:
+                    upserted += 1
+                    got_any = True
         if got_any:
             used.append(f"{book_pref}:{label}")
 
@@ -404,14 +411,17 @@ def safe_refresh_scout(db: Session, settings: Settings) -> dict:
     Never raises — odds sync must not fail because Twitter mirrors are down.
     """
     try:
+        tz_name = getattr(settings, "app_timezone", None) or "Africa/Lagos"
         n_web, s_web = ingest_web_sources(db, settings)
         n_tw, s_tw = ingest_twitter_handles(db, settings)
+        purged = purge_past_scouted_codes(db, tz_name=tz_name)
         sources = list(dict.fromkeys([*s_web, *s_tw]))
         return {
             "ok": True,
             "upserted": n_web + n_tw,
             "sources": sources,
-            "message": f"Scout refreshed · {n_web + n_tw} sighting(s)",
+            "purged": purged,
+            "message": f"Scout refreshed · {n_web + n_tw} sighting(s), {purged} past removed",
         }
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "upserted": 0, "sources": [], "message": str(exc)}
@@ -420,6 +430,8 @@ def safe_refresh_scout(db: Session, settings: Settings) -> dict:
 def refresh_all_sources(db: Session, settings: Settings) -> tuple[int, list[str]]:
     n1, s1 = ingest_web_sources(db, settings)
     n2, s2 = ingest_twitter_handles(db, settings)
+    tz_name = getattr(settings, "app_timezone", None) or "Africa/Lagos"
+    purge_past_scouted_codes(db, tz_name=tz_name)
     return n1 + n2, list(dict.fromkeys([*s1, *s2]))
 
 
@@ -429,11 +441,12 @@ def ingest_text_blob(
     *,
     bookmaker: str = "sportybet",
     source_label: str = "Twitter paste",
+    tz_name: str | None = None,
 ) -> int:
     rows = parse_twitter_style_text(text, bookmaker=bookmaker, source_label=source_label)
     n = 0
     for row in rows:
-        upsert_scouted_code(
+        saved = upsert_scouted_code(
             db,
             code_text=row["code_text"],
             bookmaker=row["bookmaker"],
@@ -445,8 +458,10 @@ def ingest_text_blob(
             title=row.get("title"),
             notes=row.get("notes"),
             scouted_at=row.get("scouted_at"),
+            tz_name=tz_name,
         )
-        n += 1
+        if saved is not None:
+            n += 1
     return n
 
 
@@ -496,6 +511,7 @@ def fetch_url_text(url: str, *, timeout: float = 20.0) -> str:
 def ingest_web_sources(db: Session, settings: Settings) -> tuple[int, list[str]]:
     upserted = 0
     used: list[str] = []
+    tz_name = getattr(settings, "app_timezone", None) or "Africa/Lagos"
     for src in configured_web_sources(settings):
         url = src["url"]
         label = src.get("label") or "Web"
@@ -514,7 +530,7 @@ def ingest_web_sources(db: Session, settings: Settings) -> tuple[int, list[str]]
             continue
         used.append(label)
         for row in rows:
-            upsert_scouted_code(
+            saved = upsert_scouted_code(
                 db,
                 code_text=row["code_text"],
                 bookmaker=row["bookmaker"],
@@ -526,6 +542,8 @@ def ingest_web_sources(db: Session, settings: Settings) -> tuple[int, list[str]]
                 title=row.get("title"),
                 notes=row.get("notes"),
                 scouted_at=row.get("scouted_at"),
+                tz_name=tz_name,
             )
-            upserted += 1
+            if saved is not None:
+                upserted += 1
     return upserted, used
