@@ -38,6 +38,8 @@ WHAT SHIPPED
     - expo-local-authentication
     - Account → Settings → App Lock
 
+  Next: 15B — Confidence on scouted codes (see docs/PHASE_15B_SCOUT_CONFIDENCE.txt)
+
 
 --------------------------------------------------------------------------------
 HOW TO SMOKE-TEST
