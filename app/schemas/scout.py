@@ -1,4 +1,4 @@
-"""Phase 15A — Code Scout schemas."""
+"""Phase 15A/B — Code Scout schemas."""
 
 from datetime import datetime
 from decimal import Decimal
@@ -20,6 +20,12 @@ class ScoutedCodeOut(BaseModel):
     notes: str | None = None
     scouted_at: datetime | None = None
     hub_url: str | None = None
+    # Phase 15B
+    verification: str = "unverified"
+    confidence_pct: float | None = None
+    confidence_label: str | None = "Unverified — copy only."
+    legs_count: int = 0
+    legs_matched: int = 0
 
 
 class ScoutListResponse(BaseModel):
