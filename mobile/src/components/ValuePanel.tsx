@@ -11,6 +11,7 @@ import {
 
 import { scanValue, type ValuePick } from '../api/edge';
 import { fetchPublicAppConfig } from '../api/appConfig';
+import { userFacingError } from '../api/client';
 import { syncOdds } from '../api/odds';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { invalidateHomeFeedCache } from '../query/invalidate';
@@ -65,7 +66,7 @@ export function ValuePanel({ onFlash }: Props) {
         onFlash?.('No better prices right now.');
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = userFacingError(e);
       setError(msg);
       onFlash?.(msg, true);
     } finally {
@@ -89,7 +90,7 @@ export function ValuePanel({ onFlash }: Props) {
     try {
       await shareOrCopyText(text);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(userFacingError(e));
     }
   }
 
