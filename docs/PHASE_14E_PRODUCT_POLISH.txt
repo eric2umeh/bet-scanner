@@ -1,0 +1,58 @@
+================================================================================
+PHASE 14E — PRODUCT POLISH
+================================================================================
+
+Goal:
+  Tighten first-run and tipster UX: clearer onboarding, consistent error copy,
+  better loading/empty states, and a signed-in tipster leaderboard that can show
+  hit rate + ROI when stake/odds are logged.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  14E-1  Onboarding
+    - Welcome copy + nudge to sign in on Account
+    - Hide API host except in __DEV__
+    - LoadingRadar on finish; errors via userFacingError
+    - Account → Settings → “Redo quick setup” (resetOnboarding)
+
+  14E-2  Tipsters (signed-in)
+    - Stake / odds / notes fields when logging codes (ROI can work)
+    - Leaderboard: rank, W/settled, hit %, ROI, pending; empty CTA
+    - Ownership copy (“your account” / private board)
+    - Initial loading block; leaderboard errors not swallowed
+    - All flashes via userFacingError
+
+  14E-3  Error / help copy
+    - Value panel uses userFacingError
+    - toolInfo + tipsters hero + FAQ (tipsters + offline Home) updated
+
+
+--------------------------------------------------------------------------------
+HOW TO SMOKE-TEST
+--------------------------------------------------------------------------------
+
+  1. Fresh install / clear onboarding → welcome screen (no server URL in release).
+  2. Get started → Account → Settings → Redo quick setup → back to wizard.
+  3. Sign in → Tools → Tipsters → add tipster, log code with stake+odds, settle.
+  4. Leaderboard shows W/settled, hit %, ROI when data exists; empty state if none.
+  5. Airplane mode on Tipsters refresh → plain-language error, not raw fetch text.
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  mobile/app/onboarding.tsx
+  mobile/app/(tabs)/account.tsx
+  mobile/app/tools/tipsters.tsx
+  mobile/src/components/TipstersPanel.tsx
+  mobile/src/components/ValuePanel.tsx
+  mobile/src/api/tipsters.ts
+  mobile/src/content/toolInfo.ts
+  mobile/src/content/faq.ts
+  docs/PHASE_14E_PRODUCT_POLISH.txt
+
+================================================================================
