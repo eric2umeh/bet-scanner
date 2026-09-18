@@ -13,11 +13,13 @@ WHAT SHIPPED
 
   15A-1  Scouted codes backend
     - Table scouted_codes (book + code unique)
-    - GET /scout/codes — filter days, odds, folds, risk_band, sort
+    - GET /scout/codes — today→future only; filters odds, folds, risk_band, sort
+      (past-dated codes purged on list/refresh; lookback `days` ignored)
     - POST /scout/refresh — admin web + Twitter ingest
     - POST /scout/codes — admin manual add
     - POST /scout/ingest-text — admin Twitter/tipster paste parse
     - Auto ingest when feed empty (refresh_if_empty)
+    - Ingest skips codes whose page/tweet date is before today (Africa/Lagos)
 
   15A-2  Web + Twitter sources (free, multi-book)
     - SureCodes24 + BettingInAfrica (SportyBet pages)
@@ -30,7 +32,7 @@ WHAT SHIPPED
   15A-3  Mobile Code Scout (main tab)
     - Tab bar: Home · Scout · Surebets · Tools · Account
     - Tips → Account → Tip history
-    - Bookmaker switch, filters, Copy code, Open book
+    - Bookmaker switch, Today+ filters (no lookback period), Copy code, Open book
 
   15A-4  App Lock (biometrics)
     - expo-local-authentication
