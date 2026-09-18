@@ -237,16 +237,64 @@ def _rss_item_texts(xml: str) -> list[str]:
     return chunks
 
 
-def configured_twitter_handles(settings: Settings) -> list[str]:
+def configured_twitter_targets(settings: Settings) -> list[dict[str, str]]:
+    """
+    Parse SCOUT_TWITTER_HANDLES.
+
+    Formats (comma-separated):
+      sportybet:SportyBet
+      bet9ja:SomeTipster
+      nairabet:Handle
+      SportyBet              → defaults to sportybet (legacy)
+      both:SomeTipster      → ingest once; book detected from tweet text
+    """
     raw = (getattr(settings, "scout_twitter_handles", None) or "").strip()
     if not raw:
         return []
-    out: list[str] = []
+    out: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
     for part in raw.split(","):
-        h = part.strip().lstrip("@")
-        if h and h not in out:
-            out.append(h)
+        part = part.strip().lstrip("@")
+        if not part:
+            continue
+        book = "sportybet"
+        handle = part
+        if ":" in part:
+            left, right = part.split(":", 1)
+            left_l = left.strip().lower()
+            right = right.strip().lstrip("@")
+            if left_l in ("sportybet", "bet9ja", "nairabet", "betking", "both"):
+                book = left_l
+                handle = right
+            elif right.lower() in ("sportybet", "bet9ja", "nairabet", "betking", "both"):
+                # Handle:book alternate
+                handle = left.strip().lstrip("@")
+                book = right.lower()
+            else:
+                handle = right or left
+        if not handle:
+            continue
+        key = (book, handle.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"bookmaker": book, "handle": handle})
     return out
+
+
+def detect_bookmaker_from_text(text: str, default: str = "sportybet") -> str:
+    t = (text or "").lower()
+    if "bet9ja" in t or "bet 9ja" in t:
+        return "bet9ja"
+    if "nairabet" in t or "naira bet" in t:
+        return "nairabet"
+    if "betking" in t or "bet king" in t:
+        return "betking"
+    if "sportybet" in t or "sporty bet" in t or "sporty" in t:
+        return "sportybet"
+    if default == "both":
+        return "sportybet"
+    return default or "sportybet"
 
 
 def configured_twitter_rss_templates(settings: Settings) -> list[str]:
@@ -273,10 +321,10 @@ def fetch_rss_xml(url: str, *, timeout: float = 18.0) -> str:
 def ingest_twitter_handles(db: Session, settings: Settings) -> tuple[int, list[str]]:
     """
     Free path: poll curated X handles via public RSS mirrors (Nitter/xcancel-style).
-    No paid X API. Mirrors break often — configure SCOUT_TWITTER_RSS_TEMPLATES.
+    Supports sportybet / bet9ja / other books via book:handle entries.
     """
-    handles = configured_twitter_handles(settings)
-    if not handles:
+    targets = configured_twitter_targets(settings)
+    if not targets:
         return 0, []
 
     templates = configured_twitter_rss_templates(settings)
@@ -284,7 +332,9 @@ def ingest_twitter_handles(db: Session, settings: Settings) -> tuple[int, list[s
     upserted = 0
     used: list[str] = []
 
-    for handle in handles:
+    for target in targets:
+        handle = target["handle"]
+        book_pref = target["bookmaker"]
         xml: str | None = None
         for tmpl in templates:
             url = tmpl.replace("{user}", handle)
@@ -302,9 +352,25 @@ def ingest_twitter_handles(db: Session, settings: Settings) -> tuple[int, list[s
         label = f"@{handle}"
         got_any = False
         for text in _rss_item_texts(xml):
+            book = (
+                detect_bookmaker_from_text(text, book_pref)
+                if book_pref == "both"
+                else book_pref
+            )
+            # Still prefer tweet text when it clearly names another NG book
+            detected = detect_bookmaker_from_text(text, book)
+            if book_pref not in ("both",) and detected in ("bet9ja", "sportybet", "nairabet", "betking"):
+                # If tweet explicitly names a book, trust that over the handle default
+                if detected != book and (
+                    "bet9ja" in text.lower()
+                    or "sporty" in text.lower()
+                    or "nairabet" in text.lower()
+                    or "betking" in text.lower()
+                ):
+                    book = detected
             rows = parse_twitter_style_text(
                 text,
-                bookmaker="sportybet",
+                bookmaker=book,
                 source_label=label,
             )
             for row in rows:
@@ -316,7 +382,7 @@ def ingest_twitter_handles(db: Session, settings: Settings) -> tuple[int, list[s
                     code_text=row["code_text"],
                     bookmaker=row["bookmaker"],
                     source="twitter",
-                    source_label=label,
+                    source_label=f"{label} · {row['bookmaker']}",
                     source_url=f"https://x.com/{handle}",
                     folds=row.get("folds"),
                     combined_odds=row.get("combined_odds"),
@@ -327,9 +393,34 @@ def ingest_twitter_handles(db: Session, settings: Settings) -> tuple[int, list[s
                 upserted += 1
                 got_any = True
         if got_any:
-            used.append(label)
+            used.append(f"{book_pref}:{label}")
 
     return upserted, used
+
+
+def safe_refresh_scout(db: Session, settings: Settings) -> dict:
+    """
+    Best-effort scout refresh for Load matches / daily ops.
+    Never raises — odds sync must not fail because Twitter mirrors are down.
+    """
+    try:
+        n_web, s_web = ingest_web_sources(db, settings)
+        n_tw, s_tw = ingest_twitter_handles(db, settings)
+        sources = list(dict.fromkeys([*s_web, *s_tw]))
+        return {
+            "ok": True,
+            "upserted": n_web + n_tw,
+            "sources": sources,
+            "message": f"Scout refreshed · {n_web + n_tw} sighting(s)",
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "upserted": 0, "sources": [], "message": str(exc)}
+
+
+def refresh_all_sources(db: Session, settings: Settings) -> tuple[int, list[str]]:
+    n1, s1 = ingest_web_sources(db, settings)
+    n2, s2 = ingest_twitter_handles(db, settings)
+    return n1 + n2, list(dict.fromkeys([*s1, *s2]))
 
 
 def ingest_text_blob(
