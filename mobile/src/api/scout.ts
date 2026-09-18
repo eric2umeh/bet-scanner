@@ -14,6 +14,11 @@ export type ScoutedCode = {
   notes?: string | null;
   scouted_at?: string | null;
   hub_url?: string | null;
+  verification?: 'unverified' | 'legs' | 'rich_meta' | string;
+  confidence_pct?: number | null;
+  confidence_label?: string | null;
+  legs_count?: number;
+  legs_matched?: number;
 };
 
 export type ScoutListResponse = {
