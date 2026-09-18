@@ -2,6 +2,7 @@
 Phase 15A — Code Scout API.
 
 Public list for signed-in clients; refresh / manual ingest for admin.
+Feed is today → future only (past dated codes are purged).
 """
 
 from __future__ import annotations
@@ -20,7 +21,12 @@ from app.schemas.scout import (
     ScoutListResponse,
     ScoutRefreshResponse,
 )
-from app.services.scout_codes import code_to_dict, list_scouted_codes, upsert_scouted_code
+from app.services.scout_codes import (
+    code_to_dict,
+    list_scouted_codes,
+    purge_past_scouted_codes,
+    upsert_scouted_code,
+)
 from app.services.scout_ingest import (
     ingest_text_blob,
     refresh_all_sources,
@@ -30,10 +36,81 @@ from app.services.scout_ingest import (
 router = APIRouter(prefix="/scout", tags=["scout"])
 
 
+def _tz(settings: Settings) -> str:
+    return getattr(settings, "app_timezone", None) or "Africa/Lagos"
+
+
+def _list_for_band(
+    db: Session,
+    *,
+    book: str,
+    tz_name: str,
+    min_odds: float | None,
+    max_odds: float | None,
+    min_folds: int | None,
+    max_folds: int | None,
+    band: str | None,
+    sort: str,
+    limit: int,
+) -> list:
+    if band == "good":
+        rows_safer = list_scouted_codes(
+            db,
+            bookmaker=book,
+            tz_name=tz_name,
+            min_odds=min_odds,
+            max_odds=max_odds,
+            min_folds=min_folds,
+            max_folds=max_folds,
+            risk_band="safer",
+            sort=sort,
+            limit=limit,
+        )
+        rows_stretch = list_scouted_codes(
+            db,
+            bookmaker=book,
+            tz_name=tz_name,
+            min_odds=min_odds,
+            max_odds=max_odds,
+            min_folds=min_folds,
+            max_folds=max_folds,
+            risk_band="stretch",
+            sort=sort,
+            limit=limit,
+        )
+        seen: set[int] = set()
+        rows = []
+        for r in [*rows_safer, *rows_stretch]:
+            if r.id in seen:
+                continue
+            seen.add(r.id)
+            rows.append(r)
+        if sort in ("odds_desc", "", None):
+            rows.sort(key=lambda r: float(r.combined_odds or 0), reverse=True)
+        return rows[:limit]
+    return list_scouted_codes(
+        db,
+        bookmaker=book,
+        tz_name=tz_name,
+        min_odds=min_odds,
+        max_odds=max_odds,
+        min_folds=min_folds,
+        max_folds=max_folds,
+        risk_band=band,
+        sort=sort,
+        limit=limit,
+    )
+
+
 @router.get("/codes", response_model=ScoutListResponse, summary="List scouted booking codes")
 def list_codes(
     bookmaker: str = Query(default="sportybet", description="sportybet | bet9ja"),
-    days: int = Query(default=14, ge=1, le=60),
+    days: int | None = Query(
+        default=None,
+        ge=1,
+        le=60,
+        description="Ignored — Scout only returns codes from today onward",
+    ),
     min_odds: float | None = Query(default=None, ge=1.01),
     max_odds: float | None = Query(default=None, ge=1.01),
     min_folds: int | None = Query(default=None, ge=1, le=50),
@@ -54,124 +131,52 @@ def list_codes(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> ScoutListResponse:
+    del days  # lookback removed — today-forward only
     book = (bookmaker or "sportybet").strip().lower()
     if book not in ("sportybet", "bet9ja"):
         raise HTTPException(status_code=400, detail="bookmaker must be sportybet or bet9ja")
 
+    tz_name = _tz(settings)
+    purge_past_scouted_codes(db, tz_name=tz_name)
+
     band = (risk_band or "").strip().lower() or None
-    # "good" = exclude lottery / unknown — safer + stretch only
-    if band == "good":
-        # Fetch a bit wider then filter in Python (two bands)
-        rows_safer = list_scouted_codes(
-            db,
-            bookmaker=book,
-            days=days,
-            min_odds=min_odds,
-            max_odds=max_odds,
-            min_folds=min_folds,
-            max_folds=max_folds,
-            risk_band="safer",
-            sort=sort,
-            limit=limit,
-        )
-        rows_stretch = list_scouted_codes(
-            db,
-            bookmaker=book,
-            days=days,
-            min_odds=min_odds,
-            max_odds=max_odds,
-            min_folds=min_folds,
-            max_folds=max_folds,
-            risk_band="stretch",
-            sort=sort,
-            limit=limit,
-        )
-        seen: set[int] = set()
-        rows = []
-        for r in [*rows_safer, *rows_stretch]:
-            if r.id in seen:
-                continue
-            seen.add(r.id)
-            rows.append(r)
-        # Re-sort lightly by odds desc if that was requested
-        if sort in ("odds_desc", "", None):
-            rows.sort(
-                key=lambda r: float(r.combined_odds or 0),
-                reverse=True,
-            )
-        rows = rows[:limit]
-    else:
-        rows = list_scouted_codes(
-            db,
-            bookmaker=book,
-            days=days,
-            min_odds=min_odds,
-            max_odds=max_odds,
-            min_folds=min_folds,
-            max_folds=max_folds,
-            risk_band=band,
-            sort=sort,
-            limit=limit,
-        )
+    rows = _list_for_band(
+        db,
+        book=book,
+        tz_name=tz_name,
+        min_odds=min_odds,
+        max_odds=max_odds,
+        min_folds=min_folds,
+        max_folds=max_folds,
+        band=band,
+        sort=sort,
+        limit=limit,
+    )
 
     if refresh_if_empty and not rows:
         refresh_all_sources(db, settings)
-        if band == "good":
-            rows_safer = list_scouted_codes(
-                db,
-                bookmaker=book,
-                days=days,
-                min_odds=min_odds,
-                max_odds=max_odds,
-                min_folds=min_folds,
-                max_folds=max_folds,
-                risk_band="safer",
-                sort=sort,
-                limit=limit,
-            )
-            rows_stretch = list_scouted_codes(
-                db,
-                bookmaker=book,
-                days=days,
-                min_odds=min_odds,
-                max_odds=max_odds,
-                min_folds=min_folds,
-                max_folds=max_folds,
-                risk_band="stretch",
-                sort=sort,
-                limit=limit,
-            )
-            seen2: set[int] = set()
-            rows = []
-            for r in [*rows_safer, *rows_stretch]:
-                if r.id in seen2:
-                    continue
-                seen2.add(r.id)
-                rows.append(r)
-            if sort in ("odds_desc", "", None):
-                rows.sort(key=lambda r: float(r.combined_odds or 0), reverse=True)
-            rows = rows[:limit]
-        else:
-            rows = list_scouted_codes(
-                db,
-                bookmaker=book,
-                days=days,
-                min_odds=min_odds,
-                max_odds=max_odds,
-                min_folds=min_folds,
-                max_folds=max_folds,
-                risk_band=band,
-                sort=sort,
-                limit=limit,
-            )
+        purge_past_scouted_codes(db, tz_name=tz_name)
+        rows = _list_for_band(
+            db,
+            book=book,
+            tz_name=tz_name,
+            min_odds=min_odds,
+            max_odds=max_odds,
+            min_folds=min_folds,
+            max_folds=max_folds,
+            band=band,
+            sort=sort,
+            limit=limit,
+        )
 
     msg = (
-        f"{len(rows)} scouted {book} code(s). Risk band is a heuristic from odds/folds — not a tip."
+        f"{len(rows)} scouted {book} code(s) from today onward. "
+        "Risk band is a heuristic from odds/folds — not a tip."
         if rows
         else (
-            f"No scouted codes for {book} yet. Pull to refresh, or ask an admin to run Scout refresh."
+            f"No scouted codes for {book} today yet. Pull to refresh, or ask an admin to run Scout refresh."
             if book == "bet9ja"
-            else f"No scouted codes for {book} in the last {days} days."
+            else f"No scouted codes for {book} from today onward."
         )
     )
     return ScoutListResponse(
@@ -193,12 +198,14 @@ def refresh_codes(
     _admin: AuthUser = Depends(require_admin),
 ) -> ScoutRefreshResponse:
     upserted, sources = refresh_all_sources(db, settings)
+    purged = purge_past_scouted_codes(db, tz_name=_tz(settings))
     return ScoutRefreshResponse(
         status="ok",
         upserted=upserted,
         sources=sources,
         message=(
-            f"Upserted {upserted} code sighting(s) from {', '.join(sources) or 'no sources'}."
+            f"Upserted {upserted} code sighting(s) from {', '.join(sources) or 'no sources'}"
+            f"; removed {purged} past-dated."
         ),
     )
 
@@ -211,6 +218,7 @@ def refresh_codes(
 def create_code(
     body: ScoutCodeCreate,
     db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
     _admin: AuthUser = Depends(require_admin),
 ) -> ScoutedCodeOut:
     book = (body.bookmaker or "sportybet").strip().lower()
@@ -227,7 +235,13 @@ def create_code(
         combined_odds=body.combined_odds,
         title=body.title,
         notes=body.notes,
+        tz_name=_tz(settings),
     )
+    if row is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Code date is in the past — Scout only keeps today → future.",
+        )
     return ScoutedCodeOut(**code_to_dict(row))
 
 
@@ -245,6 +259,7 @@ class ScoutIngestTextBody(BaseModel):
 def ingest_text(
     body: ScoutIngestTextBody,
     db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
     _admin: AuthUser = Depends(require_admin),
 ) -> ScoutRefreshResponse:
     book = (body.bookmaker or "sportybet").strip().lower()
@@ -255,10 +270,11 @@ def ingest_text(
         body.text,
         bookmaker=book,
         source_label=body.source_label or "Twitter paste",
+        tz_name=_tz(settings),
     )
     return ScoutRefreshResponse(
         status="ok",
         upserted=n,
         sources=[body.source_label or "Twitter paste"],
-        message=f"Parsed {n} code(s) from text.",
+        message=f"Parsed {n} code(s) from text (today onward only).",
     )
