@@ -92,6 +92,22 @@ def run_daily_ops(
         except Exception as exc:  # noqa: BLE001
             errors.append(f"sync_odds: {exc}")
             steps.append({"step": "sync_odds", "ok": False, "message": str(exc)})
+    else:
+        # Odds skipped — still refresh Code Scout (web + Twitter handles).
+        try:
+            from app.services.scout_ingest import safe_refresh_scout
+
+            scout = safe_refresh_scout(db, settings)
+            steps.append(
+                {
+                    "step": "scout_codes",
+                    "ok": bool(scout.get("ok", True)),
+                    "message": scout.get("message"),
+                    "upserted": scout.get("upserted"),
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            steps.append({"step": "scout_codes", "ok": False, "message": str(exc)})
 
     settle_result = None
     if auto_settle:
@@ -142,6 +158,7 @@ def run_daily_ops(
         titles = {
             "sync_fixtures": "Match list refreshed",
             "sync_odds": "Odds updated",
+            "scout_codes": "Code Scout refreshed",
             "auto_settle": "Tips settled",
             "brief": "Brief ready",
         }
