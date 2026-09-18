@@ -35,6 +35,7 @@ import {
   unitStakeNgn,
   type AppSettings,
 } from '../../src/store/settings';
+import { resetOnboarding } from '../../src/store/onboarding';
 import {
   loadPushPrefs,
   savePushPrefs,
@@ -260,7 +261,7 @@ export default function AccountScreen() {
         }
       }
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     } finally {
       setAuthBusy(false);
     }
@@ -292,7 +293,7 @@ export default function AccountScreen() {
         }
       }
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
       // Keep email filled so they can tap Sign in with the same address.
     } finally {
       setAuthBusy(false);
@@ -309,7 +310,7 @@ export default function AccountScreen() {
       flash('Signed out.');
       setSection('home');
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     } finally {
       setAuthBusy(false);
     }
@@ -332,7 +333,7 @@ export default function AccountScreen() {
       });
       flash(r.message, !r.ok);
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     } finally {
       setPushBusy(false);
     }
@@ -353,7 +354,7 @@ export default function AccountScreen() {
       });
       flash(r.message, !r.ok);
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     } finally {
       setPushBusy(false);
     }
@@ -369,7 +370,7 @@ export default function AccountScreen() {
       flash('Password updated.');
       setSection('home');
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     } finally {
       setAuthBusy(false);
     }
@@ -752,6 +753,17 @@ export default function AccountScreen() {
           ) : null}
           <Pressable style={styles.btn} onPress={() => void onSaveSettings()}>
             <Text style={styles.btnText}>Save settings</Text>
+          </Pressable>
+          <Pressable
+            style={styles.btnSecondary}
+            onPress={() => {
+              void (async () => {
+                await resetOnboarding();
+                router.replace('/onboarding');
+              })();
+            }}
+          >
+            <Text style={styles.btnSecondaryText}>Redo quick setup</Text>
           </Pressable>
         </View>
       ) : null}
