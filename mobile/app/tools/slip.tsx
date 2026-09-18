@@ -13,6 +13,7 @@ import {
   type ConvertedLeg,
   type SlipConvertResponse,
 } from '../../src/api/convert';
+import { userFacingError } from '../../src/api/client';
 import { shareOrCopyText } from '../../src/lib/shareText';
 import { bookLabel } from '../../src/lib/tipKey';
 import { LoadingRadar } from '../../src/components/LoadingRadar';
@@ -67,7 +68,7 @@ export default function SlipToolScreen() {
       setConvertResult(data);
       flash(data.message || `Found prices for ${data.matched_count} selection(s).`);
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     } finally {
       setConverting(false);
     }
@@ -83,7 +84,7 @@ export default function SlipToolScreen() {
       const mode = await shareOrCopyText(summary);
       flash(mode === 'copied' ? 'Summary copied to clipboard.' : 'Share sheet opened.');
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     }
   }
 
