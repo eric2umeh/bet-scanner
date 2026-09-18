@@ -55,17 +55,11 @@ module.exports = {
       resizeMode: 'contain',
       backgroundColor: '#F5F7F8',
     },
-    ios: {
-      supportsTablet: true,
-      bundleIdentifier: 'com.betscanner.app',
-      infoPlist: {
-        ITSAppUsesNonExemptEncryption: false,
-      },
-    },
     plugins: [
       'expo-router',
       'expo-secure-store',
       'expo-updates',
+      'expo-local-authentication',
       [
         'expo-notifications',
         {
@@ -75,6 +69,14 @@ module.exports = {
         },
       ],
     ],
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: 'com.betscanner.app',
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+        NSFaceIDUsageDescription: 'Unlock Bet Scout with Face ID.',
+      },
+    },
     android: {
       package: 'com.betscanner.app',
       versionCode: 1,
