@@ -1,0 +1,63 @@
+================================================================================
+PHASE 15B — CONFIDENCE ON SCOUTED CODES
+================================================================================
+
+Goal:
+  Show a confidence score on Code Scout cards only when Bet Scout has enough
+  structure to be honest. Otherwise show “Unverified — copy only.”
+
+
+--------------------------------------------------------------------------------
+RULES
+--------------------------------------------------------------------------------
+
+  Score when:
+    1) Legs — notes/title parse into slip legs (Team A vs B + market), then
+       match fixtures + stored NG odds → market fair-% geometric mean.
+    2) Rich meta — both folds AND combined_odds present → odds/folds estimate
+       (explicitly labelled; not a market match).
+
+  No score when:
+    - Opaque code only (typical web/hub scrape with odds but no folds/legs)
+    - Legs parsed but none matched to live odds and no rich meta
+      → still “Unverified” (or “Legs found — unmatched…” without a %)
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  - scouted_codes columns: legs_json, verification, confidence_pct, confidence_label
+  - app/services/scout_confidence.py — extract legs, rich-meta heuristic, odds match
+  - GET /scout/codes enrichs each row on read (fresh odds context)
+  - Mobile card line: “Unverified — copy only.” or “62% · Market match · 3/4 legs”
+
+
+--------------------------------------------------------------------------------
+HOW TO SMOKE-TEST
+--------------------------------------------------------------------------------
+
+  1. Scout tab → most SureCodes24-style rows (odds, no folds) → Unverified.
+  2. Admin POST /scout/codes with folds + combined_odds → Odds/folds estimate %.
+  3. Admin ingest-text / manual notes with slip lines:
+       Flamengo vs Vitoria
+       Double chance 1X
+     → Legs path; score if fixtures+odds exist after Load matches.
+  4. Confirm lottery/high-fold rich meta stays low % (never looks like Safe tips).
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/models/scout_code.py
+  app/db.py
+  app/schemas/scout.py
+  app/services/scout_confidence.py
+  app/services/scout_codes.py
+  app/api/scout.py
+  mobile/src/api/scout.ts
+  mobile/src/components/CodeScoutPanel.tsx
+  docs/PHASE_15B_SCOUT_CONFIDENCE.txt
+
+================================================================================
