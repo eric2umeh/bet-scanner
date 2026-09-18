@@ -21,13 +21,10 @@ from app.schemas.scout import (
     ScoutRefreshResponse,
 )
 from app.services.scout_codes import code_to_dict, list_scouted_codes, upsert_scouted_code
-from app.services.scout_ingest import ingest_text_blob, ingest_twitter_handles, ingest_web_sources
-
-
-def refresh_all_sources(db: Session, settings: Settings) -> tuple[int, list[str]]:
-    n1, s1 = ingest_web_sources(db, settings)
-    n2, s2 = ingest_twitter_handles(db, settings)
-    return n1 + n2, list(dict.fromkeys([*s1, *s2]))
+from app.services.scout_ingest import (
+    ingest_text_blob,
+    refresh_all_sources,
+)
 
 
 router = APIRouter(prefix="/scout", tags=["scout"])
@@ -117,7 +114,7 @@ def list_codes(
             limit=limit,
         )
 
-    if refresh_if_empty and not rows and book == "sportybet":
+    if refresh_if_empty and not rows:
         refresh_all_sources(db, settings)
         if band == "good":
             rows_safer = list_scouted_codes(
