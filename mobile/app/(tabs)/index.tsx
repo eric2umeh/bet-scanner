@@ -148,17 +148,12 @@ function emptyStateForFilter(
     minConfidencePct: number;
     searchQ: string;
     totalTips: number;
+    tipsOnSelectedDate: number;
     loggedFilter: LoggedFilter;
     dateFilter: string;
-    fixturesOnSelectedDate: number;
+    visibleCount: number;
   }
 ): { title: string; body: string } {
-  if (opts.dateFilter && opts.fixturesOnSelectedDate === 0) {
-    return {
-      title: 'No bets for this date',
-      body: `Nothing with tips on ${opts.dateFilter}. Pick another day, clear the date (×) to see all upcoming, or Load matches closer to kickoff.`,
-    };
-  }
   const confidenceHint =
     opts.minConfidencePct > 0
       ? ` Lower Confidence % (now ≥${opts.minConfidencePct}) or tap Clear in Filters.`
@@ -180,6 +175,22 @@ function emptyStateForFilter(
     return {
       title: 'No tips yet',
       body: 'Tap Load matches to sync prices. Tips appear when the book shows a clear confidence.',
+    };
+  }
+
+  // Date has no tip kickoffs — but tips exist on other days (common with default "today").
+  if (opts.dateFilter && opts.tipsOnSelectedDate === 0) {
+    return {
+      title: 'No tips on this date',
+      body: `${opts.totalTips} tip${opts.totalTips === 1 ? '' : 's'} loaded, but none kick off on ${opts.dateFilter}. Clear the date (×) to see all upcoming, or pick another day.`,
+    };
+  }
+
+  // Tips exist for the date (or all days) but filters hid every card.
+  if (opts.visibleCount === 0) {
+    return {
+      title: 'No matches match your filters',
+      body: `Tips are loaded, but search / book / confidence / logged hid them.${searchHint}${confidenceHint}${loggedHint}${dateHint}`,
     };
   }
 
@@ -585,30 +596,41 @@ export default function TodayScreen() {
     return counts;
   }, [confidenceAwarePicks]);
 
-  const fixturesOnSelectedDate = useMemo(() => {
-    // Tip-bearing only (same rule as the visible list).
-    if (!dateFilter) {
-      return matches.filter((m) => (picksByMatch[m.id] || []).length > 0).length;
-    }
-    return matches.filter(
-      (m) =>
-        isMatchBettable(m) &&
-        kickoffOnDate(m.kickoff_at, dateFilter) &&
-        (picksByMatch[m.id] || []).length > 0
-    ).length;
-  }, [matches, dateFilter, clockTick, picksByMatch]);
+  const tipsOnSelectedDate = useMemo(() => {
+    if (!dateFilter) return picks.length;
+    return picks.filter((p) => kickoffOnDate(p.kickoff_at, dateFilter)).length;
+  }, [picks, dateFilter]);
 
   const filterEmpty = emptyStateForFilter(filter, {
     minConfidencePct,
     searchQ,
     totalTips: picks.length,
+    tipsOnSelectedDate,
     loggedFilter,
     dateFilter,
-    fixturesOnSelectedDate,
+    visibleCount: visibleMatches.length,
   });
 
   const showNoTipsBanner = !busy && matches.length > 0 && picks.length === 0 && !dateFilter;
   const showFilterEmpty = !busy && !visibleMatches.length && !showNoTipsBanner;
+
+  const statusWithFilter = useMemo(() => {
+    if (!showFilterEmpty || !picks.length) return status;
+    if (dateFilter && tipsOnSelectedDate === 0) {
+      return `${status} · 0 on ${dateFilter}`;
+    }
+    if (visibleMatches.length === 0 && tipsOnSelectedDate > 0) {
+      return `${status} · ${tipsOnSelectedDate} on date · hidden by filters`;
+    }
+    return status;
+  }, [
+    status,
+    showFilterEmpty,
+    picks.length,
+    dateFilter,
+    tipsOnSelectedDate,
+    visibleMatches.length,
+  ]);
 
   return (
     <RequireSignIn>
@@ -660,7 +682,7 @@ export default function TodayScreen() {
           </View>
           <View style={styles.statusRow}>
             <Text style={styles.statusLine} numberOfLines={2}>
-              {status}
+              {statusWithFilter}
             </Text>
             <FreeHomeExtras />
           </View>
@@ -728,6 +750,16 @@ export default function TodayScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>{filterEmpty.title}</Text>
             <Text style={styles.staleText}>{filterEmpty.body}</Text>
+            {dateFilter && tipsOnSelectedDate === 0 && picks.length > 0 ? (
+              <Pressable style={styles.emptyAction} onPress={() => setDateFilter('')}>
+                <Text style={styles.emptyActionText}>Show all upcoming tips</Text>
+              </Pressable>
+            ) : null}
+            {tipsOnSelectedDate > 0 && minConfidencePct > 0 && visibleMatches.length === 0 ? (
+              <Pressable style={styles.emptyAction} onPress={() => setMinConfidencePct(0)}>
+                <Text style={styles.emptyActionText}>Clear confidence filter</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 
@@ -1125,6 +1157,15 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   emptyTitle: { color: colors.ink, fontWeight: '700', fontSize: 16 },
+  emptyAction: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accentDim,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  emptyActionText: { color: colors.accent, fontWeight: '700', fontSize: 13 },
   selectBar: {
     borderTopWidth: 1,
     borderTopColor: colors.line,
