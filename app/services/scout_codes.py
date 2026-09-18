@@ -4,10 +4,11 @@ Phase 15A — Code Scout list / upsert helpers.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, delete, select
 from sqlalchemy.orm import Session
 
 from app.models.scout_code import ScoutedCode
@@ -45,6 +46,30 @@ def hub_url_for(bookmaker: str, code: str) -> str | None:
     return None
 
 
+def app_zone(tz_name: str | None = None) -> ZoneInfo:
+    try:
+        return ZoneInfo((tz_name or "Africa/Lagos").strip() or "Africa/Lagos")
+    except Exception:  # noqa: BLE001
+        return ZoneInfo("Africa/Lagos")
+
+
+def start_of_today_utc(tz_name: str | None = None) -> datetime:
+    """Midnight today in app timezone, as aware UTC for DB compares."""
+    z = app_zone(tz_name)
+    local_midnight = datetime.now(z).replace(hour=0, minute=0, second=0, microsecond=0)
+    return local_midnight.astimezone(timezone.utc)
+
+
+def is_past_scout_day(when: datetime | None, tz_name: str | None = None) -> bool:
+    """True if the code's date is before today (local app day)."""
+    if when is None:
+        return False
+    z = app_zone(tz_name)
+    w = when if when.tzinfo is not None else when.replace(tzinfo=timezone.utc)
+    local_day = w.astimezone(z).date()
+    return local_day < datetime.now(z).date()
+
+
 def code_to_dict(row: ScoutedCode) -> dict:
     return {
         "id": row.id,
@@ -63,6 +88,14 @@ def code_to_dict(row: ScoutedCode) -> dict:
     }
 
 
+def purge_past_scouted_codes(db: Session, *, tz_name: str | None = None) -> int:
+    """Delete codes dated before today (settled / expired listings)."""
+    since = start_of_today_utc(tz_name)
+    result = db.execute(delete(ScoutedCode).where(ScoutedCode.scouted_at < since))
+    db.commit()
+    return int(result.rowcount or 0)
+
+
 def upsert_scouted_code(
     db: Session,
     *,
@@ -76,7 +109,8 @@ def upsert_scouted_code(
     title: str | None = None,
     notes: str | None = None,
     scouted_at: datetime | None = None,
-) -> ScoutedCode:
+    tz_name: str | None = None,
+) -> ScoutedCode | None:
     code = (code_text or "").strip().upper()
     book = (bookmaker or "sportybet").strip().lower()
     odds_dec: Decimal | None = None
@@ -86,6 +120,11 @@ def upsert_scouted_code(
         except Exception:  # noqa: BLE001
             odds_dec = None
 
+    when = scouted_at or datetime.now(timezone.utc)
+    # Never re-add yesterday’s (or older) tipster/web codes — usually settled/unavailable.
+    if is_past_scout_day(when, tz_name):
+        return None
+
     row = db.scalars(
         select(ScoutedCode).where(
             ScoutedCode.bookmaker == book,
@@ -94,7 +133,6 @@ def upsert_scouted_code(
     ).first()
 
     band = risk_band_for_odds(odds_dec, folds)
-    when = scouted_at or datetime.now(timezone.utc)
 
     if row is None:
         row = ScoutedCode(
@@ -139,7 +177,7 @@ def list_scouted_codes(
     db: Session,
     *,
     bookmaker: str = "sportybet",
-    days: int = 14,
+    tz_name: str | None = None,
     min_odds: float | None = None,
     max_odds: float | None = None,
     min_folds: int | None = None,
@@ -147,9 +185,11 @@ def list_scouted_codes(
     risk_band: str | None = None,
     sort: str = "odds_desc",
     limit: int = 80,
+    days: int | None = None,  # noqa: ARG001 — kept for API compat; feed is today-forward only
 ) -> list[ScoutedCode]:
+    del days  # ignored: Scout shows today → future only
     book = (bookmaker or "sportybet").strip().lower()
-    since = datetime.now(timezone.utc) - timedelta(days=max(1, min(days, 60)))
+    since = start_of_today_utc(tz_name)
 
     stmt: Select[tuple[ScoutedCode]] = select(ScoutedCode).where(
         ScoutedCode.bookmaker == book,
@@ -176,7 +216,6 @@ def list_scouted_codes(
     elif key == "date_asc":
         stmt = stmt.order_by(ScoutedCode.scouted_at.asc())
     else:
-        # odds_desc or date_desc default preference: newest high odds first
         if key == "date_desc":
             stmt = stmt.order_by(ScoutedCode.scouted_at.desc())
         else:
