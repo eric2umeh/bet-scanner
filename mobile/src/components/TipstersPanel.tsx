@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 
+import { userFacingError } from '../api/client';
 import {
   createTipster,
   fetchCodes,
@@ -42,14 +43,22 @@ function resultColor(result: string) {
   return colors.muted;
 }
 
+function fmtPct(n: number | null | undefined) {
+  if (n == null || !Number.isFinite(Number(n))) return null;
+  return `${Number(n)}%`;
+}
+
 export function TipstersPanel({ active, onFlash }: Props) {
   const [tipsters, setTipsters] = useState<Tipster[]>([]);
   const [codes, setCodes] = useState<BookingCode[]>([]);
   const [board, setBoard] = useState<LeaderboardRow[]>([]);
+  const [boardNote, setBoardNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [statusBad, setStatusBad] = useState(false);
   const [settlingId, setSettlingId] = useState<number | null>(null);
+  const [loadedOnce, setLoadedOnce] = useState(false);
+  const loadedOnceRef = useRef(false);
 
   const [name, setName] = useState('');
   const [handle, setHandle] = useState('');
@@ -70,22 +79,39 @@ export function TipstersPanel({ active, onFlash }: Props) {
 
   const refresh = useCallback(async () => {
     setBusy(true);
+    setBoardNote(null);
+    if (!loadedOnceRef.current) {
+      setStatus('Loading your tipsters…');
+      setStatusBad(false);
+    }
     try {
-      const [t, c, lb] = await Promise.all([
+      const [t, c, lbResult] = await Promise.all([
         fetchTipsters(80),
         fetchCodes({ limit: 40 }),
-        fetchTipsterLeaderboard(1).catch(() => ({ leaderboard: [] as LeaderboardRow[] })),
+        fetchTipsterLeaderboard(1)
+          .then((lb) => ({ ok: true as const, lb }))
+          .catch((e) => ({ ok: false as const, err: userFacingError(e) })),
       ]);
       setTipsters(t);
       setCodes(c);
-      setBoard(lb.leaderboard || []);
+      if (lbResult.ok) {
+        setBoard(lbResult.lb.leaderboard || []);
+        setBoardNote(null);
+      } else {
+        setBoard([]);
+        setBoardNote(lbResult.err);
+      }
       flash(
         t.length
-          ? `${t.length} tipster(s) · ${c.length} recent code(s)`
-          : 'No tipsters yet — add one below.'
+          ? `${t.length} tipster(s) · ${c.length} recent code(s) · your account`
+          : 'No tipsters yet — add one below. They stay on this signed-in account.'
       );
+      loadedOnceRef.current = true;
+      setLoadedOnce(true);
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
+      loadedOnceRef.current = true;
+      setLoadedOnce(true);
     } finally {
       setBusy(false);
     }
@@ -124,7 +150,7 @@ export function TipstersPanel({ active, onFlash }: Props) {
       flash(`Added tipster ${t.name}.`);
       await refresh();
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     } finally {
       setBusy(false);
     }
@@ -153,11 +179,13 @@ export function TipstersPanel({ active, onFlash }: Props) {
         notes: notes.trim() || null,
       });
       setCodeText('');
+      setStake('');
+      setOdds('');
       setNotes('');
       flash(data.message || 'Code logged.');
       await refresh();
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     } finally {
       setBusy(false);
     }
@@ -170,11 +198,13 @@ export function TipstersPanel({ active, onFlash }: Props) {
       flash(`Code #${codeId} marked ${result}.`);
       await refresh();
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     } finally {
       setSettlingId(null);
     }
   }
+
+  const showInitialLoad = busy && !loadedOnce;
 
   return (
     <View style={styles.wrap}>
@@ -190,155 +220,247 @@ export function TipstersPanel({ active, onFlash }: Props) {
         </View>
       ) : null}
 
-      <Text style={styles.subhead}>Add tipster</Text>
-      <Text style={styles.label}>Name</Text>
-      <TextInput
-        style={styles.input}
-        value={name}
-        onChangeText={setName}
-        placeholder="Lagos Tips"
-        placeholderTextColor={colors.muted}
-      />
-      <Text style={styles.label}>Handle (optional)</Text>
-      <TextInput
-        style={styles.input}
-        value={handle}
-        onChangeText={setHandle}
-        placeholder="@lagostips"
-        autoCapitalize="none"
-        placeholderTextColor={colors.muted}
-      />
-      <Text style={styles.label}>Platform</Text>
-      <View style={styles.row}>
-        {['instagram', 'telegram', 'twitter', 'other'].map((p) => (
-          <Pressable
-            key={p}
-            style={[styles.chip, platform === p && styles.chipOn]}
-            onPress={() => setPlatform(p)}
-          >
-            <Text style={[styles.chipText, platform === p && styles.chipTextOn]}>{p}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <Pressable style={[styles.btn, busy && styles.disabled]} disabled={busy} onPress={onAddTipster}>
-        <Text style={styles.btnText}>Add tipster</Text>
-      </Pressable>
-
-      <Text style={styles.subhead}>Log booking code</Text>
-      <Text style={styles.label}>Tipster</Text>
-      <View style={styles.row}>
-        {tipsters.length ? (
-          tipsters.map((t) => (
-            <Pressable
-              key={t.id}
-              style={[styles.chip, tipsterId === t.id && styles.chipOn]}
-              onPress={() => setTipsterId(t.id)}
-            >
-              <Text style={[styles.chipText, tipsterId === t.id && styles.chipTextOn]}>
-                {t.name}
-              </Text>
-            </Pressable>
-          ))
-        ) : (
-          <Text style={styles.muted}>Add a tipster first.</Text>
-        )}
-      </View>
-      <Text style={styles.label}>Booking code</Text>
-      <TextInput
-        style={styles.input}
-        value={codeText}
-        onChangeText={setCodeText}
-        autoCapitalize="characters"
-        placeholder="ABC123XYZ"
-        placeholderTextColor={colors.muted}
-      />
-      <Text style={styles.label}>Bookmaker</Text>
-      <View style={styles.row}>
-        {(['sportybet', 'bet9ja'] as const).map((b) => (
-          <Pressable
-            key={b}
-            style={[styles.chip, bookmaker === b && styles.chipOn]}
-            onPress={() => setBookmaker(b)}
-          >
-            <Text style={[styles.chipText, bookmaker === b && styles.chipTextOn]}>
-              {bookLabel(b)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-      <Pressable style={[styles.btn, busy && styles.disabled]} disabled={busy} onPress={onLogCode}>
-        <Text style={styles.btnText}>Log code</Text>
-      </Pressable>
-
-      {board.length ? (
-        <View style={styles.innerCard}>
-          <Text style={styles.subhead}>Leaderboard</Text>
-          {board.slice(0, 6).map((row, i) => (
-            <Text key={`${row.tipster_id || i}`} style={styles.boardRow}>
-              {i + 1}. {String(row.name || '—')}
-              {row.hit_rate_pct != null ? ` · ${row.hit_rate_pct}% hit` : ''}
-            </Text>
-          ))}
+      {showInitialLoad ? (
+        <View style={styles.loadingBlock}>
+          <LoadingRadar />
+          <Text style={styles.muted}>Loading your tipsters…</Text>
         </View>
       ) : null}
 
-      <Text style={styles.subhead}>Recent codes</Text>
-      {!codes.length ? (
-        <Text style={styles.muted}>No codes yet.</Text>
-      ) : (
-        codes.slice(0, 12).map((c) => (
-          <View key={c.id} style={styles.innerCard}>
-            <Text style={styles.cardTitle}>
-              {c.tipster_name} · {c.code_text}
-            </Text>
-            <Text style={styles.meta}>
-              {bookLabel(c.bookmaker)}
-              {c.odds_price != null ? ` · @${c.odds_price}` : ''}
-            </Text>
-            <Text style={[styles.result, { color: resultColor(c.result) }]}>
-              {(c.result || 'pending').toUpperCase()}
-            </Text>
-            <View style={styles.settleRow}>
-              {SETTLE.map((opt) => {
-                const on = (c.result || '').toLowerCase() === opt.value;
-                return (
-                  <Pressable
-                    key={opt.value}
-                    style={[
-                      styles.settleBtn,
-                      on && styles.settleBtnOn,
-                      settlingId === c.id && styles.disabled,
-                    ]}
-                    disabled={settlingId === c.id || busy}
-                    onPress={() => onSettle(c.id, opt.value)}
-                  >
-                    <Text style={[styles.settleBtnText, on && styles.settleBtnTextOn]}>
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+      {!showInitialLoad ? (
+        <>
+          <Text style={styles.subhead}>Add tipster</Text>
+          <Text style={styles.hint}>Saved to your signed-in account (not shared with other users).</Text>
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            placeholder="Lagos Tips"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Handle (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={handle}
+            onChangeText={setHandle}
+            placeholder="@lagostips"
+            autoCapitalize="none"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Platform</Text>
+          <View style={styles.row}>
+            {['instagram', 'telegram', 'twitter', 'other'].map((p) => (
+              <Pressable
+                key={p}
+                style={[styles.chip, platform === p && styles.chipOn]}
+                onPress={() => setPlatform(p)}
+              >
+                <Text style={[styles.chipText, platform === p && styles.chipTextOn]}>{p}</Text>
+              </Pressable>
+            ))}
           </View>
-        ))
-      )}
+          <Pressable
+            style={[styles.btn, busy && styles.disabled]}
+            disabled={busy}
+            onPress={() => void onAddTipster()}
+          >
+            <Text style={styles.btnText}>Add tipster</Text>
+          </Pressable>
 
-      <Pressable
-        style={[styles.btnSecondary, busy && styles.disabled]}
-        disabled={busy}
-        onPress={() => void refresh()}
-      >
-        <Text style={styles.btnSecondaryText}>Refresh tipsters</Text>
-      </Pressable>
+          <Text style={styles.subhead}>Log booking code</Text>
+          <Text style={styles.label}>Tipster</Text>
+          <View style={styles.row}>
+            {tipsters.length ? (
+              tipsters.map((t) => (
+                <Pressable
+                  key={t.id}
+                  style={[styles.chip, tipsterId === t.id && styles.chipOn]}
+                  onPress={() => setTipsterId(t.id)}
+                >
+                  <Text style={[styles.chipText, tipsterId === t.id && styles.chipTextOn]}>
+                    {t.name}
+                  </Text>
+                </Pressable>
+              ))
+            ) : (
+              <View style={styles.empty}>
+                <Text style={styles.emptyTitle}>No tipsters yet</Text>
+                <Text style={styles.emptyText}>Add a tipster above, then log their booking codes.</Text>
+              </View>
+            )}
+          </View>
+          {selectedTipster ? (
+            <Text style={styles.hint}>Logging for {selectedTipster.name}</Text>
+          ) : null}
+          <Text style={styles.label}>Booking code</Text>
+          <TextInput
+            style={styles.input}
+            value={codeText}
+            onChangeText={setCodeText}
+            autoCapitalize="characters"
+            placeholder="ABC123XYZ"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Bookmaker</Text>
+          <View style={styles.row}>
+            {(['sportybet', 'bet9ja'] as const).map((b) => (
+              <Pressable
+                key={b}
+                style={[styles.chip, bookmaker === b && styles.chipOn]}
+                onPress={() => setBookmaker(b)}
+              >
+                <Text style={[styles.chipText, bookmaker === b && styles.chipTextOn]}>
+                  {bookLabel(b)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={styles.label}>Stake ₦ (optional — helps ROI)</Text>
+          <TextInput
+            style={styles.input}
+            value={stake}
+            onChangeText={setStake}
+            keyboardType="numeric"
+            placeholder="e.g. 2000"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Odds (optional — helps ROI)</Text>
+          <TextInput
+            style={styles.input}
+            value={odds}
+            onChangeText={setOdds}
+            keyboardType="decimal-pad"
+            placeholder="e.g. 1.85"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Notes (optional)</Text>
+          <TextInput
+            style={[styles.input, styles.notes]}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            placeholder="Markets, slip text…"
+            placeholderTextColor={colors.muted}
+          />
+          <Pressable
+            style={[styles.btn, busy && styles.disabled]}
+            disabled={busy}
+            onPress={() => void onLogCode()}
+          >
+            <Text style={styles.btnText}>Log code</Text>
+          </Pressable>
+
+          <View style={styles.innerCard}>
+            <Text style={styles.subheadFlush}>Your leaderboard</Text>
+            <Text style={styles.hint}>
+              Private to this account. Rank uses ROI when stake + odds are logged; otherwise hit rate.
+            </Text>
+            {boardNote ? <Text style={styles.errorLine}>{boardNote}</Text> : null}
+            {!board.length && !boardNote ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyTitle}>No rankings yet</Text>
+                <Text style={styles.emptyText}>
+                  Log codes with stake and odds when you can, then settle Won / Lost to rank your tipsters.
+                </Text>
+              </View>
+            ) : null}
+            {board.slice(0, 8).map((row, i) => {
+              const hit = fmtPct(row.hit_rate_pct);
+              const roi = fmtPct(row.roi_pct);
+              const settled = Number(row.settled) || 0;
+              const won = Number(row.won) || 0;
+              const pending = Number(row.pending) || 0;
+              return (
+                <View key={`${row.tipster_id || i}`} style={styles.boardItem}>
+                  <Text style={styles.boardRank}>#{i + 1}</Text>
+                  <View style={styles.boardBody}>
+                    <Text style={styles.boardName}>{String(row.name || '—')}</Text>
+                    <Text style={styles.boardMeta}>
+                      {won}/{settled} won
+                      {hit ? ` · ${hit} hit` : ''}
+                      {roi ? ` · ${roi} ROI` : ''}
+                      {pending ? ` · ${pending} pending` : ''}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
+          <Text style={styles.subhead}>Recent codes</Text>
+          {!codes.length ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>No codes yet</Text>
+              <Text style={styles.emptyText}>
+                Paste a booking code above. Settle results when you know the outcome.
+              </Text>
+            </View>
+          ) : (
+            codes.slice(0, 12).map((c) => (
+              <View key={c.id} style={styles.innerCard}>
+                <Text style={styles.cardTitle}>
+                  {c.tipster_name} · {c.code_text}
+                </Text>
+                <Text style={styles.meta}>
+                  {bookLabel(c.bookmaker)}
+                  {c.stake_ngn != null ? ` · ₦${c.stake_ngn}` : ''}
+                  {c.odds_price != null ? ` · @${c.odds_price}` : ''}
+                </Text>
+                <Text style={[styles.result, { color: resultColor(c.result) }]}>
+                  {(c.result || 'pending').toUpperCase()}
+                </Text>
+                <View style={styles.settleRow}>
+                  {SETTLE.map((opt) => {
+                    const on = (c.result || '').toLowerCase() === opt.value;
+                    return (
+                      <Pressable
+                        key={opt.value}
+                        style={[
+                          styles.settleBtn,
+                          on && styles.settleBtnOn,
+                          settlingId === c.id && styles.disabled,
+                        ]}
+                        disabled={settlingId === c.id || busy}
+                        onPress={() => void onSettle(c.id, opt.value)}
+                      >
+                        <Text style={[styles.settleBtnText, on && styles.settleBtnTextOn]}>
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ))
+          )}
+
+          <Pressable
+            style={[styles.btnSecondary, busy && styles.disabled]}
+            disabled={busy}
+            onPress={() => void refresh()}
+          >
+            <Text style={styles.btnSecondaryText}>Refresh tipsters</Text>
+          </Pressable>
+        </>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { marginTop: 16, gap: 4 },
-  section: { color: colors.ink, fontSize: 16, fontWeight: '700' },
   subhead: { color: colors.ink, fontSize: 14, fontWeight: '700', marginTop: 12 },
+  subheadFlush: { color: colors.ink, fontSize: 14, fontWeight: '700' },
   muted: { color: colors.muted, fontSize: 12, lineHeight: 17 },
+  hint: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
+  errorLine: { color: colors.bad, fontSize: 12, marginTop: 6, fontWeight: '600' },
+  loadingBlock: {
+    marginTop: 24,
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 24,
+  },
   statusBox: {
     marginTop: 8,
     flexDirection: 'row',
@@ -366,6 +488,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     color: colors.ink,
   },
+  notes: { minHeight: 64, textAlignVertical: 'top' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: {
     paddingHorizontal: 12,
@@ -397,6 +520,17 @@ const styles = StyleSheet.create({
   },
   btnSecondaryText: { color: colors.ink, fontWeight: '600' },
   disabled: { opacity: 0.55 },
+  empty: {
+    marginTop: 8,
+    width: '100%',
+    backgroundColor: colors.bg,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+  },
+  emptyTitle: { color: colors.ink, fontWeight: '700', fontSize: 14 },
+  emptyText: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
   innerCard: {
     marginTop: 8,
     backgroundColor: colors.bg,
@@ -406,7 +540,11 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 4,
   },
-  boardRow: { color: colors.ink, fontSize: 13, lineHeight: 20 },
+  boardItem: { flexDirection: 'row', gap: 10, marginTop: 8, alignItems: 'flex-start' },
+  boardRank: { color: colors.accent, fontWeight: '800', fontSize: 13, width: 28 },
+  boardBody: { flex: 1 },
+  boardName: { color: colors.ink, fontWeight: '700', fontSize: 14 },
+  boardMeta: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
   cardTitle: { color: colors.ink, fontWeight: '700', fontSize: 14 },
   meta: { color: colors.muted, fontSize: 12, lineHeight: 17 },
   result: { fontWeight: '700', fontSize: 12, marginTop: 4 },
