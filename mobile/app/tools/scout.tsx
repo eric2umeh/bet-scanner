@@ -1,5 +1,6 @@
-import { CodeScoutScreenBody } from '../../src/components/CodeScoutPanel';
+import { Redirect } from 'expo-router';
 
-export default function CodeScoutToolScreen() {
-  return <CodeScoutScreenBody />;
+/** Legacy Tools → Code Scout route; Scout is now a main tab. */
+export default function ScoutToolRedirect() {
+  return <Redirect href="/(tabs)/scout" />;
 }
