@@ -26,7 +26,7 @@ export const TOOL_INFO = {
   tipsters: {
     title: 'Tipsters',
     message:
-      'Track booking codes from Instagram / Telegram tipsters, settle results, and see a simple leaderboard.\n\n' +
+      'Track booking codes from Instagram / Telegram tipsters on your signed-in account, settle results, and see a private leaderboard (hit rate + ROI when stake and odds are logged).\n\n' +
       'Separate from Home Safe tips and Value picks.',
   },
   surebets: {
