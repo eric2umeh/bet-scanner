@@ -34,8 +34,17 @@ import {
   saveSettings,
   unitStakeNgn,
   type AppSettings,
+  type PreferredBook,
 } from '../../src/store/settings';
 import { resetOnboarding } from '../../src/store/onboarding';
+import {
+  appLockSupported,
+  hardwareAuthAvailable,
+  loadAppLockPrefs,
+  saveAppLockPrefs,
+  type AppLockPrefs,
+} from '../../src/store/appLock';
+import { bookLabel } from '../../src/lib/tipKey';
 import {
   loadPushPrefs,
   savePushPrefs,
@@ -71,6 +80,10 @@ export default function AccountScreen() {
   const [bankroll, setBankroll] = useState('50000');
   const [unitPct, setUnitPct] = useState('1');
   const [pickMarket, setPickMarket] = useState<'double_chance' | '1x2'>('double_chance');
+  const [preferredBook, setPreferredBook] = useState<PreferredBook>('sportybet');
+  const [appLock, setAppLock] = useState<AppLockPrefs>({ enabled: false });
+  const [appLockBusy, setAppLockBusy] = useState(false);
+  const [bioAvailable, setBioAvailable] = useState(false);
   const [accessKey, setAccessKey] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -107,18 +120,24 @@ export default function AccountScreen() {
   }
 
   const loadMe = useCallback(async () => {
-    const [s, key, push] = await Promise.all([
+    const [s, key, push, lock] = await Promise.all([
       loadSettings(),
       loadAccessKey(),
       loadPushPrefs(),
+      loadAppLockPrefs(),
     ]);
     setSettings(s);
     setPushPrefs(push);
+    setAppLock(lock);
     setBankroll(String(s.bankroll));
     setUnitPct(String(s.unitPct));
     setPickMarket(s.pickMarket);
+    setPreferredBook(s.preferredBook);
     setAccessKey(key);
     setCachedAccessKey(key || null);
+    if (appLockSupported()) {
+      setBioAvailable(await hardwareAuthAvailable());
+    }
   }, []);
 
   useEffect(() => {
@@ -225,7 +244,33 @@ export default function AccountScreen() {
       bankroll: Math.max(1000, Number(bankroll) || 50000),
       unitPct: Math.min(10, Math.max(0.1, Number(unitPct) || 1)),
       pickMarket,
+      preferredBook,
     };
+  }
+
+  async function onToggleAppLock(next: boolean) {
+    if (!appLockSupported()) {
+      flash('App Lock is only on Android / iOS builds.', true);
+      return;
+    }
+    setAppLockBusy(true);
+    try {
+      if (next) {
+        const ok = await hardwareAuthAvailable();
+        if (!ok) {
+          flash('Turn on fingerprint / Face ID / device PIN in system settings first.', true);
+          return;
+        }
+      }
+      const prefs = { enabled: next };
+      await saveAppLockPrefs(prefs);
+      setAppLock(prefs);
+      flash(next ? 'App Lock on — unlock with biometrics or PIN.' : 'App Lock off.');
+    } catch (e) {
+      flash(userFacingError(e), true);
+    } finally {
+      setAppLockBusy(false);
+    }
   }
 
   async function onSaveSettings() {
@@ -689,9 +734,50 @@ export default function AccountScreen() {
               </Pressable>
             ))}
           </View>
+          <Text style={styles.label}>Preferred book (Code Scout)</Text>
+          <View style={styles.row}>
+            {(['sportybet', 'bet9ja'] as const).map((b) => (
+              <Pressable
+                key={b}
+                style={[styles.chip, preferredBook === b && styles.chipOn]}
+                onPress={() => setPreferredBook(b)}
+              >
+                <Text style={[styles.chipText, preferredBook === b && styles.chipTextOn]}>
+                  {bookLabel(b)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
           {settings ? (
             <Text style={styles.muted}>Suggested unit ≈ ₦{unitStakeNgn(settings)}</Text>
           ) : null}
+
+          {appLockSupported() ? (
+            <>
+              <Text style={[styles.label, { marginTop: 16 }]}>Security</Text>
+              <Text style={styles.hint}>
+                Lock Bet Scout with fingerprint, Face ID, or your device PIN when you leave the app.
+              </Text>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>App Lock</Text>
+                <Switch
+                  value={appLock.enabled}
+                  onValueChange={(v) => void onToggleAppLock(v)}
+                  disabled={appLockBusy}
+                  trackColor={{ true: colors.accent }}
+                />
+              </View>
+              {!bioAvailable ? (
+                <Text style={styles.hint}>
+                  No biometrics enrolled on this device — App Lock can still use your device PIN.
+                </Text>
+              ) : null}
+            </>
+          ) : (
+            <Text style={[styles.hint, { marginTop: 12 }]}>
+              App Lock (fingerprint / Face ID) is for the Android/iOS app, not the browser.
+            </Text>
+          )}
 
           {pushSupported() ? (
             <>

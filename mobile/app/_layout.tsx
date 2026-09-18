@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { setCachedAccessKey } from '../src/api/client';
+import { AppLockGate } from '../src/components/AppLockGate';
 import { ConnectionBanner } from '../src/components/ConnectionBanner';
 import { WebMobileFrame } from '../src/components/WebMobileFrame';
 import { ModalProvider } from '../src/components/modal';
@@ -151,19 +152,20 @@ export default function RootLayout() {
         <ThemeProvider value={AppNavTheme}>
           <StatusBar style="dark" backgroundColor={colors.bg} />
           <WebMobileFrame>
-            <View style={{ flex: 1, backgroundColor: colors.bg }}>
-              <ConnectionBanner />
-              <OnboardingGate ready={gateReady} />
-              <Stack
-                screenOptions={{
-                  contentStyle: { backgroundColor: colors.bg },
-                  headerStyle: { backgroundColor: colors.bg },
-                  headerTintColor: colors.ink,
-                  headerShadowVisible: false,
-                  headerTitleStyle: { color: colors.ink, fontWeight: '700' },
-                  animation: 'slide_from_right',
-                }}
-              >
+            <AppLockGate>
+              <View style={{ flex: 1, backgroundColor: colors.bg }}>
+                <ConnectionBanner />
+                <OnboardingGate ready={gateReady} />
+                <Stack
+                  screenOptions={{
+                    contentStyle: { backgroundColor: colors.bg },
+                    headerStyle: { backgroundColor: colors.bg },
+                    headerTintColor: colors.ink,
+                    headerShadowVisible: false,
+                    headerTitleStyle: { color: colors.ink, fontWeight: '700' },
+                    animation: 'slide_from_right',
+                  }}
+                >
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen
                   name="onboarding"
@@ -184,7 +186,8 @@ export default function RootLayout() {
                 />
                 <Stack.Screen name="tools" options={{ headerShown: false }} />
               </Stack>
-            </View>
+              </View>
+            </AppLockGate>
           </WebMobileFrame>
         </ThemeProvider>
       </ModalProvider>
