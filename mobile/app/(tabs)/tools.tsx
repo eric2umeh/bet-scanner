@@ -35,13 +35,6 @@ export default function ToolsHubScreen() {
           onPress={() => router.push('/tools/value')}
         />
         <ToolHubCard
-          icon="search"
-          title="Code Scout"
-          description="Browse booking codes · copy into SportyBet / Bet9ja"
-          onPress={() => router.push('/tools/scout')}
-          accent="rgba(15, 138, 95, 0.16)"
-        />
-        <ToolHubCard
           icon="exchange"
           title="Compare slip"
           description="Paste a slip · check book prices"
