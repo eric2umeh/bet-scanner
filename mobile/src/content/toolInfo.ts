@@ -51,18 +51,18 @@ export const TOOL_INFO = {
       'Free tips opens Value picks. Brief opens Daily update.',
   },
   tips: {
-    title: 'Tips',
+    title: 'Tip history',
     message:
-      'Your logged bets — Active for open tips, History for settled ones. Pull to refresh; Settle finished tips updates results when scores are in.',
+      'Your logged bets — Active for open tips, History for settled ones. Open from Account → Tip history. Pull to refresh; Settle finished tips updates results when scores are in.',
   },
   account: {
     title: 'Account',
     message:
-      'Sign in, bankroll, unit size, and Safe tip style. Those settings feed Home tips, Value picks, and stake suggestions.',
+      'Sign in, bankroll, unit size, Safe tip style, App Lock, and Tip history. Settings also set your preferred book for Scout.',
   },
   tools: {
     title: 'Tools',
     message:
-      'Extra utilities: Code Scout, Daily update, Value picks, Compare slip, and Tipsters. Surebets has its own tab. Bankroll lives under Account.',
+      'Extra utilities: Daily update, Value picks, Compare slip, and Tipsters. Code Scout has its own tab. Surebets has its own tab too.',
   },
 } as const;

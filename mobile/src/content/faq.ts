@@ -244,8 +244,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Tools',
     question: 'What is Code Scout?',
     answer:
-      'Code Scout lists booking codes found for your preferred book (SportyBet or Bet9ja). Filter by date, odds, folds, and risk band, then copy a code into the bookmaker app. Risk band is a rough label from odds/folds — not a guaranteed tip. Change preferred book under Account → Settings.',
-    keywords: ['scout', 'booking', 'code', 'sportybet', 'hub', 'odds', 'folds'],
+      'Scout is a main tab that lists booking codes for your preferred book (SportyBet or Bet9ja). Sources include public code sites and curated Twitter handles via free RSS mirrors (set SCOUT_TWITTER_HANDLES on the server). Filter with Good only to hide lottery odds. Copy a code into the bookmaker app. Tip history (logged bets) lives under Account.',
+    keywords: ['scout', 'booking', 'code', 'sportybet', 'hub', 'odds', 'folds', 'twitter'],
   },
   {
     id: 'app-lock',

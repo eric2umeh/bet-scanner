@@ -42,6 +42,7 @@ const SORT_OPTS: { value: ScoutSort; label: string }[] = [
 ];
 
 const RISK_OPTS = [
+  { value: 'good', label: 'Good only' },
   { value: 'all', label: 'All risk' },
   { value: 'safer', label: 'Safer' },
   { value: 'stretch', label: 'Stretch' },
@@ -82,7 +83,7 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
   const [statusBad, setStatusBad] = useState(false);
   const [days, setDays] = useState(14);
   const [sort, setSort] = useState<ScoutSort>('odds_desc');
-  const [risk, setRisk] = useState('all');
+  const [risk, setRisk] = useState('good');
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -163,9 +164,9 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>Code Scout</Text>
         <Text style={styles.heroText}>
-          Auto-listed booking codes for {bookLabel(bookmaker)}. Copy a code into the book app —
-          risk band is from odds/folds only (not a win tip). Deeper leg audits come in a later
-          phase.
+          Auto-listed booking codes for {bookLabel(bookmaker)} from public sites and curated
+          Twitter handles (free RSS mirrors — no paid X API). Copy into the book app. “Good only”
+          hides lottery-odds slips. Risk band is from odds/folds, not a win tip.
         </Text>
       </View>
 

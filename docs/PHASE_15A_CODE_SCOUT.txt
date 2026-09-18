@@ -19,23 +19,23 @@ WHAT SHIPPED
     - POST /scout/ingest-text — admin Twitter/tipster paste parse
     - Auto web ingest when SportyBet feed is empty (refresh_if_empty)
 
-  15A-2  Web sources (v1)
-    - SureCodes24 + BettingInAfrica SportyBet pages (public HTML)
-    - shareCode= URL + table parsers
-    - SportyBet Code Hub has no stable public JSON API — not scraped directly
-    - Env SCOUT_WEB_SOURCES = book|label|url;book|label|url (optional)
+  15A-2  Web + Twitter sources (free)
+    - SureCodes24 + BettingInAfrica SportyBet pages
+    - Curated X handles via free RSS mirrors (xcancel / nitter-style)
+      Env: SCOUT_TWITTER_HANDLES=SportyBet,SomeTipster
+           SCOUT_TWITTER_RSS_TEMPLATES=https://xcancel.com/{user}/rss,...
+           SCOUT_TWITTER_SKIP_LOTTERY=true (default)
+    - No paid X API; mirrors break — admin Refresh + paste still work
+    - UI default filter “Good only” = safer + stretch (hides lottery)
 
-  15A-3  Mobile Code Scout
-    - Tools → Code Scout
-    - Bookmaker switch (persists preferredBook in settings)
-    - Filters: period, sort (odds/folds/date), risk band
-    - Copy code + Open book (SportyBet share link)
-    - Risk band = safer / stretch / lottery heuristic from odds/folds
+  15A-3  Mobile Code Scout (main tab)
+    - Tab bar: Home · Scout · Surebets · Tools · Account
+    - Tips removed from bar → Account → Tip history
+    - Bookmaker switch, filters, Copy code, Open book
 
   15A-4  App Lock (biometrics)
     - expo-local-authentication
     - Account → Settings → App Lock
-    - Unlock on open / return to foreground (Android & iOS; skipped on web)
 
 
 --------------------------------------------------------------------------------
