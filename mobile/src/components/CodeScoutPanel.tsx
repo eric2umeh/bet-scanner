@@ -27,13 +27,6 @@ import { LoadingRadar } from './LoadingRadar';
 import { colors } from '../theme/colors';
 import { webScrollBottom } from '../theme/webScroll';
 
-const DAY_OPTS = [
-  { value: 3, label: '3d' },
-  { value: 7, label: '7d' },
-  { value: 14, label: '14d' },
-  { value: 30, label: '30d' },
-];
-
 const SORT_OPTS: { value: ScoutSort; label: string }[] = [
   { value: 'odds_desc', label: 'Odds ↓' },
   { value: 'odds_asc', label: 'Odds ↑' },
@@ -74,7 +67,6 @@ function whenLabel(iso?: string | null) {
 
 type FilterDraft = {
   bookmaker: PreferredBook;
-  days: number;
   sort: ScoutSort;
   risk: string;
 };
@@ -119,14 +111,12 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [statusBad, setStatusBad] = useState(false);
-  const [days, setDays] = useState(14);
   const [sort, setSort] = useState<ScoutSort>('odds_desc');
   const [risk, setRisk] = useState('good');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [draft, setDraft] = useState<FilterDraft>({
     bookmaker,
-    days: 14,
     sort: 'odds_desc',
     risk: 'good',
   });
@@ -137,7 +127,6 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
     try {
       const data = await fetchScoutCodes({
         bookmaker,
-        days,
         sort,
         risk_band: risk,
         refresh_if_empty: true,
@@ -150,27 +139,25 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
     } finally {
       setBusy(false);
     }
-  }, [bookmaker, days, sort, risk]);
+  }, [bookmaker, sort, risk]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   const filterSummary = useMemo(() => {
-    const period = DAY_OPTS.find((o) => o.value === days)?.label ?? `${days}d`;
     const sortL = SORT_OPTS.find((o) => o.value === sort)?.label ?? sort;
     const riskL = RISK_OPTS.find((o) => o.value === risk)?.label ?? risk;
-    return `${bookLabel(bookmaker)} · ${period} · ${sortL} · ${riskL}`;
-  }, [bookmaker, days, sort, risk]);
+    return `${bookLabel(bookmaker)} · Today+ · ${sortL} · ${riskL}`;
+  }, [bookmaker, sort, risk]);
 
   function openFilters() {
-    setDraft({ bookmaker, days, sort, risk });
+    setDraft({ bookmaker, sort, risk });
     setFilterOpen(true);
   }
 
   function applyFilters() {
     onBookChange?.(draft.bookmaker);
-    setDays(draft.days);
     setSort(draft.sort);
     setRisk(draft.risk);
     setFilterOpen(false);
@@ -345,12 +332,6 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
                 ]}
                 value={draft.bookmaker}
                 onChange={(v) => setDraft((d) => ({ ...d, bookmaker: v }))}
-              />
-              <ChipRow
-                label="Period"
-                options={DAY_OPTS}
-                value={draft.days}
-                onChange={(v) => setDraft((d) => ({ ...d, days: v }))}
               />
               <ChipRow
                 label="Sort"
