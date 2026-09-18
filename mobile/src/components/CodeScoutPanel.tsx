@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Linking,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -9,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import * as Clipboard from 'expo-clipboard';
 
 import { userFacingError } from '../api/client';
@@ -70,10 +72,46 @@ function whenLabel(iso?: string | null) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+type FilterDraft = {
+  bookmaker: PreferredBook;
+  days: number;
+  sort: ScoutSort;
+  risk: string;
+};
+
 type Props = {
   bookmaker: PreferredBook;
   onBookChange?: (b: PreferredBook) => void;
 };
+
+function ChipRow<T extends string | number>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <View style={styles.filterBlock}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.row}>
+        {options.map((o) => (
+          <Pressable
+            key={String(o.value)}
+            style={[styles.chip, value === o.value && styles.chipOn]}
+            onPress={() => onChange(o.value)}
+          >
+            <Text style={[styles.chipText, value === o.value && styles.chipTextOn]}>{o.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
   const isAdmin = useIsAdmin();
@@ -85,6 +123,13 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
   const [sort, setSort] = useState<ScoutSort>('odds_desc');
   const [risk, setRisk] = useState('good');
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draft, setDraft] = useState<FilterDraft>({
+    bookmaker,
+    days: 14,
+    sort: 'odds_desc',
+    risk: 'good',
+  });
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -110,6 +155,26 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const filterSummary = useMemo(() => {
+    const period = DAY_OPTS.find((o) => o.value === days)?.label ?? `${days}d`;
+    const sortL = SORT_OPTS.find((o) => o.value === sort)?.label ?? sort;
+    const riskL = RISK_OPTS.find((o) => o.value === risk)?.label ?? risk;
+    return `${bookLabel(bookmaker)} · ${period} · ${sortL} · ${riskL}`;
+  }, [bookmaker, days, sort, risk]);
+
+  function openFilters() {
+    setDraft({ bookmaker, days, sort, risk });
+    setFilterOpen(true);
+  }
+
+  function applyFilters() {
+    onBookChange?.(draft.bookmaker);
+    setDays(draft.days);
+    setSort(draft.sort);
+    setRisk(draft.risk);
+    setFilterOpen(false);
+  }
 
   async function onAdminRefresh() {
     setBusy(true);
@@ -153,151 +218,165 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[
-        styles.content,
-        Platform.OS === 'web' ? { paddingBottom: webScrollBottom(24) } : null,
-      ]}
-      refreshControl={<RefreshControl refreshing={busy} onRefresh={() => void load()} />}
-    >
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Code Scout</Text>
-        <Text style={styles.heroText}>
-          Auto-listed booking codes for {bookLabel(bookmaker)} from public sites and curated
-          Twitter handles (free RSS mirrors — no paid X API). Copy into the book app. “Good only”
-          hides lottery-odds slips. Risk band is from odds/folds, not a win tip.
-        </Text>
-      </View>
-
-      <Text style={styles.label}>Bookmaker</Text>
-      <View style={styles.row}>
-        {(['sportybet', 'bet9ja'] as const).map((b) => (
-          <Pressable
-            key={b}
-            style={[styles.chip, bookmaker === b && styles.chipOn]}
-            onPress={() => onBookChange?.(b)}
-          >
-            <Text style={[styles.chipText, bookmaker === b && styles.chipTextOn]}>
-              {bookLabel(b)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.label}>Period</Text>
-      <View style={styles.row}>
-        {DAY_OPTS.map((o) => (
-          <Pressable
-            key={o.value}
-            style={[styles.chip, days === o.value && styles.chipOn]}
-            onPress={() => setDays(o.value)}
-          >
-            <Text style={[styles.chipText, days === o.value && styles.chipTextOn]}>{o.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.label}>Sort</Text>
-      <View style={styles.row}>
-        {SORT_OPTS.map((o) => (
-          <Pressable
-            key={o.value}
-            style={[styles.chip, sort === o.value && styles.chipOn]}
-            onPress={() => setSort(o.value)}
-          >
-            <Text style={[styles.chipText, sort === o.value && styles.chipTextOn]}>{o.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.label}>Risk band</Text>
-      <View style={styles.row}>
-        {RISK_OPTS.map((o) => (
-          <Pressable
-            key={o.value}
-            style={[styles.chip, risk === o.value && styles.chipOn]}
-            onPress={() => setRisk(o.value)}
-          >
-            <Text style={[styles.chipText, risk === o.value && styles.chipTextOn]}>{o.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {status ? (
-        <View style={[styles.statusBox, statusBad && styles.statusBad]}>
-          {busy ? (
-            <LoadingRadar
-              color={statusBad ? colors.bad : colors.accent}
-              style={{ marginRight: 8 }}
-            />
-          ) : null}
-          <Text style={[styles.statusText, statusBad && styles.statusTextBad]}>{status}</Text>
+    <>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[
+          styles.content,
+          Platform.OS === 'web' ? { paddingBottom: webScrollBottom(24) } : null,
+        ]}
+        refreshControl={<RefreshControl refreshing={busy} onRefresh={() => void load()} />}
+      >
+        <View style={styles.hero}>
+          <Text style={styles.heroTitle}>Code Scout</Text>
+          <Text style={styles.heroText}>
+            Auto-listed booking codes for {bookLabel(bookmaker)} from public sites and curated
+            Twitter handles. Copy into the book app. Risk band is from odds/folds, not a win tip.
+          </Text>
         </View>
-      ) : null}
 
-      {isAdmin ? (
-        <Pressable
-          style={[styles.btnSecondary, busy && styles.disabled]}
-          disabled={busy}
-          onPress={() => void onAdminRefresh()}
-        >
-          <Text style={styles.btnSecondaryText}>Refresh from web sources</Text>
+        <Pressable style={styles.filterBtn} onPress={openFilters}>
+          <FontAwesome name="filter" size={14} color={colors.accent} style={{ marginRight: 8 }} />
+          <View style={styles.filterBtnText}>
+            <Text style={styles.filterBtnTitle}>Filters</Text>
+            <Text style={styles.filterBtnSummary} numberOfLines={1}>
+              {filterSummary}
+            </Text>
+          </View>
+          <FontAwesome name="chevron-down" size={12} color={colors.muted} />
         </Pressable>
-      ) : null}
 
-      {busy && !codes.length ? (
-        <View style={styles.loadingBlock}>
-          <LoadingRadar />
-          <Text style={styles.muted}>Scouting codes…</Text>
-        </View>
-      ) : null}
+        {status ? (
+          <View style={[styles.statusBox, statusBad && styles.statusBad]}>
+            {busy ? (
+              <LoadingRadar
+                color={statusBad ? colors.bad : colors.accent}
+                style={{ marginRight: 8 }}
+              />
+            ) : null}
+            <Text style={[styles.statusText, statusBad && styles.statusTextBad]}>{status}</Text>
+          </View>
+        ) : null}
 
-      {!busy && !codes.length ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>No codes in this filter</Text>
-          <Text style={styles.emptyText}>
-            {bookmaker === 'bet9ja'
-              ? 'Bet9ja web sources are thin in v1 — switch to SportyBet, or ask an admin to add codes.'
-              : 'Pull down to refresh, widen the period, or clear the risk filter.'}
-          </Text>
-        </View>
-      ) : null}
+        {isAdmin ? (
+          <Pressable
+            style={[styles.btnSecondary, busy && styles.disabled]}
+            disabled={busy}
+            onPress={() => void onAdminRefresh()}
+          >
+            <Text style={styles.btnSecondaryText}>Refresh from web sources</Text>
+          </Pressable>
+        ) : null}
 
-      {codes.map((row) => (
-        <View key={row.id} style={styles.card}>
-          <View style={styles.cardTop}>
-            <Text style={styles.code}>{row.code_text}</Text>
-            <Text style={[styles.band, { color: riskColor(row.risk_band) }]}>
-              {(row.risk_band || 'unknown').toUpperCase()}
+        {busy && !codes.length ? (
+          <View style={styles.loadingBlock}>
+            <LoadingRadar />
+            <Text style={styles.muted}>Scouting codes…</Text>
+          </View>
+        ) : null}
+
+        {!busy && !codes.length ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>No codes in this filter</Text>
+            <Text style={styles.emptyText}>
+              {bookmaker === 'bet9ja'
+                ? 'Bet9ja sources are thin — switch book in Filters, or ask an admin to refresh.'
+                : 'Pull down to refresh, or open Filters to widen period / risk.'}
             </Text>
           </View>
-          <Text style={styles.meta}>
-            @{fmtOdds(row.combined_odds)}
-            {row.folds != null ? ` · ${row.folds} folds` : ''}
-            {row.source_label ? ` · ${row.source_label}` : ` · ${row.source}`}
-            {whenLabel(row.scouted_at) ? ` · ${whenLabel(row.scouted_at)}` : ''}
-          </Text>
-          {row.title ? <Text style={styles.titleLine}>{row.title}</Text> : null}
-          <View style={styles.actions}>
-            <Pressable
-              style={[styles.btn, copiedId === row.id && styles.btnDone]}
-              onPress={() => void onCopy(row)}
+        ) : null}
+
+        {codes.map((row) => (
+          <View key={row.id} style={styles.card}>
+            <View style={styles.cardTop}>
+              <Text style={styles.code}>{row.code_text}</Text>
+              <Text style={[styles.band, { color: riskColor(row.risk_band) }]}>
+                {(row.risk_band || 'unknown').toUpperCase()}
+              </Text>
+            </View>
+            <Text style={styles.meta}>
+              @{fmtOdds(row.combined_odds)}
+              {row.folds != null ? ` · ${row.folds} folds` : ''}
+              {row.source_label ? ` · ${row.source_label}` : ` · ${row.source}`}
+              {whenLabel(row.scouted_at) ? ` · ${whenLabel(row.scouted_at)}` : ''}
+            </Text>
+            {row.title ? <Text style={styles.titleLine}>{row.title}</Text> : null}
+            <View style={styles.actions}>
+              <Pressable
+                style={[styles.btn, copiedId === row.id && styles.btnDone]}
+                onPress={() => void onCopy(row)}
+              >
+                <Text style={styles.btnText}>{copiedId === row.id ? 'Copied' : 'Copy code'}</Text>
+              </Pressable>
+              <Pressable style={styles.btnGhost} onPress={() => void onOpenHub(row)}>
+                <Text style={styles.btnGhostText}>Open book</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+
+        <Text style={styles.footerNote}>
+          SportyBet Code Hub is not a stable public API — Bet Scout starts from public code lists +
+          share links. Always confirm the slip inside the bookmaker before staking.
+        </Text>
+      </ScrollView>
+
+      <Modal
+        visible={filterOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFilterOpen(false)}
+      >
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setFilterOpen(false)} />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Filters</Text>
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
             >
-              <Text style={styles.btnText}>{copiedId === row.id ? 'Copied' : 'Copy code'}</Text>
-            </Pressable>
-            <Pressable style={styles.btnGhost} onPress={() => void onOpenHub(row)}>
-              <Text style={styles.btnGhostText}>Open book</Text>
-            </Pressable>
+              <ChipRow
+                label="Bookmaker"
+                options={[
+                  { value: 'sportybet' as PreferredBook, label: bookLabel('sportybet') },
+                  { value: 'bet9ja' as PreferredBook, label: bookLabel('bet9ja') },
+                ]}
+                value={draft.bookmaker}
+                onChange={(v) => setDraft((d) => ({ ...d, bookmaker: v }))}
+              />
+              <ChipRow
+                label="Period"
+                options={DAY_OPTS}
+                value={draft.days}
+                onChange={(v) => setDraft((d) => ({ ...d, days: v }))}
+              />
+              <ChipRow
+                label="Sort"
+                options={SORT_OPTS}
+                value={draft.sort}
+                onChange={(v) => setDraft((d) => ({ ...d, sort: v }))}
+              />
+              <ChipRow
+                label="Risk band"
+                options={RISK_OPTS}
+                value={draft.risk}
+                onChange={(v) => setDraft((d) => ({ ...d, risk: v }))}
+              />
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <Pressable style={styles.modalCancel} onPress={() => setFilterOpen(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalApply} onPress={applyFilters}>
+                <Text style={styles.modalApplyText}>Apply</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
-      ))}
-
-      <Text style={styles.footerNote}>
-        SportyBet Code Hub is not a stable public API — Bet Scout starts from public code lists +
-        share links. Always confirm the slip inside the bookmaker before staking.
-      </Text>
-    </ScrollView>
+      </Modal>
+    </>
   );
 }
 
@@ -333,8 +412,23 @@ const styles = StyleSheet.create({
   },
   heroTitle: { color: colors.ink, fontWeight: '800', fontSize: 16 },
   heroText: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 6 },
-  label: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 10 },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 4,
+  },
+  filterBtnText: { flex: 1, minWidth: 0 },
+  filterBtnTitle: { color: colors.ink, fontWeight: '700', fontSize: 14 },
+  filterBtnSummary: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  filterBlock: { marginBottom: 8 },
+  label: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 8 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -421,4 +515,50 @@ const styles = StyleSheet.create({
   btnSecondaryText: { color: colors.ink, fontWeight: '600' },
   disabled: { opacity: 0.55 },
   footerNote: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 18 },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  modalSheet: {
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+    paddingTop: 8,
+    maxHeight: '85%',
+  },
+  modalHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.line,
+    marginBottom: 10,
+  },
+  modalTitle: { color: colors.ink, fontWeight: '800', fontSize: 18, marginBottom: 4 },
+  modalScroll: { flexGrow: 0 },
+  modalScrollContent: { paddingBottom: 12 },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  modalCancel: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  modalCancelText: { color: colors.ink, fontWeight: '600' },
+  modalApply: {
+    flex: 1,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  modalApplyText: { color: colors.onAccent, fontWeight: '700' },
 });
