@@ -70,7 +70,13 @@ def is_past_scout_day(when: datetime | None, tz_name: str | None = None) -> bool
     return local_day < datetime.now(z).date()
 
 
-def code_to_dict(row: ScoutedCode) -> dict:
+def code_to_dict(row: ScoutedCode, *, legs_count: int = 0, legs_matched: int = 0) -> dict:
+    conf = row.confidence_pct
+    conf_f = float(conf) if conf is not None else None
+    label = row.confidence_label
+    verification = (row.verification or "unverified").strip().lower()
+    if conf_f is None and not label:
+        label = "Unverified — copy only."
     return {
         "id": row.id,
         "code_text": row.code_text,
@@ -85,6 +91,11 @@ def code_to_dict(row: ScoutedCode) -> dict:
         "notes": row.notes,
         "scouted_at": row.scouted_at,
         "hub_url": hub_url_for(row.bookmaker, row.code_text),
+        "verification": verification,
+        "confidence_pct": conf_f,
+        "confidence_label": label or "Unverified — copy only.",
+        "legs_count": legs_count,
+        "legs_matched": legs_matched,
     }
 
 
@@ -168,6 +179,12 @@ def upsert_scouted_code(
         if row.scouted_at is None or when >= row.scouted_at:
             row.scouted_at = when
 
+    db.commit()
+    db.refresh(row)
+    # Phase 15B — attach legs / confidence when possible (no ctx → rich meta or unverified)
+    from app.services.scout_confidence import compute_scout_confidence
+
+    compute_scout_confidence(row, db=db, persist=True)
     db.commit()
     db.refresh(row)
     return row
