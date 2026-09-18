@@ -14,23 +14,22 @@ WHAT SHIPPED
   15A-1  Scouted codes backend
     - Table scouted_codes (book + code unique)
     - GET /scout/codes — filter days, odds, folds, risk_band, sort
-    - POST /scout/refresh — admin web ingest
+    - POST /scout/refresh — admin web + Twitter ingest
     - POST /scout/codes — admin manual add
     - POST /scout/ingest-text — admin Twitter/tipster paste parse
-    - Auto web ingest when SportyBet feed is empty (refresh_if_empty)
+    - Auto ingest when feed empty (refresh_if_empty)
 
-  15A-2  Web + Twitter sources (free)
-    - SureCodes24 + BettingInAfrica SportyBet pages
-    - Curated X handles via free RSS mirrors (xcancel / nitter-style)
-      Env: SCOUT_TWITTER_HANDLES=SportyBet,SomeTipster
-           SCOUT_TWITTER_RSS_TEMPLATES=https://xcancel.com/{user}/rss,...
-           SCOUT_TWITTER_SKIP_LOTTERY=true (default)
-    - No paid X API; mirrors break — admin Refresh + paste still work
-    - UI default filter “Good only” = safer + stretch (hides lottery)
+  15A-2  Web + Twitter sources (free, multi-book)
+    - SureCodes24 + BettingInAfrica (SportyBet pages)
+    - Curated X handles: SCOUT_TWITTER_HANDLES=sportybet:Handle,bet9ja:Handle,nairabet:Handle
+    - Free RSS mirrors (no paid X API); SCOUT_TWITTER_SKIP_LOTTERY=true
+    - Auto refresh on admin Load matches (/odds/sync) + morning ops
+    - Scout tab pull reloads DB; admin Refresh forces ingest
+    - UI “Good only” = safer + stretch
 
   15A-3  Mobile Code Scout (main tab)
     - Tab bar: Home · Scout · Surebets · Tools · Account
-    - Tips removed from bar → Account → Tip history
+    - Tips → Account → Tip history
     - Bookmaker switch, filters, Copy code, Open book
 
   15A-4  App Lock (biometrics)
@@ -43,10 +42,10 @@ HOW TO SMOKE-TEST
 --------------------------------------------------------------------------------
 
   Code Scout
-  1. Sign in → Tools → Code Scout.
-  2. Prefer SportyBet; pull to refresh — codes should appear (or admin Refresh).
-  3. Filter odds / risk; Copy code; paste into SportyBet Load Code.
-  4. Switch to Bet9ja — feed scopes (may be empty until sources added).
+  1. Sign in → Scout tab (not Tools).
+  2. Prefer SportyBet / Bet9ja; codes appear after Load matches or admin Refresh.
+  3. Filter Good only; Copy code; paste into the book Load Code field.
+  4. Switch book — feed scopes to that bookmaker.
 
   App Lock
   1. On a device build: Account → Settings → App Lock on.
