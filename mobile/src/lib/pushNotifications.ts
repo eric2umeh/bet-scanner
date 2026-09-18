@@ -16,8 +16,19 @@ const DEFAULT_PREFS: PushPrefs = {
   notifySettled: true,
 };
 
+/** True in Expo Go — remote push was removed from Go on Android (SDK 53+). */
+export function isExpoGo(): boolean {
+  return Constants.appOwnership === 'expo';
+}
+
+/**
+ * Remote push only on real/dev builds — not web, not Expo Go.
+ * Importing expo-notifications inside Expo Go logs a hard ERROR on Android.
+ */
 export function pushSupported(): boolean {
-  return Platform.OS === 'ios' || Platform.OS === 'android';
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return false;
+  if (isExpoGo()) return false;
+  return true;
 }
 
 function projectId(): string | undefined {
@@ -56,13 +67,19 @@ export async function unregisterPushToken(token?: string): Promise<void> {
 
 /**
  * Ask OS permission, get Expo push token, register with API.
- * No-op on web / when signed out / when Expo Go lacks projectId.
+ * No-op on web / Expo Go / when signed out.
  */
 export async function syncPushRegistration(prefs: PushPrefs = DEFAULT_PREFS): Promise<{
   ok: boolean;
   message: string;
   token?: string;
 }> {
+  if (isExpoGo()) {
+    return {
+      ok: false,
+      message: 'Push alerts need a Play/App or development build — not Expo Go.',
+    };
+  }
   if (!pushSupported()) {
     return {
       ok: false,
