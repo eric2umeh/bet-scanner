@@ -34,6 +34,8 @@ Put **guides, product notes, learning notes, and glossaries** here — not appli
 | [HOW_TO_USE_DOCS.txt](./HOW_TO_USE_DOCS.txt) | How the `/docs` test panel works (click-by-click) |
 | [PHASE_14A_PLAY_STORE.txt](./PHASE_14A_PLAY_STORE.txt) | Google Play / store listing notes |
 | [PHASE_14C_PUSH.txt](./PHASE_14C_PUSH.txt) | Expo push: morning digest + tip settled |
+| [PHASE_14D_OFFLINE.txt](./PHASE_14D_OFFLINE.txt) | Home feed offline via TanStack Query |
+| [PHASE_14E_PRODUCT_POLISH.txt](./PHASE_14E_PRODUCT_POLISH.txt) | Onboarding, tipster leaderboard, error/loading polish |
 | *(add more here)* | Roadmaps, UX notes, API key guides, research, etc. |
 
 Code stays in `app/`, `scripts/`, etc.  
