@@ -338,14 +338,23 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
       <Modal
         visible={filterOpen}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setFilterOpen(false)}
       >
         <View style={styles.modalRoot}>
           <Pressable style={styles.modalBackdrop} onPress={() => setFilterOpen(false)} />
           <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Filters</Text>
+            <View style={styles.modalHead}>
+              <Text style={styles.modalTitle}>Filters</Text>
+              <Pressable
+                onPress={() => setFilterOpen(false)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Close filters"
+              >
+                <Text style={styles.modalClose}>×</Text>
+              </Pressable>
+            </View>
             <ScrollView
               style={styles.modalScroll}
               contentContainerStyle={styles.modalScrollContent}
@@ -524,31 +533,37 @@ const styles = StyleSheet.create({
   btnSecondaryText: { color: colors.ink, fontWeight: '600' },
   disabled: { opacity: 0.55 },
   footerNote: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 18 },
-  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  modalRoot: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   modalSheet: {
     backgroundColor: colors.bg,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.line,
     paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
-    paddingTop: 8,
+    paddingBottom: 16,
+    paddingTop: 14,
+    width: '100%',
+    maxWidth: 420,
     maxHeight: '85%',
+    zIndex: 1,
   },
-  modalHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.line,
-    marginBottom: 10,
+  modalHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  modalTitle: { color: colors.ink, fontWeight: '800', fontSize: 18, marginBottom: 4 },
+  modalTitle: { color: colors.ink, fontWeight: '800', fontSize: 18 },
+  modalClose: { color: colors.muted, fontSize: 28, lineHeight: 28, fontWeight: '400' },
   modalScroll: { flexGrow: 0 },
   modalScrollContent: { paddingBottom: 12 },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
