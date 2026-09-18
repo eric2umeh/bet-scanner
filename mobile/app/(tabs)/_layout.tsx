@@ -62,12 +62,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="scout"
+        options={{
+          title: 'Scout',
+          tabBarLabel: 'Scout',
+          headerShown: !isWeb,
+          headerRight: () => <TabHeaderRight info={TOOL_INFO.scout} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="search" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="tips"
         options={{
-          title: 'Tips',
+          title: 'Tip history',
           headerShown: true,
           headerRight: () => <TabHeaderRight info={TOOL_INFO.tips} />,
           tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
+          // Hidden from tab bar — open via Account → Tip history.
+          href: null,
         }}
       />
       <Tabs.Screen
