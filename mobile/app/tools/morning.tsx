@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { userFacingError } from '../../src/api/client';
 import { runDailyOps, type DailyOpsResponse } from '../../src/api/ops';
 import { AccessDeniedPanel } from '../../src/components/AccessDeniedPanel';
 import { LoadingRadar } from '../../src/components/LoadingRadar';
@@ -75,7 +76,7 @@ export default function MorningUpdateScreen() {
       setStatus(data.message || data.summary || 'Morning update finished.');
       setStatusBad(!data.ok);
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : String(e));
+      setStatus(userFacingError(e));
       setStatusBad(true);
     } finally {
       setOpsBusy(false);
