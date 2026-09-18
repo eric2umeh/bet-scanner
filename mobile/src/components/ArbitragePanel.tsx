@@ -288,7 +288,7 @@ export function ArbitragePanel({ onFlash }: Props) {
       setHistory(items);
       setHistPageIndex(0);
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     } finally {
       setBusy(false);
     }
@@ -385,7 +385,7 @@ export function ArbitragePanel({ onFlash }: Props) {
       const how = await shareOrCopyText(formatSurebetPlan(opp));
       flash(how === 'copied' ? 'Stake plan copied.' : 'Stake plan shared.');
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e), true);
+      flash(userFacingError(e), true);
     }
   }
 
@@ -408,10 +408,13 @@ export function ArbitragePanel({ onFlash }: Props) {
       flash('Surebet logged — open History to see it.');
       if (tab === 'history') await loadHistory();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      flash(msg.includes('409') || msg.toLowerCase().includes('already')
-        ? 'Already logged for this match/market.'
-        : msg, true);
+      const raw = e instanceof Error ? e.message : String(e);
+      flash(
+        raw.includes('409') || raw.toLowerCase().includes('already')
+          ? 'Already logged for this match/market.'
+          : userFacingError(e),
+        true
+      );
     } finally {
       setLoggingId(null);
     }
