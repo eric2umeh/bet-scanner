@@ -16,12 +16,16 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.services.scout_codes import upsert_scouted_code
+from app.services.scout_codes import risk_band_for_odds, upsert_scouted_code
 
 # SportyBet-style short codes + optional odds nearby
 CODE_TOKEN = re.compile(r"\b([A-Z0-9]{5,8})\b")
 SHARE_CODE = re.compile(
     r"shareCode=([A-Za-z0-9]{4,12})",
+    re.IGNORECASE,
+)
+ODDS_NEAR = re.compile(
+    r"(?:odds|@)\s*[:=]?\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:odds|x)\b",
     re.IGNORECASE,
 )
 # Table-ish: DATE | CODE | ODDS
@@ -150,6 +154,20 @@ def parse_public_code_page(
     return list(found.values())
 
 
+def _odds_from_blob(text: str) -> Decimal | None:
+    for m in ODDS_NEAR.finditer(text or ""):
+        raw = m.group(1) or m.group(2)
+        if not raw:
+            continue
+        try:
+            odds = Decimal(raw)
+        except Exception:  # noqa: BLE001
+            continue
+        if Decimal("1.01") <= odds <= Decimal("100000"):
+            return odds
+    return None
+
+
 def parse_twitter_style_text(
     text: str,
     *,
@@ -157,6 +175,7 @@ def parse_twitter_style_text(
     source_label: str = "Twitter",
 ) -> list[dict]:
     """Pull shareCode=… and nearby odds from tipster-style posts."""
+    blob_odds = _odds_from_blob(text)
     rows = parse_public_code_page(
         text,
         bookmaker=bookmaker,
@@ -165,6 +184,8 @@ def parse_twitter_style_text(
     )
     for r in rows:
         r["source"] = "twitter"
+        if r.get("combined_odds") is None and blob_odds is not None:
+            r["combined_odds"] = blob_odds
     # Also catch "NG: P6VBYM" style without URL
     for m in re.finditer(
         r"(?:NG|code|booking)\s*[:\-]?\s*([A-Z0-9]{5,8})",
@@ -180,7 +201,7 @@ def parse_twitter_style_text(
             {
                 "code_text": code,
                 "bookmaker": bookmaker,
-                "combined_odds": None,
+                "combined_odds": blob_odds,
                 "scouted_at": None,
                 "source": "twitter",
                 "source_label": source_label,
@@ -189,6 +210,153 @@ def parse_twitter_style_text(
             }
         )
     return rows
+
+
+def _rss_item_texts(xml: str) -> list[str]:
+    """Very small RSS/Atom extractor — title + description/content per item."""
+    chunks: list[str] = []
+    # Prefer <item>…</item> then <entry>…</entry>
+    for block in re.findall(r"(?is)<item\b[^>]*>.*?</item>", xml):
+        parts = re.findall(
+            r"(?is)<(?:title|description|content:encoded|content)\b[^>]*>(.*?)</(?:title|description|content:encoded|content)>",
+            block,
+        )
+        text = " ".join(_strip_html(p) for p in parts)
+        if text.strip():
+            chunks.append(text)
+    if chunks:
+        return chunks
+    for block in re.findall(r"(?is)<entry\b[^>]*>.*?</entry>", xml):
+        parts = re.findall(
+            r"(?is)<(?:title|summary|content)\b[^>]*>(.*?)</(?:title|summary|content)>",
+            block,
+        )
+        text = " ".join(_strip_html(p) for p in parts)
+        if text.strip():
+            chunks.append(text)
+    return chunks
+
+
+def configured_twitter_handles(settings: Settings) -> list[str]:
+    raw = (getattr(settings, "scout_twitter_handles", None) or "").strip()
+    if not raw:
+        return []
+    out: list[str] = []
+    for part in raw.split(","):
+        h = part.strip().lstrip("@")
+        if h and h not in out:
+            out.append(h)
+    return out
+
+
+def configured_twitter_rss_templates(settings: Settings) -> list[str]:
+    raw = (getattr(settings, "scout_twitter_rss_templates", None) or "").strip()
+    if not raw:
+        return [
+            "https://xcancel.com/{user}/rss",
+            "https://nitter.privacydev.net/{user}/rss",
+        ]
+    return [t.strip() for t in raw.split(",") if t.strip() and "{user}" in t]
+
+
+def fetch_rss_xml(url: str, *, timeout: float = 18.0) -> str:
+    headers = {
+        "User-Agent": "BetScoutCodeScout/1.0 (+https://github.com/bet-scanner)",
+        "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+    }
+    with httpx.Client(timeout=timeout, follow_redirects=True, headers=headers) as client:
+        resp = client.get(url)
+        resp.raise_for_status()
+        return resp.text
+
+
+def ingest_twitter_handles(db: Session, settings: Settings) -> tuple[int, list[str]]:
+    """
+    Free path: poll curated X handles via public RSS mirrors (Nitter/xcancel-style).
+    No paid X API. Mirrors break often — configure SCOUT_TWITTER_RSS_TEMPLATES.
+    """
+    handles = configured_twitter_handles(settings)
+    if not handles:
+        return 0, []
+
+    templates = configured_twitter_rss_templates(settings)
+    skip_lottery = bool(getattr(settings, "scout_twitter_skip_lottery", True))
+    upserted = 0
+    used: list[str] = []
+
+    for handle in handles:
+        xml: str | None = None
+        for tmpl in templates:
+            url = tmpl.replace("{user}", handle)
+            try:
+                xml = fetch_rss_xml(url)
+                if "<item" in xml.lower() or "<entry" in xml.lower():
+                    break
+                xml = None
+            except Exception:  # noqa: BLE001
+                xml = None
+                continue
+        if not xml:
+            continue
+
+        label = f"@{handle}"
+        got_any = False
+        for text in _rss_item_texts(xml):
+            rows = parse_twitter_style_text(
+                text,
+                bookmaker="sportybet",
+                source_label=label,
+            )
+            for row in rows:
+                band = risk_band_for_odds(row.get("combined_odds"), row.get("folds"))
+                if skip_lottery and band == "lottery":
+                    continue
+                upsert_scouted_code(
+                    db,
+                    code_text=row["code_text"],
+                    bookmaker=row["bookmaker"],
+                    source="twitter",
+                    source_label=label,
+                    source_url=f"https://x.com/{handle}",
+                    folds=row.get("folds"),
+                    combined_odds=row.get("combined_odds"),
+                    title=row.get("title") or f"{label} · {row['code_text']}",
+                    notes=(text[:400] if text else None),
+                    scouted_at=row.get("scouted_at"),
+                )
+                upserted += 1
+                got_any = True
+        if got_any:
+            used.append(label)
+
+    return upserted, used
+
+
+def ingest_text_blob(
+    db: Session,
+    text: str,
+    *,
+    bookmaker: str = "sportybet",
+    source_label: str = "Twitter paste",
+) -> int:
+    rows = parse_twitter_style_text(text, bookmaker=bookmaker, source_label=source_label)
+    n = 0
+    for row in rows:
+        upsert_scouted_code(
+            db,
+            code_text=row["code_text"],
+            bookmaker=row["bookmaker"],
+            source=row.get("source") or "twitter",
+            source_label=row.get("source_label"),
+            source_url=row.get("source_url"),
+            folds=row.get("folds"),
+            combined_odds=row.get("combined_odds"),
+            title=row.get("title"),
+            notes=row.get("notes"),
+            scouted_at=row.get("scouted_at"),
+        )
+        n += 1
+    return n
 
 
 DEFAULT_WEB_SOURCES: list[dict[str, str]] = [
@@ -270,30 +438,3 @@ def ingest_web_sources(db: Session, settings: Settings) -> tuple[int, list[str]]
             )
             upserted += 1
     return upserted, used
-
-
-def ingest_text_blob(
-    db: Session,
-    text: str,
-    *,
-    bookmaker: str = "sportybet",
-    source_label: str = "Twitter paste",
-) -> int:
-    rows = parse_twitter_style_text(text, bookmaker=bookmaker, source_label=source_label)
-    n = 0
-    for row in rows:
-        upsert_scouted_code(
-            db,
-            code_text=row["code_text"],
-            bookmaker=row["bookmaker"],
-            source=row.get("source") or "twitter",
-            source_label=row.get("source_label"),
-            source_url=row.get("source_url"),
-            folds=row.get("folds"),
-            combined_odds=row.get("combined_odds"),
-            title=row.get("title"),
-            notes=row.get("notes"),
-            scouted_at=row.get("scouted_at"),
-        )
-        n += 1
-    return n
