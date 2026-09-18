@@ -33,7 +33,6 @@ export type ScoutSort =
 
 export type ScoutListParams = {
   bookmaker?: string;
-  days?: number;
   min_odds?: number;
   max_odds?: number;
   min_folds?: number;
@@ -47,7 +46,6 @@ export type ScoutListParams = {
 export function fetchScoutCodes(params: ScoutListParams = {}) {
   const q = new URLSearchParams();
   q.set('bookmaker', params.bookmaker || 'sportybet');
-  q.set('days', String(params.days ?? 14));
   if (params.min_odds != null) q.set('min_odds', String(params.min_odds));
   if (params.max_odds != null) q.set('max_odds', String(params.max_odds));
   if (params.min_folds != null) q.set('min_folds', String(params.min_folds));
