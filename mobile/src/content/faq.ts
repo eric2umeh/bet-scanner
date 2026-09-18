@@ -244,8 +244,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Tipsters',
     question: 'How do tipsters and booking codes work?',
     answer:
-      'Add a tipster (name + platform), log their booking codes, then mark Won / Lost / Void when results are known. The leaderboard ranks hit rate over time. Codes are stored for your records — we do not auto-open bookmaker slips.',
-    keywords: ['tipster', 'booking', 'code', 'instagram', 'leaderboard'],
+      'Sign in, then add a tipster (name + platform), log their booking codes (stake and odds optional but help ROI), and mark Won / Lost / Void when results are known. Your private leaderboard ranks tipsters for this account — hit rate, or ROI when stake + odds were logged. Codes are for your records; we do not auto-open bookmaker slips.',
+    keywords: ['tipster', 'booking', 'code', 'instagram', 'leaderboard', 'roi'],
   },
   {
     id: 'auth',
@@ -268,8 +268,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Tips',
     question: 'Can I see tips offline?',
     answer:
-      'Yes — the Tips tab caches your last loaded tips on the phone. Pull to refresh when you are back online.',
-    keywords: ['offline', 'cache', 'no internet'],
+      'Yes — Home (matches + Safe picks) and the Tips tab keep the last loaded data on the phone. Pull to refresh when you are back online. Prices will not update while offline.',
+    keywords: ['offline', 'cache', 'no internet', 'home'],
   },
   {
     id: 'server-wake',
