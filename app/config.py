@@ -178,6 +178,16 @@ class Settings(BaseSettings):
     # Semicolon-separated: bookmaker|label|url ; …
     # Empty = built-in SportyBet community pages (SureCodes24, BettingInAfrica).
     scout_web_sources: str = ""
+    # Comma-separated X/Twitter handles to poll via free RSS mirrors (no paid X API).
+    # Example: SportyBet,Sambetting_tips,shandave4luv
+    scout_twitter_handles: str = ""
+    # Comma-separated URL templates with {user}. Tried in order until one responds.
+    scout_twitter_rss_templates: str = (
+        "https://xcancel.com/{user}/rss,"
+        "https://nitter.privacydev.net/{user}/rss"
+    )
+    # When true, skip Twitter codes that look like lottery (odds ≥ 50) at ingest time.
+    scout_twitter_skip_lottery: bool = True
 
     @property
     def sqlalchemy_database_url(self) -> str:
