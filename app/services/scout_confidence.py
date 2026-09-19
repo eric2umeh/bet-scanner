@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.models import Match
 from app.models.scout_code import ScoutedCode
 from app.services.code_parse import parse_slip_text
+from app.services.scout_risk_edit import build_safety_edits
 
 UNVERIFIED_LABEL = "Unverified — copy only."
 VERIFICATION_UNVERIFIED = "unverified"
@@ -341,7 +342,12 @@ def compute_scout_confidence(
         "confidence_label": UNVERIFIED_LABEL,
         "legs_count": len(legs),
         "legs_matched": 0,
+        "enriched_legs": [],
+        "safety_edits": [],
+        "safety_summary": None,
     }
+
+    enriched_for_edit: list[dict[str, Any]] = []
 
     if legs:
         if ctx is None and db is not None:
@@ -351,6 +357,8 @@ def compute_scout_confidence(
                 legs, bookmaker=row.bookmaker, ctx=ctx
             )
             payload["legs_matched"] = matched
+            enriched_for_edit = enriched
+            payload["enriched_legs"] = enriched
             if pct is not None:
                 payload.update(
                     {
@@ -411,6 +419,17 @@ def compute_scout_confidence(
                 "confidence_label": rl,
             }
         )
+
+    edits, summary = build_safety_edits(
+        enriched_legs=enriched_for_edit,
+        folds=folds if folds is not None else row.folds,
+        combined_odds=row.combined_odds,
+        risk_band=row.risk_band,
+        confidence_pct=payload.get("confidence_pct"),
+        verification=payload.get("verification"),
+    )
+    payload["safety_edits"] = edits
+    payload["safety_summary"] = summary
 
     if persist:
         row.verification = payload["verification"]
