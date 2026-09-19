@@ -83,6 +83,13 @@ function confidenceLine(row: ScoutedCode) {
   return label ? `${base} · ${label}` : `${base} confidence`;
 }
 
+function severityColor(sev: string) {
+  const s = (sev || '').toLowerCase();
+  if (s === 'high') return colors.bad;
+  if (s === 'medium') return colors.warn;
+  return colors.muted;
+}
+
 type FilterDraft = {
   bookmaker: PreferredBook;
   sort: ScoutSort;
@@ -132,6 +139,7 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
   const [sort, setSort] = useState<ScoutSort>('odds_desc');
   const [risk, setRisk] = useState('good');
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [editsOpenId, setEditsOpenId] = useState<number | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [draft, setDraft] = useState<FilterDraft>({
     bookmaker,
@@ -150,7 +158,7 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
         refresh_if_empty: true,
       });
       setCodes(data.codes || []);
-      setStatus(data.message);
+      setStatus(null);
     } catch (e) {
       setStatus(userFacingError(e));
       setStatusBad(true);
@@ -184,8 +192,8 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
   async function onAdminRefresh() {
     setBusy(true);
     try {
-      const res = await refreshScoutFeed();
-      setStatus(res.message);
+      await refreshScoutFeed();
+      setStatus(null);
       setStatusBad(false);
       await load();
     } catch (e) {
@@ -234,10 +242,6 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
       >
         <View style={styles.hero}>
           <Text style={styles.heroTitle}>Code Scout</Text>
-          <Text style={styles.heroText}>
-            Auto-listed booking codes for {bookLabel(bookmaker)} from public sites and curated
-            Twitter handles. Copy into the book app. Risk band is from odds/folds, not a win tip.
-          </Text>
         </View>
 
         <Pressable style={styles.filterBtn} onPress={openFilters}>
@@ -251,15 +255,12 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
           <FontAwesome name="chevron-down" size={12} color={colors.muted} />
         </Pressable>
 
-        {status ? (
-          <View style={[styles.statusBox, statusBad && styles.statusBad]}>
+        {statusBad && status ? (
+          <View style={[styles.statusBox, styles.statusBad]}>
             {busy ? (
-              <LoadingRadar
-                color={statusBad ? colors.bad : colors.accent}
-                style={{ marginRight: 8 }}
-              />
+              <LoadingRadar color={colors.bad} style={{ marginRight: 8 }} />
             ) : null}
-            <Text style={[styles.statusText, statusBad && styles.statusTextBad]}>{status}</Text>
+            <Text style={[styles.statusText, styles.statusTextBad]}>{status}</Text>
           </View>
         ) : null}
 
@@ -314,6 +315,37 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
               {whenLabel(row.scouted_at) ? ` · ${whenLabel(row.scouted_at)}` : ''}
             </Text>
             {row.title ? <Text style={styles.titleLine}>{row.title}</Text> : null}
+            {(row.safety_edits?.length ?? 0) > 0 ? (
+              <View style={styles.editsBlock}>
+                <Pressable
+                  style={styles.editsToggle}
+                  onPress={() =>
+                    setEditsOpenId((id) => (id === row.id ? null : row.id))
+                  }
+                >
+                  <Text style={styles.editsToggleText}>
+                    {row.safety_summary ||
+                      `${row.safety_edits!.length} safety edit${row.safety_edits!.length === 1 ? '' : 's'}`}
+                  </Text>
+                  <FontAwesome
+                    name={editsOpenId === row.id ? 'chevron-up' : 'chevron-down'}
+                    size={11}
+                    color={colors.accent}
+                  />
+                </Pressable>
+                {editsOpenId === row.id
+                  ? row.safety_edits!.map((ed, i) => (
+                      <View key={`${ed.kind}-${i}`} style={styles.editRow}>
+                        <Text style={[styles.editSev, { color: severityColor(ed.severity) }]}>
+                          {(ed.severity || 'medium').toUpperCase()}
+                        </Text>
+                        <Text style={styles.editTitle}>{ed.title}</Text>
+                        <Text style={styles.editDetail}>{ed.detail}</Text>
+                      </View>
+                    ))
+                  : null}
+              </View>
+            ) : null}
             <View style={styles.actions}>
               <Pressable
                 style={[styles.btn, copiedId === row.id && styles.btnDone]}
@@ -327,12 +359,6 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
             </View>
           </View>
         ))}
-
-        <Text style={styles.footerNote}>
-          Opaque booking codes without legs stay Unverified — copy only. Confidence appears when
-          slip legs match stored odds, or when folds + combined odds are present. Always confirm
-          the slip inside the bookmaker before staking.
-        </Text>
       </ScrollView>
 
       <Modal
@@ -428,7 +454,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroTitle: { color: colors.ink, fontWeight: '800', fontSize: 16 },
-  heroText: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 6 },
   filterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -501,6 +526,31 @@ const styles = StyleSheet.create({
   confLine: { fontSize: 12, fontWeight: '600', marginTop: 4, marginBottom: 2 },
   meta: { color: colors.muted, fontSize: 12, lineHeight: 17 },
   titleLine: { color: colors.ink, fontSize: 13, marginTop: 2 },
+  editsBlock: {
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: 8,
+  },
+  editsToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  editsToggleText: { color: colors.accent, fontWeight: '700', fontSize: 12, flex: 1 },
+  editRow: {
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  editSev: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
+  editTitle: { color: colors.ink, fontWeight: '700', fontSize: 13, marginTop: 2 },
+  editDetail: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 3 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   btn: {
     flex: 1,
@@ -532,7 +582,6 @@ const styles = StyleSheet.create({
   },
   btnSecondaryText: { color: colors.ink, fontWeight: '600' },
   disabled: { opacity: 0.55 },
-  footerNote: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 18 },
   modalRoot: {
     flex: 1,
     justifyContent: 'center',
