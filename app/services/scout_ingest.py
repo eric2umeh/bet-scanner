@@ -476,6 +476,11 @@ DEFAULT_WEB_SOURCES: list[dict[str, str]] = [
         "bookmaker": "sportybet",
         "label": "BettingInAfrica",
     },
+    {
+        "url": "https://surecodes24.com/bet9ja-booking-codes/",
+        "bookmaker": "bet9ja",
+        "label": "SureCodes24 Bet9ja",
+    },
 ]
 
 
