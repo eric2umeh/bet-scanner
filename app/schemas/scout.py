@@ -1,9 +1,17 @@
-"""Phase 15A/B — Code Scout schemas."""
+"""Phase 15A/B/C — Code Scout schemas."""
 
 from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
+
+
+class ScoutSafetyEdit(BaseModel):
+    kind: str
+    severity: str = "medium"
+    title: str
+    detail: str
+    leg_index: int | None = None
 
 
 class ScoutedCodeOut(BaseModel):
@@ -26,6 +34,9 @@ class ScoutedCodeOut(BaseModel):
     confidence_label: str | None = "Unverified — copy only."
     legs_count: int = 0
     legs_matched: int = 0
+    # Phase 15C
+    safety_edits: list[ScoutSafetyEdit] = Field(default_factory=list)
+    safety_summary: str | None = None
 
 
 class ScoutListResponse(BaseModel):
