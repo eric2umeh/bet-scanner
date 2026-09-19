@@ -41,6 +41,12 @@ export default function ToolsHubScreen() {
           onPress={() => router.push('/tools/slip')}
         />
         <ToolHubCard
+          icon="balance-scale"
+          title="Surebets"
+          description="Nigeria arbs · stake split"
+          onPress={() => router.push('/(tabs)/arb')}
+        />
+        <ToolHubCard
           icon="list"
           title="Tip history"
           description="Logged bets · settle · Active / History"
