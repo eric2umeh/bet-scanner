@@ -1,9 +1,11 @@
-"""Phase 15A/B/C — Code Scout schemas."""
+"""Phase 15A/B/C/D — Code Scout schemas."""
 
 from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
+
+from app.schemas.convert import ConvertedLegOut
 
 
 class ScoutSafetyEdit(BaseModel):
@@ -37,6 +39,9 @@ class ScoutedCodeOut(BaseModel):
     # Phase 15C
     safety_edits: list[ScoutSafetyEdit] = Field(default_factory=list)
     safety_summary: str | None = None
+    # Phase 15D
+    convertible: bool = False
+    convert_target: str | None = None
 
 
 class ScoutListResponse(BaseModel):
@@ -62,4 +67,20 @@ class ScoutRefreshResponse(BaseModel):
     status: str
     upserted: int
     sources: list[str]
+    message: str
+
+
+class ScoutConvertResponse(BaseModel):
+    convertible: bool
+    source_book: str
+    target_book: str
+    code_text: str
+    slip_text: str | None = None
+    legs: list[ConvertedLegOut] = Field(default_factory=list)
+    matched_count: int = 0
+    combined_sportybet: Decimal | None = None
+    combined_bet9ja: Decimal | None = None
+    combined_best_mixed: Decimal | None = None
+    combined_target: Decimal | None = None
+    place_summary: str = ""
     message: str
