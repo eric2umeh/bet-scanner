@@ -1,0 +1,55 @@
+================================================================================
+PHASE 15C — SAFETY / RISK EDIT ON SCOUTED CODES
+================================================================================
+
+Goal:
+  Suggest concrete slip edits (drop weak legs, soften markets, trim lottery
+  multis, flag same-match correlation). Advice only — we do not rewrite the
+  bookmaker booking code.
+
+
+--------------------------------------------------------------------------------
+WHEN EDITS APPEAR
+--------------------------------------------------------------------------------
+
+  - Legs matched to live odds → per-leg drop / soften (1X2→DC, O2.5→O1.5),
+    same-match warnings, keep-strongest-N for long multis.
+  - Lottery / stretch from folds+odds (even without legs) → whole-slip trim tip.
+  - Opaque Unverified codes with no folds → no edit list (nothing honest to say).
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  - app/services/scout_risk_edit.py
+  - Wired through scout_confidence enrich → ScoutedCodeOut.safety_edits
+  - Scout card: expandable “N safety edits” / summary
+  - Removed Scout hero blurb, empty API chatter, and footer disclaimer
+
+
+--------------------------------------------------------------------------------
+HOW TO SMOKE-TEST
+--------------------------------------------------------------------------------
+
+  1. Scout tab — opaque odds-only cards: no safety block (or lottery if folds high).
+  2. Code with folds≥8 or odds≥40 → Lottery slip suggestion.
+  3. Admin ingest slip text with Team vs Team + markets + Load matches →
+     open Safety edits → drop/soften suggestions when legs match.
+  4. Same-match DC + O/U in notes → “Same-match legs” warning.
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/services/scout_risk_edit.py
+  app/services/scout_confidence.py
+  app/services/scout_codes.py
+  app/schemas/scout.py
+  app/api/scout.py
+  mobile/src/api/scout.ts
+  mobile/src/components/CodeScoutPanel.tsx
+  docs/PHASE_15C_SCOUT_RISK_EDIT.txt
+
+================================================================================
