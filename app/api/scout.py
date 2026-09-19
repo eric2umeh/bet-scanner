@@ -171,14 +171,9 @@ def list_codes(
         )
 
     msg = (
-        f"{len(rows)} scouted {book} code(s) from today onward. "
-        "Confidence only when legs or folds+odds exist — else Unverified."
+        f"{len(rows)} scouted {book} code(s)."
         if rows
-        else (
-            f"No scouted codes for {book} today yet. Pull to refresh, or ask an admin to run Scout refresh."
-            if book == "bet9ja"
-            else f"No scouted codes for {book} from today onward."
-        )
+        else ""
     )
     payloads = enrich_scouted_codes(db, rows, persist=True)
     out_codes = [
@@ -187,6 +182,8 @@ def list_codes(
                 r,
                 legs_count=p.get("legs_count", 0),
                 legs_matched=p.get("legs_matched", 0),
+                safety_edits=p.get("safety_edits") or [],
+                safety_summary=p.get("safety_summary"),
             )
         )
         for r, p in zip(rows, payloads, strict=True)
@@ -266,6 +263,8 @@ def create_code(
             row,
             legs_count=p.get("legs_count", 0),
             legs_matched=p.get("legs_matched", 0),
+            safety_edits=p.get("safety_edits") or [],
+            safety_summary=p.get("safety_summary"),
         )
     )
 
