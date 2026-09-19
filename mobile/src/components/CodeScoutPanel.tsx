@@ -37,8 +37,8 @@ const SORT_OPTS: { value: ScoutSort; label: string }[] = [
 ];
 
 const RISK_OPTS = [
-  { value: 'good', label: 'Good only' },
   { value: 'all', label: 'All risk' },
+  { value: 'good', label: 'Good only' },
   { value: 'safer', label: 'Safer' },
   { value: 'stretch', label: 'Stretch' },
   { value: 'lottery', label: 'Lottery' },
@@ -137,14 +137,14 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
   const [status, setStatus] = useState<string | null>(null);
   const [statusBad, setStatusBad] = useState(false);
   const [sort, setSort] = useState<ScoutSort>('odds_desc');
-  const [risk, setRisk] = useState('good');
+  const [risk, setRisk] = useState('all');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [editsOpenId, setEditsOpenId] = useState<number | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [draft, setDraft] = useState<FilterDraft>({
     bookmaker,
     sort: 'odds_desc',
-    risk: 'good',
+    risk: 'all',
   });
 
   const load = useCallback(async () => {
@@ -287,7 +287,7 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
             <Text style={styles.emptyText}>
               {bookmaker === 'bet9ja'
                 ? 'Bet9ja sources are thin — switch book in Filters, or ask an admin to refresh.'
-                : 'Pull down to refresh, or open Filters to change book / risk.'}
+                : 'Pull down to refresh. If still empty, ask an admin to tap Refresh from web sources.'}
             </Text>
           </View>
         ) : null}
