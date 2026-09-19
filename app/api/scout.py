@@ -176,6 +176,8 @@ def list_codes(
         else ""
     )
     payloads = enrich_scouted_codes(db, rows, persist=True)
+    if len(payloads) != len(rows):
+        payloads = enrich_scouted_codes(db, rows, persist=False)
     out_codes = [
         ScoutedCodeOut(
             **code_to_dict(
@@ -186,7 +188,7 @@ def list_codes(
                 safety_summary=p.get("safety_summary"),
             )
         )
-        for r, p in zip(rows, payloads, strict=True)
+        for r, p in zip(rows, payloads)
     ]
     return ScoutListResponse(
         count=len(out_codes),
