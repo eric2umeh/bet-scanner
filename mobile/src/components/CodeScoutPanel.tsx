@@ -15,8 +15,10 @@ import * as Clipboard from 'expo-clipboard';
 
 import { userFacingError } from '../api/client';
 import {
+  convertScoutCode,
   fetchScoutCodes,
   refreshScoutFeed,
+  type ScoutConvertResponse,
   type ScoutedCode,
   type ScoutSort,
 } from '../api/scout';
@@ -141,6 +143,9 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [editsOpenId, setEditsOpenId] = useState<number | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [convertBusy, setConvertBusy] = useState(false);
+  const [convertResult, setConvertResult] = useState<ScoutConvertResponse | null>(null);
   const [draft, setDraft] = useState<FilterDraft>({
     bookmaker,
     sort: 'odds_desc',
@@ -224,6 +229,41 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
         : 'https://www.bet9ja.com/');
     try {
       await Linking.openURL(url);
+    } catch (e) {
+      setStatus(userFacingError(e));
+      setStatusBad(true);
+    }
+  }
+
+  async function onConvert(row: ScoutedCode) {
+    const target = row.convert_target || (bookmaker === 'sportybet' ? 'bet9ja' : 'sportybet');
+    setConvertBusy(true);
+    setConvertResult(null);
+    setConvertOpen(true);
+    try {
+      const res = await convertScoutCode(row.id, target);
+      setConvertResult(res);
+    } catch (e) {
+      setConvertResult({
+        convertible: false,
+        source_book: bookmaker,
+        target_book: target,
+        code_text: row.code_text,
+        matched_count: 0,
+        place_summary: '',
+        message: userFacingError(e),
+      });
+    } finally {
+      setConvertBusy(false);
+    }
+  }
+
+  async function onCopyConvertSummary() {
+    if (!convertResult?.place_summary) return;
+    try {
+      await Clipboard.setStringAsync(convertResult.place_summary);
+      setStatus('Convert plan copied.');
+      setStatusBad(false);
     } catch (e) {
       setStatus(userFacingError(e));
       setStatusBad(true);
@@ -357,6 +397,17 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
                 <Text style={styles.btnGhostText}>Open book</Text>
               </Pressable>
             </View>
+            {row.convertible ? (
+              <Pressable
+                style={[styles.btnConvert, convertBusy && styles.disabled]}
+                disabled={convertBusy}
+                onPress={() => void onConvert(row)}
+              >
+                <Text style={styles.btnConvertText}>
+                  Convert to {bookLabel(row.convert_target || (bookmaker === 'sportybet' ? 'bet9ja' : 'sportybet'))}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ))}
       </ScrollView>
@@ -415,6 +466,57 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
               <Pressable style={styles.modalApply} onPress={applyFilters}>
                 <Text style={styles.modalApplyText}>Apply</Text>
               </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={convertOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConvertOpen(false)}
+      >
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setConvertOpen(false)} />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHead}>
+              <Text style={styles.modalTitle}>Cross-book convert</Text>
+              <Pressable onPress={() => setConvertOpen(false)} hitSlop={8}>
+                <Text style={styles.modalClose}>×</Text>
+              </Pressable>
+            </View>
+            {convertBusy ? (
+              <View style={styles.convertLoading}>
+                <LoadingRadar />
+                <Text style={styles.muted}>Pricing legs on the other book…</Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.modalScroll}
+                contentContainerStyle={styles.modalScrollContent}
+              >
+                <Text style={styles.convertMsg}>{convertResult?.message}</Text>
+                {convertResult?.combined_target != null ? (
+                  <Text style={styles.convertCombo}>
+                    Combined {bookLabel(convertResult.target_book)} ~{' '}
+                    {fmtOdds(convertResult.combined_target)}
+                  </Text>
+                ) : null}
+                {convertResult?.place_summary ? (
+                  <Text style={styles.convertSummary}>{convertResult.place_summary}</Text>
+                ) : null}
+              </ScrollView>
+            )}
+            <View style={styles.modalActions}>
+              <Pressable style={styles.modalCancel} onPress={() => setConvertOpen(false)}>
+                <Text style={styles.modalCancelText}>Close</Text>
+              </Pressable>
+              {convertResult?.place_summary ? (
+                <Pressable style={styles.modalApply} onPress={() => void onCopyConvertSummary()}>
+                  <Text style={styles.modalApplyText}>Copy plan</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         </View>
@@ -571,6 +673,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnGhostText: { color: colors.ink, fontWeight: '600', fontSize: 13 },
+  btnConvert: {
+    marginTop: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentDim,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  btnConvertText: { color: colors.accent, fontWeight: '700', fontSize: 13 },
+  convertLoading: { alignItems: 'center', gap: 10, paddingVertical: 24 },
+  convertMsg: { color: colors.ink, fontSize: 13, lineHeight: 19, fontWeight: '600' },
+  convertCombo: { color: colors.accent, fontWeight: '800', fontSize: 15, marginTop: 10 },
+  convertSummary: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
   btnSecondary: {
     marginTop: 10,
     backgroundColor: colors.surface,
