@@ -77,13 +77,17 @@ def code_to_dict(
     legs_matched: int = 0,
     safety_edits: list | None = None,
     safety_summary: str | None = None,
+    convertible: bool | None = None,
 ) -> dict:
+    from app.services.scout_convert import can_convert_scout_row, other_book
+
     conf = row.confidence_pct
     conf_f = float(conf) if conf is not None else None
     label = row.confidence_label
     verification = (row.verification or "unverified").strip().lower()
     if conf_f is None and not label:
         label = "Unverified — copy only."
+    can = can_convert_scout_row(row) if convertible is None else bool(convertible)
     return {
         "id": row.id,
         "code_text": row.code_text,
@@ -105,6 +109,8 @@ def code_to_dict(
         "legs_matched": legs_matched,
         "safety_edits": safety_edits or [],
         "safety_summary": safety_summary,
+        "convertible": can,
+        "convert_target": other_book(row.bookmaker) if can else None,
     }
 
 
