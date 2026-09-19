@@ -530,6 +530,7 @@ def ingest_web_sources(db: Session, settings: Settings) -> tuple[int, list[str]]
             continue
         used.append(label)
         for row in rows:
+            tip_date = row.get("scouted_at")
             saved = upsert_scouted_code(
                 db,
                 code_text=row["code_text"],
@@ -541,8 +542,9 @@ def ingest_web_sources(db: Session, settings: Settings) -> tuple[int, list[str]]
                 combined_odds=row.get("combined_odds"),
                 title=row.get("title"),
                 notes=row.get("notes"),
-                scouted_at=row.get("scouted_at"),
+                scouted_at=tip_date,
                 tz_name=tz_name,
+                live_listing=True,
             )
             if saved is not None:
                 upserted += 1
