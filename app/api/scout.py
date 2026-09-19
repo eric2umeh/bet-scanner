@@ -15,8 +15,10 @@ from app.config import Settings, get_settings
 from app.db import get_db
 from app.deps.admin import require_admin
 from app.deps.auth import AuthUser
+from app.models.scout_code import ScoutedCode
 from app.schemas.scout import (
     ScoutCodeCreate,
+    ScoutConvertResponse,
     ScoutedCodeOut,
     ScoutListResponse,
     ScoutRefreshResponse,
@@ -28,6 +30,7 @@ from app.services.scout_codes import (
     upsert_scouted_code,
 )
 from app.services.scout_confidence import enrich_scouted_codes
+from app.services.scout_convert import convert_scouted_code
 from app.services.scout_ingest import (
     ingest_text_blob,
     refresh_all_sources,
@@ -304,3 +307,35 @@ def ingest_text(
         sources=[body.source_label or "Twitter paste"],
         message=f"Parsed {n} code(s) from text (today onward only).",
     )
+
+
+@router.post(
+    "/codes/{code_id}/convert",
+    response_model=ScoutConvertResponse,
+    summary="Cross-book price map for a scouted code (SportyBet ↔ Bet9ja)",
+)
+def convert_code(
+    code_id: int,
+    target_book: str | None = Query(
+        default=None,
+        description="sportybet | bet9ja — defaults to the other book",
+    ),
+    days_ahead: int = Query(default=21, ge=1, le=60),
+    db: Session = Depends(get_db),
+) -> ScoutConvertResponse:
+    """
+    Does **not** create a new opaque booking code on the target book.
+
+    Uses readable legs / notes to price-check the slip on SportyBet vs Bet9ja
+    so you can rebuild it on the other book.
+    """
+    row = db.get(ScoutedCode, code_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Scouted code not found")
+    result = convert_scouted_code(
+        db,
+        row,
+        target_book=target_book,
+        days_ahead=days_ahead,
+    )
+    return ScoutConvertResponse(**result)
