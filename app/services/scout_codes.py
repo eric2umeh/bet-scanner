@@ -130,6 +130,7 @@ def upsert_scouted_code(
     notes: str | None = None,
     scouted_at: datetime | None = None,
     tz_name: str | None = None,
+    live_listing: bool = False,
 ) -> ScoutedCode | None:
     code = (code_text or "").strip().upper()
     book = (bookmaker or "sportybet").strip().lower()
@@ -140,9 +141,13 @@ def upsert_scouted_code(
         except Exception:  # noqa: BLE001
             odds_dec = None
 
-    when = scouted_at or datetime.now(timezone.utc)
-    # Never re-add yesterday’s (or older) tipster/web codes — usually settled/unavailable.
-    if is_past_scout_day(when, tz_name):
+    now = datetime.now(timezone.utc)
+    when = scouted_at or now
+    # Live web/hub pages: tip dates on the page are often stale — mark as seen today.
+    if live_listing:
+        when = now
+    elif is_past_scout_day(when, tz_name):
+        # Skip clearly past Twitter/manual tip dates — usually settled.
         return None
 
     row = db.scalars(
@@ -153,6 +158,16 @@ def upsert_scouted_code(
     ).first()
 
     band = risk_band_for_odds(odds_dec, folds)
+
+    # Preserve page tip-date in notes when we override scouted_at for live listings.
+    note_bits = [notes] if notes else []
+    if live_listing and scouted_at is not None and is_past_scout_day(scouted_at, tz_name):
+        try:
+            tip_day = scouted_at.date().isoformat()
+            note_bits.append(f"Source tip date {tip_day}")
+        except Exception:  # noqa: BLE001
+            pass
+    notes_merged = " · ".join(b for b in note_bits if b) or None
 
     if row is None:
         row = ScoutedCode(
@@ -165,7 +180,7 @@ def upsert_scouted_code(
             combined_odds=odds_dec,
             risk_band=band,
             title=title,
-            notes=notes,
+            notes=notes_merged,
             scouted_at=when,
         )
         db.add(row)
@@ -182,18 +197,12 @@ def upsert_scouted_code(
         row.risk_band = risk_band_for_odds(row.combined_odds, row.folds)
         if title:
             row.title = title
-        if notes:
-            row.notes = notes
-        # Prefer newer sighting
+        if notes_merged:
+            row.notes = notes_merged
+        # Prefer newer sighting (live refresh always bumps to now)
         if row.scouted_at is None or when >= row.scouted_at:
             row.scouted_at = when
 
-    db.commit()
-    db.refresh(row)
-    # Phase 15B — attach legs / confidence when possible (no ctx → rich meta or unverified)
-    from app.services.scout_confidence import compute_scout_confidence
-
-    compute_scout_confidence(row, db=db, persist=True)
     db.commit()
     db.refresh(row)
     return row
