@@ -1,5 +1,13 @@
 import { getJson, postJson } from './client';
 
+export type ScoutSafetyEdit = {
+  kind: string;
+  severity: string;
+  title: string;
+  detail: string;
+  leg_index?: number | null;
+};
+
 export type ScoutedCode = {
   id: number;
   code_text: string;
@@ -19,6 +27,8 @@ export type ScoutedCode = {
   confidence_label?: string | null;
   legs_count?: number;
   legs_matched?: number;
+  safety_edits?: ScoutSafetyEdit[];
+  safety_summary?: string | null;
 };
 
 export type ScoutListResponse = {
