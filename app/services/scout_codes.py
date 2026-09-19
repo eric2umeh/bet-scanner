@@ -70,7 +70,14 @@ def is_past_scout_day(when: datetime | None, tz_name: str | None = None) -> bool
     return local_day < datetime.now(z).date()
 
 
-def code_to_dict(row: ScoutedCode, *, legs_count: int = 0, legs_matched: int = 0) -> dict:
+def code_to_dict(
+    row: ScoutedCode,
+    *,
+    legs_count: int = 0,
+    legs_matched: int = 0,
+    safety_edits: list | None = None,
+    safety_summary: str | None = None,
+) -> dict:
     conf = row.confidence_pct
     conf_f = float(conf) if conf is not None else None
     label = row.confidence_label
@@ -96,6 +103,8 @@ def code_to_dict(row: ScoutedCode, *, legs_count: int = 0, legs_matched: int = 0
         "confidence_label": label or "Unverified — copy only.",
         "legs_count": legs_count,
         "legs_matched": legs_matched,
+        "safety_edits": safety_edits or [],
+        "safety_summary": safety_summary,
     }
 
 
