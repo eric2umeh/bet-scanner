@@ -1,0 +1,48 @@
+================================================================================
+PHASE 15D — CROSS-BOOK CONVERT (SPORTYBET ↔ BET9JA)
+================================================================================
+
+Goal:
+  Help rebuild a scouted code’s slip on the other NG book when legs are known.
+
+Honest limit:
+  We do NOT mint a new opaque booking code on Bet9ja/SportyBet.
+  Convert = price-map + copyable rebuild plan from readable legs / notes.
+
+
+--------------------------------------------------------------------------------
+WHAT SHIPPED
+--------------------------------------------------------------------------------
+
+  - app/services/scout_convert.py — slip text from legs_json/notes → convert_slip
+  - POST /scout/codes/{id}/convert?target_book=bet9ja|sportybet
+  - ScoutedCodeOut.convertible + convert_target
+  - Scout card: “Convert to Bet9ja/SportyBet” → centered modal + Copy plan
+
+
+--------------------------------------------------------------------------------
+HOW TO SMOKE-TEST
+--------------------------------------------------------------------------------
+
+  1. Code with no legs → no Convert button (or convert says cannot).
+  2. Admin ingest / notes with:
+       Flamengo vs Vitoria
+       Double chance 1X
+     → Convert button → matched legs after Load matches.
+  3. Copy plan → paste into notes / place manually on target book.
+  4. Confirm message never claims a new share code was created.
+
+
+--------------------------------------------------------------------------------
+FILES
+--------------------------------------------------------------------------------
+
+  app/services/scout_convert.py
+  app/schemas/scout.py
+  app/services/scout_codes.py
+  app/api/scout.py
+  mobile/src/api/scout.ts
+  mobile/src/components/CodeScoutPanel.tsx
+  docs/PHASE_15D_SCOUT_CONVERT.txt
+
+================================================================================
