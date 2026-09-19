@@ -78,7 +78,7 @@ export default function TabLayout() {
           headerShown: true,
           headerRight: () => <TabHeaderRight info={TOOL_INFO.tips} />,
           tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
-          // Hidden from tab bar — open via Account → Tip history.
+          // Hidden from tab bar — open via Tools → Tip history.
           href: null,
         }}
       />
