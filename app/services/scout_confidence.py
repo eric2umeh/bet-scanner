@@ -443,6 +443,14 @@ def compute_scout_confidence(
     return payload
 
 
+def _row_needs_odds_ctx(row: ScoutedCode) -> bool:
+    """Only build the heavy odds map when legs / slip text might score."""
+    if row.legs_json and len(row.legs_json) > 8:
+        return True
+    blob = f"{row.notes or ''} {row.title or ''}"
+    return " vs " in blob.lower() or " v " in blob.lower()
+
+
 def enrich_scouted_codes(
     db: Session,
     rows: list[ScoutedCode],
@@ -452,10 +460,36 @@ def enrich_scouted_codes(
     """Score rows in batch; returns confidence payloads aligned with `rows`."""
     if not rows:
         return []
-    ctx = build_confidence_context(db)
+    need_ctx = any(_row_needs_odds_ctx(r) for r in rows)
+    ctx: dict[str, Any] | None = None
+    if need_ctx:
+        try:
+            ctx = build_confidence_context(db)
+        except Exception:  # noqa: BLE001 — list must still return codes
+            ctx = None
     payloads: list[dict[str, Any]] = []
     for row in rows:
-        payloads.append(compute_scout_confidence(row, ctx=ctx, db=db, persist=persist))
+        try:
+            payloads.append(
+                compute_scout_confidence(row, ctx=ctx, db=db if ctx is None else None, persist=persist)
+            )
+        except Exception:  # noqa: BLE001
+            payloads.append(
+                {
+                    "verification": getattr(row, "verification", None) or "unverified",
+                    "confidence_pct": float(row.confidence_pct)
+                    if row.confidence_pct is not None
+                    else None,
+                    "confidence_label": row.confidence_label or UNVERIFIED_LABEL,
+                    "legs_count": 0,
+                    "legs_matched": 0,
+                    "safety_edits": [],
+                    "safety_summary": None,
+                }
+            )
     if persist:
-        db.commit()
+        try:
+            db.commit()
+        except Exception:  # noqa: BLE001
+            db.rollback()
     return payloads
