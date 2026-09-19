@@ -41,6 +41,12 @@ export default function ToolsHubScreen() {
           onPress={() => router.push('/tools/slip')}
         />
         <ToolHubCard
+          icon="list"
+          title="Tip history"
+          description="Logged bets · settle · Active / History"
+          onPress={() => router.push('/(tabs)/tips')}
+        />
+        <ToolHubCard
           icon="trophy"
           title="Tipsters"
           description="Booking codes · settle · leaderboard"
