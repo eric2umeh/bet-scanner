@@ -22,7 +22,7 @@ WHAT SHIPPED
     - Ingest skips codes whose page/tweet date is before today (Africa/Lagos)
 
   15A-2  Web + Twitter sources (free, multi-book)
-    - SureCodes24 + BettingInAfrica (SportyBet pages)
+    - SureCodes24 (SportyBet + Bet9ja pages) + BettingInAfrica (SportyBet)
     - Curated X handles: SCOUT_TWITTER_HANDLES=sportybet:Handle,bet9ja:Handle,nairabet:Handle
     - Free RSS mirrors (no paid X API); SCOUT_TWITTER_SKIP_LOTTERY=true
     - Auto refresh on admin Load matches (/odds/sync) + morning ops
