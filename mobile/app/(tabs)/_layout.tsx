@@ -86,10 +86,10 @@ export default function TabLayout() {
         name="arb"
         options={{
           title: 'Surebets',
-          tabBarLabel: 'Surebets',
           headerShown: true,
-          // ArbitragePanel sets headerRight (Find Nigeria + stake); info lives there too.
           tabBarIcon: ({ color }) => <TabBarIcon name="balance-scale" color={color} />,
+          // Hidden from tab bar — open via Tools → Surebets.
+          href: null,
         }}
       />
       <Tabs.Screen
