@@ -25,8 +25,8 @@ export function WebTabBar({ state, descriptors, navigation }: BottomTabBarProps)
     <View style={styles.shell}>
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
-        // Match Expo Router href: null — hide Tips (open via Tools → Tip history).
-        if (options.href === null || route.name === 'tips') return null;
+        // Hide Tips + Surebets from the bar (open under Tools).
+        if (options.href === null || route.name === 'tips' || route.name === 'arb') return null;
         const label = options.title ?? route.name;
         const focused = state.index === index;
         const tint = focused ? colors.accent : colors.muted;
