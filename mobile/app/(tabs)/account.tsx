@@ -544,12 +544,6 @@ export default function AccountScreen() {
               />
             ) : null}
             <MenuRow
-              icon="list"
-              title="Tip history"
-              subtitle="Logged bets · settle · Active / History"
-              onPress={() => router.push('/(tabs)/tips')}
-            />
-            <MenuRow
               icon="sliders"
               title="Settings"
               subtitle="Bankroll, alerts, Safe pick style"
