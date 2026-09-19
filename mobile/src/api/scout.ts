@@ -29,12 +29,29 @@ export type ScoutedCode = {
   legs_matched?: number;
   safety_edits?: ScoutSafetyEdit[];
   safety_summary?: string | null;
+  convertible?: boolean;
+  convert_target?: string | null;
 };
 
 export type ScoutListResponse = {
   count: number;
   bookmaker: string;
   codes: ScoutedCode[];
+  message: string;
+};
+
+export type ScoutConvertResponse = {
+  convertible: boolean;
+  source_book: string;
+  target_book: string;
+  code_text: string;
+  slip_text?: string | null;
+  matched_count: number;
+  combined_sportybet?: number | string | null;
+  combined_bet9ja?: number | string | null;
+  combined_best_mixed?: number | string | null;
+  combined_target?: number | string | null;
+  place_summary: string;
   message: string;
 };
 
@@ -77,4 +94,11 @@ export function refreshScoutFeed() {
     '/scout/refresh',
     {}
   );
+}
+
+export function convertScoutCode(codeId: number, targetBook?: string) {
+  const q = new URLSearchParams();
+  if (targetBook) q.set('target_book', targetBook);
+  const suffix = q.toString() ? `?${q}` : '';
+  return postJson<ScoutConvertResponse>(`/scout/codes/${codeId}/convert${suffix}`, {});
 }
