@@ -63,6 +63,6 @@ export const TOOL_INFO = {
   tools: {
     title: 'Tools',
     message:
-      'Extra utilities: Daily update, Value picks, Compare slip, Tip history, and Tipsters. Code Scout has its own tab. Surebets has its own tab too.',
+      'Extra utilities: Daily update, Value picks, Compare slip, Surebets, Tip history, and Tipsters. Code Scout has its own tab.',
   },
 } as const;
