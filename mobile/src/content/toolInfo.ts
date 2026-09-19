@@ -53,16 +53,16 @@ export const TOOL_INFO = {
   tips: {
     title: 'Tip history',
     message:
-      'Your logged bets — Active for open tips, History for settled ones. Open from Account → Tip history. Pull to refresh; Settle finished tips updates results when scores are in.',
+      'Your logged bets — Active for open tips, History for settled ones. Open from Tools → Tip history. Pull to refresh; Settle finished tips updates results when scores are in.',
   },
   account: {
     title: 'Account',
     message:
-      'Sign in, bankroll, unit size, Safe tip style, App Lock, and Tip history. Settings also set your preferred book for Scout.',
+      'Sign in, bankroll, unit size, Safe tip style, and App Lock. Settings also set your preferred book for Scout. Tip history is under Tools.',
   },
   tools: {
     title: 'Tools',
     message:
-      'Extra utilities: Daily update, Value picks, Compare slip, and Tipsters. Code Scout has its own tab. Surebets has its own tab too.',
+      'Extra utilities: Daily update, Value picks, Compare slip, Tip history, and Tipsters. Code Scout has its own tab. Surebets has its own tab too.',
   },
 } as const;
