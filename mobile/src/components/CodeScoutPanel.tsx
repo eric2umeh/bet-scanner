@@ -326,7 +326,7 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
             <Text style={styles.emptyTitle}>No codes in this filter</Text>
             <Text style={styles.emptyText}>
               {bookmaker === 'bet9ja'
-                ? 'Bet9ja sources are thin — switch book in Filters, or ask an admin to refresh.'
+                ? 'Bet9ja codes come mainly from SureCodes24 + tipster tweets. Pull to refresh, or ask an admin to tap Refresh from web sources. Official @Bet9ja Twitter rarely posts booking codes.'
                 : 'Pull down to refresh. If still empty, ask an admin to tap Refresh from web sources.'}
             </Text>
           </View>
