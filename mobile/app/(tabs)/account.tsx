@@ -87,6 +87,7 @@ export default function AccountScreen() {
   const [accessKey, setAccessKey] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
@@ -295,6 +296,7 @@ export default function AccountScreen() {
       await signIn(email, password);
       flash(`Signed in as ${getSessionEmail() || email}.`);
       setPassword('');
+      setSignupConfirmPassword('');
       setSection('home');
       if (pushSupported()) {
         const prefs = await loadPushPrefs();
@@ -320,6 +322,7 @@ export default function AccountScreen() {
     flash('Creating account…');
     setAuthBusy(true);
     try {
+      assertPasswordsMatch(password, signupConfirmPassword);
       const session = await signUp(email, password);
       flash(
         session
@@ -327,6 +330,7 @@ export default function AccountScreen() {
           : 'Account created. Tap Sign in with the same email and password.'
       );
       setPassword('');
+      setSignupConfirmPassword('');
       setSection('home');
       if (session && pushSupported()) {
         const prefs = await loadPushPrefs();
@@ -497,6 +501,13 @@ export default function AccountScreen() {
                   value={password}
                   onChangeText={setPassword}
                   placeholder={`at least ${MIN_PASSWORD_LENGTH} characters`}
+                  placeholderTextColor={colors.muted}
+                />
+                <Text style={styles.label}>Confirm password</Text>
+                <PasswordInput
+                  value={signupConfirmPassword}
+                  onChangeText={setSignupConfirmPassword}
+                  placeholder="re-enter password to sign up"
                   placeholderTextColor={colors.muted}
                 />
                 <View style={styles.row}>
