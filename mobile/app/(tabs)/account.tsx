@@ -64,7 +64,7 @@ import { webScrollBottom } from '../../src/theme/webScroll';
 const SUPPORT_EMAIL = 'betscout.tech@gmail.com';
 const DEVELOPER_EMAILS = new Set(['eric2umeh@yahoo.com', 'betscout.tech@gmail.com']);
 
-type Section = 'home' | 'details' | 'password' | 'settings' | 'roles';
+type Section = 'home' | 'signup' | 'details' | 'password' | 'settings' | 'roles';
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -484,7 +484,7 @@ export default function AccountScreen() {
               </Text>
             ) : (
               <>
-                <Text style={styles.hint}>Create a free account or sign in to use Bet Scout.</Text>
+                <Text style={styles.hint}>Sign in to use Bet Scout.</Text>
                 <Text style={styles.label}>Email</Text>
                 <TextInput
                   style={styles.input}
@@ -496,36 +496,30 @@ export default function AccountScreen() {
                   placeholder="you@email.com"
                   placeholderTextColor={colors.muted}
                 />
-                <Text style={styles.label}>Password (min {MIN_PASSWORD_LENGTH})</Text>
+                <Text style={styles.label}>Password</Text>
                 <PasswordInput
                   value={password}
                   onChangeText={setPassword}
-                  placeholder={`at least ${MIN_PASSWORD_LENGTH} characters`}
+                  placeholder="your password"
                   placeholderTextColor={colors.muted}
                 />
-                <Text style={styles.label}>Confirm password</Text>
-                <PasswordInput
-                  value={signupConfirmPassword}
-                  onChangeText={setSignupConfirmPassword}
-                  placeholder="re-enter password to sign up"
-                  placeholderTextColor={colors.muted}
-                />
-                <View style={styles.row}>
-                  <Pressable
-                    style={[styles.btn, styles.btnFlex, authBusy && styles.btnDisabled]}
-                    disabled={authBusy}
-                    onPress={() => void onSignIn()}
-                  >
-                    <Text style={styles.btnText}>Sign in</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.btnSecondary, styles.btnFlex, authBusy && styles.btnDisabled]}
-                    disabled={authBusy}
-                    onPress={() => void onSignUp()}
-                  >
-                    <Text style={styles.btnSecondaryText}>Sign up</Text>
-                  </Pressable>
-                </View>
+                <Pressable
+                  style={[styles.btn, authBusy && styles.btnDisabled]}
+                  disabled={authBusy}
+                  onPress={() => void onSignIn()}
+                >
+                  <Text style={styles.btnText}>Sign in</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.btnSecondary, authBusy && styles.btnDisabled]}
+                  disabled={authBusy}
+                  onPress={() => {
+                    setStatus(null);
+                    setSection('signup');
+                  }}
+                >
+                  <Text style={styles.btnSecondaryText}>Sign up</Text>
+                </Pressable>
               </>
             )}
           </View>
@@ -599,6 +593,55 @@ export default function AccountScreen() {
             </Pressable>
           ) : null}
         </>
+      ) : null}
+
+      {section === 'signup' && !sessionEmail ? (
+        <View style={styles.card}>
+          <Pressable onPress={() => setSection('home')} style={styles.backLink}>
+            <Text style={styles.backLinkText}>← Sign in</Text>
+          </Pressable>
+          <Text style={styles.section}>Create account</Text>
+          <Text style={styles.hint}>Free account · password at least {MIN_PASSWORD_LENGTH} characters.</Text>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoCorrect={false}
+            placeholder="you@email.com"
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Password (min {MIN_PASSWORD_LENGTH})</Text>
+          <PasswordInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder={`at least ${MIN_PASSWORD_LENGTH} characters`}
+            placeholderTextColor={colors.muted}
+          />
+          <Text style={styles.label}>Confirm password</Text>
+          <PasswordInput
+            value={signupConfirmPassword}
+            onChangeText={setSignupConfirmPassword}
+            placeholder="re-enter password"
+            placeholderTextColor={colors.muted}
+          />
+          <Pressable
+            style={[styles.btn, authBusy && styles.btnDisabled]}
+            disabled={authBusy}
+            onPress={() => void onSignUp()}
+          >
+            <Text style={styles.btnText}>Sign up</Text>
+          </Pressable>
+          <Pressable
+            style={styles.backLink}
+            onPress={() => setSection('home')}
+            disabled={authBusy}
+          >
+            <Text style={styles.backLinkText}>Already have an account? Sign in</Text>
+          </Pressable>
+        </View>
       ) : null}
 
       {section === 'details' ? (
