@@ -326,8 +326,8 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
             <Text style={styles.emptyTitle}>No codes in this filter</Text>
             <Text style={styles.emptyText}>
               {bookmaker === 'bet9ja'
-                ? 'Only same-day Bet9ja tip dates are kept (older SureCodes24 rows expire on the book). Pull to refresh, or ask an admin to tap Refresh from web sources.'
-                : 'Only same-day SportyBet tip dates are kept — aggregator codes from earlier days usually fail to load. Pull to refresh, or ask an admin to tap Refresh from web sources.'}
+                ? 'Only recent Bet9ja tip dates are kept (older SureCodes24 rows expire on the book). Pull to refresh, or ask an admin to tap Refresh from web sources.'
+                : 'Only recent SportyBet tip dates are kept (today + yesterday). Pull to refresh, or ask an admin to tap Refresh from web sources.'}
             </Text>
           </View>
         ) : null}
