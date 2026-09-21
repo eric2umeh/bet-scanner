@@ -94,6 +94,8 @@ class Settings(BaseSettings):
     # Cuts Supabase Shared Pooler egress (scans re-read the whole odds history otherwise).
     odds_prune_after_sync: bool = True
     odds_keep_past_kickoff_hours: int = 48
+    # Safe Builder: allow underdog prices up to this (surebets keep arb_max_odds≈15).
+    safe_max_dog_odds: float = 50.0
 
     # BetRelay (optional / often paid) — https://betrelay.com.ng/api-docs
     betrelay_api_key: str = ""
