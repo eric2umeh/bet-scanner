@@ -122,6 +122,29 @@ def purge_past_scouted_codes(db: Session, *, tz_name: str | None = None) -> int:
     return int(result.rowcount or 0)
 
 
+def purge_stale_web_listings(db: Session) -> int:
+    """
+    Drop previously scraped web/hub codes before a fresh ingest.
+
+    Aggregator pages keep old (expired) booking codes in the HTML. We used to
+    re-stamp those as 'today', which made Scout show codes SportyBet rejects.
+    Clearing web/hub rows first, then re-ingesting only same-day tip dates,
+    keeps the feed honest.
+    """
+    from sqlalchemy import or_
+
+    result = db.execute(
+        delete(ScoutedCode).where(
+            or_(
+                ScoutedCode.source.in_(("web", "hub")),
+                ScoutedCode.notes.ilike("%Source tip date%"),
+            )
+        )
+    )
+    db.commit()
+    return int(result.rowcount or 0)
+
+
 def upsert_scouted_code(
     db: Session,
     *,
@@ -149,9 +172,12 @@ def upsert_scouted_code(
 
     now = datetime.now(timezone.utc)
     when = scouted_at or now
-    # Live web/hub pages: tip dates on the page are often stale — mark as seen today.
+    # Live aggregator pages often list OLD tip dates (expired on SportyBet).
+    # Never re-stamp those as "today" — skip past tip days so Scout stays loadable.
     if live_listing:
-        when = now
+        if scouted_at is not None and is_past_scout_day(scouted_at, tz_name):
+            return None
+        when = scouted_at or now
     elif is_past_scout_day(when, tz_name):
         # Skip clearly past Twitter/manual tip dates — usually settled.
         return None
@@ -165,15 +191,7 @@ def upsert_scouted_code(
 
     band = risk_band_for_odds(odds_dec, folds)
 
-    # Preserve page tip-date in notes when we override scouted_at for live listings.
-    note_bits = [notes] if notes else []
-    if live_listing and scouted_at is not None and is_past_scout_day(scouted_at, tz_name):
-        try:
-            tip_day = scouted_at.date().isoformat()
-            note_bits.append(f"Source tip date {tip_day}")
-        except Exception:  # noqa: BLE001
-            pass
-    notes_merged = " · ".join(b for b in note_bits if b) or None
+    notes_merged = notes or None
 
     if row is None:
         row = ScoutedCode(
@@ -205,7 +223,7 @@ def upsert_scouted_code(
             row.title = title
         if notes_merged:
             row.notes = notes_merged
-        # Prefer newer sighting (live refresh always bumps to now)
+        # Prefer newer sighting
         if row.scouted_at is None or when >= row.scouted_at:
             row.scouted_at = when
 
