@@ -2,7 +2,9 @@
 Odd = a price snapshot for one market on one match.
 
 Learning note:
-- We INSERT new rows when odds change (history), we don't overwrite.
+- Sync INSERTs new snapshot rows; prune_odds keeps only the latest per
+  (match, book, market, selection) and drops past-match prices so the
+  table (and Supabase pooler egress) stays small.
 - Phase 2 source: The Odds API (free) → UK/EU books.
 - Later sources can be SportyBet / Bet9ja adapters writing the SAME table.
 """
