@@ -22,6 +22,7 @@ _SKIP_PREFIXES = (
     "/redoc",
     "/openapi",
     "/health",
+    "/ready",
     "/legacy",
     "/privacy",
     "/delete-account",
