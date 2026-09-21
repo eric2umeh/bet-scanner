@@ -17,7 +17,7 @@ from app.services.safe_builder import (
     evaluate_match,
     normalize_pick_market,
 )
-from app.services.ng_market_filters import is_ng_surebet_unreliable
+from app.services.ng_market_filters import is_youth_or_reserve_match
 from app.services.tip_learning import (
     build_learning_model,
     enrich_picks_with_learning,
@@ -133,12 +133,15 @@ def scan_safe_picks(
         # Skip kickoffs already started/finished — not placeable as new bets
         if not match_still_bettable(match, now=now):
             continue
-        if match is not None and is_ng_surebet_unreliable(
+        if match is not None and is_youth_or_reserve_match(
             match.home_team,
             match.away_team,
             competition_code=match.competition_code,
             competition_name=match.competition_name,
         ):
+            # Youth/reserve often singles-only / missing markets on NG books.
+            # Do NOT drop UNK competition codes here — odds-api.io fixtures are
+            # usually UNK but still placeable when prices came from SportyBet/Bet9ja.
             continue
         for book, sels in books.items():
             if not {"home", "draw", "away"} <= set(sels):
@@ -149,14 +152,16 @@ def scan_safe_picks(
                 away=sels["away"]["price"],
                 bookmaker=book,
             )
-            # Skip palpable longshots (same ceiling as surebet scan).
-            # Free feeds often return 50–100 underdogs that aren't real slips.
-            max_odds = Decimal(str(settings.arb_max_odds))
-            if (
-                prices.home > max_odds
-                or prices.draw > max_odds
-                or prices.away > max_odds
-            ):
+            # Skip fantasy longshots. Safe Builder allows higher dog odds than
+            # surebets (arb_max_odds≈15) — today's clear favs often have dog 16–40.
+            max_dog = Decimal(
+                str(getattr(settings, "safe_max_dog_odds", None) or 50)
+            )
+            fav_price = min(prices.home, prices.away)
+            dog_price = max(prices.home, prices.away)
+            if fav_price < Decimal("1.01"):
+                continue
+            if dog_price > max_dog or prices.draw > max_dog:
                 continue
             pick = evaluate_match(
                 prices,
