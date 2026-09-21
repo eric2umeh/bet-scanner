@@ -56,32 +56,22 @@ def _list_for_band(
     band: str | None,
     sort: str,
     limit: int,
+    max_age_days: int = 0,
 ) -> list:
+    kwargs = dict(
+        bookmaker=book,
+        tz_name=tz_name,
+        min_odds=min_odds,
+        max_odds=max_odds,
+        min_folds=min_folds,
+        max_folds=max_folds,
+        sort=sort,
+        limit=limit,
+        max_age_days=max_age_days,
+    )
     if band == "good":
-        rows_safer = list_scouted_codes(
-            db,
-            bookmaker=book,
-            tz_name=tz_name,
-            min_odds=min_odds,
-            max_odds=max_odds,
-            min_folds=min_folds,
-            max_folds=max_folds,
-            risk_band="safer",
-            sort=sort,
-            limit=limit,
-        )
-        rows_stretch = list_scouted_codes(
-            db,
-            bookmaker=book,
-            tz_name=tz_name,
-            min_odds=min_odds,
-            max_odds=max_odds,
-            min_folds=min_folds,
-            max_folds=max_folds,
-            risk_band="stretch",
-            sort=sort,
-            limit=limit,
-        )
+        rows_safer = list_scouted_codes(db, **kwargs, risk_band="safer")
+        rows_stretch = list_scouted_codes(db, **kwargs, risk_band="stretch")
         seen: set[int] = set()
         rows = []
         for r in [*rows_safer, *rows_stretch]:
@@ -92,18 +82,7 @@ def _list_for_band(
         if sort in ("odds_desc", "", None):
             rows.sort(key=lambda r: float(r.combined_odds or 0), reverse=True)
         return rows[:limit]
-    return list_scouted_codes(
-        db,
-        bookmaker=book,
-        tz_name=tz_name,
-        min_odds=min_odds,
-        max_odds=max_odds,
-        min_folds=min_folds,
-        max_folds=max_folds,
-        risk_band=band,
-        sort=sort,
-        limit=limit,
-    )
+    return list_scouted_codes(db, **kwargs, risk_band=band)
 
 
 @router.get("/codes", response_model=ScoutListResponse, summary="List scouted booking codes")
@@ -113,7 +92,7 @@ def list_codes(
         default=None,
         ge=1,
         le=60,
-        description="Ignored — Scout only returns codes from today onward",
+        description="Ignored — Scout uses SCOUT_MAX_TIP_AGE_DAYS (default 1)",
     ),
     min_odds: float | None = Query(default=None, ge=1.01),
     max_odds: float | None = Query(default=None, ge=1.01),
@@ -135,13 +114,14 @@ def list_codes(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> ScoutListResponse:
-    del days  # lookback removed — today-forward only
+    del days  # lookback controlled by scout_max_tip_age_days
     book = (bookmaker or "sportybet").strip().lower()
     if book not in ("sportybet", "bet9ja"):
         raise HTTPException(status_code=400, detail="bookmaker must be sportybet or bet9ja")
 
     tz_name = _tz(settings)
-    purge_past_scouted_codes(db, tz_name=tz_name)
+    max_age = int(getattr(settings, "scout_max_tip_age_days", 1) or 0)
+    purge_past_scouted_codes(db, tz_name=tz_name, max_age_days=max_age)
 
     band = (risk_band or "").strip().lower() or None
     rows = _list_for_band(
@@ -155,11 +135,12 @@ def list_codes(
         band=band,
         sort=sort,
         limit=limit,
+        max_age_days=max_age,
     )
 
     if refresh_if_empty and not rows:
         refresh_all_sources(db, settings)
-        purge_past_scouted_codes(db, tz_name=tz_name)
+        purge_past_scouted_codes(db, tz_name=tz_name, max_age_days=max_age)
         rows = _list_for_band(
             db,
             book=book,
@@ -171,6 +152,7 @@ def list_codes(
             band=band,
             sort=sort,
             limit=limit,
+            max_age_days=max_age,
         )
 
     msg = (
@@ -212,10 +194,17 @@ def refresh_codes(
     _admin: AuthUser = Depends(require_admin),
 ) -> ScoutRefreshResponse:
     upserted, sources = refresh_all_sources(db, settings)
-    purged = purge_past_scouted_codes(db, tz_name=_tz(settings))
+    max_age = int(getattr(settings, "scout_max_tip_age_days", 1) or 0)
+    purged = purge_past_scouted_codes(db, tz_name=_tz(settings), max_age_days=max_age)
     # Re-score today's feed so confidence is fresh after ingest
     for book in ("sportybet", "bet9ja"):
-        rows = list_scouted_codes(db, bookmaker=book, tz_name=_tz(settings), limit=200)
+        rows = list_scouted_codes(
+            db,
+            bookmaker=book,
+            tz_name=_tz(settings),
+            limit=200,
+            max_age_days=max_age,
+        )
         enrich_scouted_codes(db, rows, persist=True)
     return ScoutRefreshResponse(
         status="ok",
