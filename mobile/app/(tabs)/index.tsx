@@ -174,7 +174,7 @@ function emptyStateForFilter(
   if (opts.totalTips === 0) {
     return {
       title: 'No tips yet',
-      body: 'Tap Load matches to sync prices. Tips appear when the book shows a clear confidence.',
+      body: 'Tap Load matches to sync prices. Safe tips need a clear favourite; goal tips need ≥80% confidence by default. Try tomorrow’s date if today looks quiet.',
     };
   }
 
