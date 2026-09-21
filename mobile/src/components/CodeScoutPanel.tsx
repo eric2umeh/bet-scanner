@@ -79,7 +79,7 @@ function confidenceLine(row: ScoutedCode) {
   const pct = row.confidence_pct;
   const v = (row.verification || 'unverified').toLowerCase();
   if (v === 'unverified' || pct == null) {
-    return label || 'Unverified — copy only.';
+    return label || 'Unverified — may be expired on the book.';
   }
   const base = `${Math.round(Number(pct))}%`;
   return label ? `${base} · ${label}` : `${base} confidence`;
@@ -326,8 +326,8 @@ export function CodeScoutPanel({ bookmaker, onBookChange }: Props) {
             <Text style={styles.emptyTitle}>No codes in this filter</Text>
             <Text style={styles.emptyText}>
               {bookmaker === 'bet9ja'
-                ? 'Bet9ja codes come mainly from SureCodes24 + tipster tweets. Pull to refresh, or ask an admin to tap Refresh from web sources. Official @Bet9ja Twitter rarely posts booking codes.'
-                : 'Pull down to refresh. If still empty, ask an admin to tap Refresh from web sources.'}
+                ? 'Only same-day Bet9ja tip dates are kept (older SureCodes24 rows expire on the book). Pull to refresh, or ask an admin to tap Refresh from web sources.'
+                : 'Only same-day SportyBet tip dates are kept — aggregator codes from earlier days usually fail to load. Pull to refresh, or ask an admin to tap Refresh from web sources.'}
             </Text>
           </View>
         ) : null}
