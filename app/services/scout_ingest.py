@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.services.scout_codes import (
     purge_past_scouted_codes,
+    purge_stale_web_listings,
     risk_band_for_odds,
     upsert_scouted_code,
 )
@@ -412,6 +413,7 @@ def safe_refresh_scout(db: Session, settings: Settings) -> dict:
     """
     try:
         tz_name = getattr(settings, "app_timezone", None) or "Africa/Lagos"
+        stale = purge_stale_web_listings(db)
         n_web, s_web = ingest_web_sources(db, settings)
         n_tw, s_tw = ingest_twitter_handles(db, settings)
         purged = purge_past_scouted_codes(db, tz_name=tz_name)
@@ -420,14 +422,18 @@ def safe_refresh_scout(db: Session, settings: Settings) -> dict:
             "ok": True,
             "upserted": n_web + n_tw,
             "sources": sources,
-            "purged": purged,
-            "message": f"Scout refreshed · {n_web + n_tw} sighting(s), {purged} past removed",
+            "purged": purged + stale,
+            "message": (
+                f"Scout refreshed · {n_web + n_tw} same-day code(s), "
+                f"{purged + stale} stale/past removed"
+            ),
         }
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "upserted": 0, "sources": [], "message": str(exc)}
 
 
 def refresh_all_sources(db: Session, settings: Settings) -> tuple[int, list[str]]:
+    purge_stale_web_listings(db)
     n1, s1 = ingest_web_sources(db, settings)
     n2, s2 = ingest_twitter_handles(db, settings)
     tz_name = getattr(settings, "app_timezone", None) or "Africa/Lagos"
