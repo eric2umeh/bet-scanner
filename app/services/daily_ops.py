@@ -125,6 +125,23 @@ def run_daily_ops(
             errors.append(f"auto_settle: {exc}")
             steps.append({"step": "auto_settle", "ok": False, "message": str(exc)})
 
+    # Always trim odds history — even when sync was skipped — to cut pooler egress.
+    try:
+        from app.services.odds_prune import prune_odds
+
+        prune_result = prune_odds(db, settings)
+        steps.append(
+            {
+                "step": "prune_odds",
+                "ok": True,
+                "message": prune_result.get("message"),
+                "deleted_total": prune_result.get("deleted_total"),
+            }
+        )
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"prune_odds: {exc}")
+        steps.append({"step": "prune_odds", "ok": False, "message": str(exc)})
+
     brief = None
     if build_brief:
         try:
@@ -159,6 +176,7 @@ def run_daily_ops(
             "sync_fixtures": "Match list refreshed",
             "sync_odds": "Odds updated",
             "scout_codes": "Code Scout refreshed",
+            "prune_odds": "Old odds pruned",
             "auto_settle": "Tips settled",
             "brief": "Brief ready",
         }
