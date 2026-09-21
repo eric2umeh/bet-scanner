@@ -60,6 +60,16 @@ def start_of_today_utc(tz_name: str | None = None) -> datetime:
     return local_midnight.astimezone(timezone.utc)
 
 
+def scout_keep_since_utc(tz_name: str | None = None, *, max_age_days: int = 0) -> datetime:
+    """Earliest scouted_at to keep (today minus max_age_days, local midnight)."""
+    from datetime import timedelta
+
+    z = app_zone(tz_name)
+    days = max(0, int(max_age_days or 0))
+    local_midnight = datetime.now(z).replace(hour=0, minute=0, second=0, microsecond=0)
+    return (local_midnight - timedelta(days=days)).astimezone(timezone.utc)
+
+
 def is_past_scout_day(when: datetime | None, tz_name: str | None = None) -> bool:
     """True if the code's date is before today (local app day)."""
     if when is None:
@@ -68,6 +78,25 @@ def is_past_scout_day(when: datetime | None, tz_name: str | None = None) -> bool
     w = when if when.tzinfo is not None else when.replace(tzinfo=timezone.utc)
     local_day = w.astimezone(z).date()
     return local_day < datetime.now(z).date()
+
+
+def is_stale_scout_day(
+    when: datetime | None,
+    tz_name: str | None = None,
+    *,
+    max_age_days: int = 0,
+) -> bool:
+    """True if tip date is older than today − max_age_days (local)."""
+    if when is None:
+        return False
+    z = app_zone(tz_name)
+    w = when if when.tzinfo is not None else when.replace(tzinfo=timezone.utc)
+    local_day = w.astimezone(z).date()
+    days = max(0, int(max_age_days or 0))
+    from datetime import timedelta
+
+    cutoff = datetime.now(z).date() - timedelta(days=days)
+    return local_day < cutoff
 
 
 def code_to_dict(
@@ -114,9 +143,14 @@ def code_to_dict(
     }
 
 
-def purge_past_scouted_codes(db: Session, *, tz_name: str | None = None) -> int:
-    """Delete codes dated before today (settled / expired listings)."""
-    since = start_of_today_utc(tz_name)
+def purge_past_scouted_codes(
+    db: Session,
+    *,
+    tz_name: str | None = None,
+    max_age_days: int = 0,
+) -> int:
+    """Delete codes older than the keep window (default: before today)."""
+    since = scout_keep_since_utc(tz_name, max_age_days=max_age_days)
     result = db.execute(delete(ScoutedCode).where(ScoutedCode.scouted_at < since))
     db.commit()
     return int(result.rowcount or 0)
@@ -160,6 +194,7 @@ def upsert_scouted_code(
     scouted_at: datetime | None = None,
     tz_name: str | None = None,
     live_listing: bool = False,
+    max_age_days: int = 0,
 ) -> ScoutedCode | None:
     code = (code_text or "").strip().upper()
     book = (bookmaker or "sportybet").strip().lower()
@@ -172,15 +207,28 @@ def upsert_scouted_code(
 
     now = datetime.now(timezone.utc)
     when = scouted_at or now
-    # Live aggregator pages often list OLD tip dates (expired on SportyBet).
-    # Never re-stamp those as "today" — skip past tip days so Scout stays loadable.
+    # Aggregator pages lag a day; allow tip dates within max_age_days.
+    # Never re-stamp old tip days as "today" — keep the real tip date.
     if live_listing:
-        if scouted_at is not None and is_past_scout_day(scouted_at, tz_name):
+        if scouted_at is not None and is_stale_scout_day(
+            scouted_at, tz_name, max_age_days=max_age_days
+        ):
             return None
         when = scouted_at or now
-    elif is_past_scout_day(when, tz_name):
-        # Skip clearly past Twitter/manual tip dates — usually settled.
+    elif is_stale_scout_day(when, tz_name, max_age_days=max_age_days):
         return None
+
+    note_bits = [notes] if notes else []
+    if (
+        scouted_at is not None
+        and is_past_scout_day(scouted_at, tz_name)
+        and not is_stale_scout_day(scouted_at, tz_name, max_age_days=max_age_days)
+    ):
+        try:
+            note_bits.append(f"Source tip date {scouted_at.date().isoformat()} — may be expired")
+        except Exception:  # noqa: BLE001
+            pass
+    notes_merged = " · ".join(b for b in note_bits if b) or None
 
     row = db.scalars(
         select(ScoutedCode).where(
@@ -190,8 +238,6 @@ def upsert_scouted_code(
     ).first()
 
     band = risk_band_for_odds(odds_dec, folds)
-
-    notes_merged = notes or None
 
     if row is None:
         row = ScoutedCode(
@@ -244,11 +290,12 @@ def list_scouted_codes(
     risk_band: str | None = None,
     sort: str = "odds_desc",
     limit: int = 80,
-    days: int | None = None,  # noqa: ARG001 — kept for API compat; feed is today-forward only
+    days: int | None = None,  # noqa: ARG001 — kept for API compat
+    max_age_days: int = 0,
 ) -> list[ScoutedCode]:
-    del days  # ignored: Scout shows today → future only
+    del days  # ignored: Scout uses max_age_days window
     book = (bookmaker or "sportybet").strip().lower()
-    since = start_of_today_utc(tz_name)
+    since = scout_keep_since_utc(tz_name, max_age_days=max_age_days)
 
     stmt: Select[tuple[ScoutedCode]] = select(ScoutedCode).where(
         ScoutedCode.bookmaker == book,
