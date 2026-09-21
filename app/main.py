@@ -115,9 +115,11 @@ def delete_account_info() -> FileResponse:
 
 
 @app.get("/health")
-def health() -> dict[str, str | bool]:
-    """Liveness check for Render / clients. Includes a cheap DB ping."""
-    db_ok = ping_db()
+def health() -> dict[str, str | bool | None]:
+    """
+    Cheap liveness for Render + clients — does NOT touch Postgres.
+    Use GET /ready when you need a real DB check (rare).
+    """
     return {
         # Always "ok" so Render free-tier health checks stay green when only DB is busy.
         "status": "ok",
@@ -125,6 +127,19 @@ def health() -> dict[str, str | bool]:
         "version": app.version,
         "auth_configured": auth_verification_enabled(settings),
         "expo_web_built": expo_web_built(),
+        # Omitted on purpose — avoids Shared Pooler egress from constant pings.
+        "db_ok": None,
+    }
+
+
+@app.get("/ready")
+def ready() -> dict[str, str | bool]:
+    """Readiness: process is up AND Postgres answers. Use sparingly."""
+    db_ok = ping_db()
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "env": settings.app_env,
+        "version": app.version,
         "db_ok": db_ok,
     }
 
