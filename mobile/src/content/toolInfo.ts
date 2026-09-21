@@ -27,7 +27,7 @@ export const TOOL_INFO = {
     title: 'Code Scout',
     message:
       'Lists booking codes scouted for your selected book (SportyBet or Bet9ja). Filter by odds, folds, and risk band, then Copy code into the bookmaker app.\n\n' +
-      'Confidence shows only when legs match stored odds, or when folds + combined odds are present. Opaque codes stay Unverified — copy only.\n\n' +
+      'Confidence shows only when legs match stored odds, or when folds + combined odds are present. Opaque codes stay Unverified. Scout only keeps same-day tip dates from aggregator sites — older listed codes usually fail to load on SportyBet.\n\n' +
       'Change default book under Account → Settings.',
   },
   tipsters: {
