@@ -244,7 +244,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: 'Tools',
     question: 'What is Code Scout?',
     answer:
-      'Scout is a main tab that lists booking codes for your preferred book (SportyBet or Bet9ja). Sources include public code sites and curated Twitter handles via free RSS mirrors (set SCOUT_TWITTER_HANDLES on the server). Codes without legs (or folds+odds) show Unverified — copy only; otherwise a confidence % appears. When legs are known, Convert maps the slip to the other book’s prices (rebuild plan — not a new booking code). Tip history and Surebets live under Tools.',
+      'Scout is a main tab that lists booking codes for your preferred book (SportyBet or Bet9ja). Sources include public code sites and curated Twitter handles via free RSS mirrors (set SCOUT_TWITTER_HANDLES on the server). Only same-day tip dates from those sites are kept — older aggregator codes are skipped because SportyBet/Bet9ja usually reject them. Codes without legs show Unverified; otherwise a confidence % appears. When legs are known, Convert maps the slip to the other book’s prices (rebuild plan — not a new booking code). Tip history and Surebets live under Tools.',
     keywords: ['scout', 'booking', 'code', 'sportybet', 'hub', 'odds', 'folds', 'twitter'],
   },
   {
