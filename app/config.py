@@ -184,11 +184,14 @@ class Settings(BaseSettings):
     # Semicolon-separated: bookmaker|label|url ; …
     # Empty = built-in SportyBet community pages (SureCodes24, BettingInAfrica).
     scout_web_sources: str = ""
+    # Keep tip dates from today back this many days (1 = allow yesterday; aggregators lag).
+    scout_max_tip_age_days: int = 1
     # Comma-separated X/Twitter handles to poll via free RSS mirrors (no paid X API).
-    # Example: SportyBet,Sambetting_tips,shandave4luv
+    # Empty = built-in defaults (SportyBet + tipster handles).
     scout_twitter_handles: str = ""
     # Comma-separated URL templates with {user}. Tried in order until one responds.
     scout_twitter_rss_templates: str = (
+        "https://nitter.cz/{user}/rss,"
         "https://xcancel.com/{user}/rss,"
         "https://nitter.privacydev.net/{user}/rss"
     )
