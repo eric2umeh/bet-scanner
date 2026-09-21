@@ -156,6 +156,18 @@ def sync_odds(db: Session, settings: Settings) -> dict:
     except Exception:  # noqa: BLE001
         pass
 
+    pruned = 0
+    if settings.odds_prune_after_sync:
+        try:
+            from app.services.odds_prune import prune_odds
+
+            prune_result = prune_odds(db, settings)
+            pruned = int(prune_result.get("deleted_total") or 0)
+            if pruned:
+                message += f" · pruned {pruned} old odds rows"
+        except Exception as exc:  # noqa: BLE001 — sync still succeeded
+            print(f"[odds-sync] prune skipped: {exc}")
+
     return {
         "inserted": inserted,
         "matches_touched": len(match_ids),
@@ -163,6 +175,7 @@ def sync_odds(db: Session, settings: Settings) -> dict:
         "ok": True,
         "by_market": by_market,
         "by_book": by_book,
+        "pruned": pruned,
     }
 
 
