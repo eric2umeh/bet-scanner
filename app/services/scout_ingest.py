@@ -42,6 +42,16 @@ TABLE_ROW = re.compile(
     r"(?P<odds>\d+(?:\.\d+)?)",
     re.IGNORECASE | re.DOTALL,
 )
+# "Booking Code: 7K3M9P" / "Booking Code: `7K3M9P`" with nearby Combined Odds
+BOOKING_CODE_LINE = re.compile(
+    r"(?:booking\s*code|bet\s*code|share\s*code)\s*[:\-–]?\s*[`'\"]?"
+    r"(?P<code>[A-Z0-9]{5,10})[`'\"]?",
+    re.IGNORECASE,
+)
+COMBINED_ODDS_NEAR = re.compile(
+    r"(?:combined\s*odds|total\s*odds|odds)\s*[:\-–]?\s*(?P<odds>\d+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
 MONTHS = {
     "jan": 1,
     "feb": 2,
@@ -74,6 +84,23 @@ SKIP_TOKENS = {
     "READY",
     "LOAD",
     "VIP",
+    "BLACK",
+    "WHITE",
+    "GREEN",
+    "THERE",
+    "THEIR",
+    "THESE",
+    "THOSE",
+    "AFTER",
+    "UNDER",
+    "OVER",
+    "MATCH",
+    "GAMES",
+    "SCORE",
+    "SHARE",
+    "CLICK",
+    "CHECK",
+    "FOLLOW",
 }
 
 
@@ -141,6 +168,34 @@ def parse_public_code_page(
             "title": f"{source_label} · {code}",
         }
 
+    for m in BOOKING_CODE_LINE.finditer(text):
+        code = m.group("code").upper()
+        if code in SKIP_TOKENS or code in found:
+            continue
+        if not re.search(r"\d", code):
+            continue
+        # Odds in a window around the booking-code mention
+        start = max(0, m.start() - 120)
+        end = min(len(text), m.end() + 220)
+        blob = text[start:end]
+        odds = None
+        om = COMBINED_ODDS_NEAR.search(blob)
+        if om:
+            try:
+                odds = Decimal(om.group("odds"))
+            except Exception:  # noqa: BLE001
+                odds = None
+        found[code] = {
+            "code_text": code,
+            "bookmaker": bookmaker,
+            "combined_odds": odds,
+            "scouted_at": None,  # undated live copy → treated as today on ingest
+            "source": "web",
+            "source_label": source_label,
+            "source_url": source_url,
+            "title": f"{source_label} · {code}",
+        }
+
     for m in SHARE_CODE.finditer(text):
         code = m.group(1).upper()
         if code in found:
@@ -200,7 +255,7 @@ def parse_twitter_style_text(
         code = m.group(1).upper()
         if any(r["code_text"] == code for r in rows):
             continue
-        if code in SKIP_TOKENS:
+        if code in SKIP_TOKENS or not re.search(r"\d", code):
             continue
         rows.append(
             {
@@ -254,11 +309,12 @@ def configured_twitter_targets(settings: Settings) -> list[dict[str, str]]:
       both:SomeTipster      → ingest once; book detected from tweet text
     """
     raw = (getattr(settings, "scout_twitter_handles", None) or "").strip()
-    if not raw:
-        return []
+    # Always union with built-in tipster/book handles so a partial .env does not
+    # wipe the default Scout Twitter channel list.
+    merged = f"{DEFAULT_TWITTER_HANDLES},{raw}" if raw else DEFAULT_TWITTER_HANDLES
     out: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
-    for part in raw.split(","):
+    for part in merged.split(","):
         part = part.strip().lstrip("@")
         if not part:
             continue
@@ -306,6 +362,7 @@ def configured_twitter_rss_templates(settings: Settings) -> list[str]:
     raw = (getattr(settings, "scout_twitter_rss_templates", None) or "").strip()
     if not raw:
         return [
+            "https://nitter.cz/{user}/rss",
             "https://xcancel.com/{user}/rss",
             "https://nitter.privacydev.net/{user}/rss",
         ]
@@ -335,6 +392,7 @@ def ingest_twitter_handles(db: Session, settings: Settings) -> tuple[int, list[s
     templates = configured_twitter_rss_templates(settings)
     skip_lottery = bool(getattr(settings, "scout_twitter_skip_lottery", True))
     tz_name = getattr(settings, "app_timezone", None) or "Africa/Lagos"
+    max_age = int(getattr(settings, "scout_max_tip_age_days", 1) or 0)
     upserted = 0
     used: list[str] = []
 
@@ -396,6 +454,7 @@ def ingest_twitter_handles(db: Session, settings: Settings) -> tuple[int, list[s
                     notes=(text[:400] if text else None),
                     scouted_at=row.get("scouted_at"),
                     tz_name=tz_name,
+                    max_age_days=max_age,
                 )
                 if saved is not None:
                     upserted += 1
@@ -413,19 +472,22 @@ def safe_refresh_scout(db: Session, settings: Settings) -> dict:
     """
     try:
         tz_name = getattr(settings, "app_timezone", None) or "Africa/Lagos"
+        max_age = int(getattr(settings, "scout_max_tip_age_days", 1) or 0)
         stale = purge_stale_web_listings(db)
         n_web, s_web = ingest_web_sources(db, settings)
         n_tw, s_tw = ingest_twitter_handles(db, settings)
-        purged = purge_past_scouted_codes(db, tz_name=tz_name)
-        sources = list(dict.fromkeys([*s_web, *s_tw]))
+        n_tip, s_tip = ingest_tipster_booking_codes(db, settings)
+        purged = purge_past_scouted_codes(db, tz_name=tz_name, max_age_days=max_age)
+        sources = list(dict.fromkeys([*s_web, *s_tw, *s_tip]))
+        total = n_web + n_tw + n_tip
         return {
             "ok": True,
-            "upserted": n_web + n_tw,
+            "upserted": total,
             "sources": sources,
             "purged": purged + stale,
             "message": (
-                f"Scout refreshed · {n_web + n_tw} same-day code(s), "
-                f"{purged + stale} stale/past removed"
+                f"Scout refreshed · {total} code(s) from web/Twitter/tipsters, "
+                f"{purged + stale} stale removed"
             ),
         }
     except Exception as exc:  # noqa: BLE001
@@ -433,12 +495,14 @@ def safe_refresh_scout(db: Session, settings: Settings) -> dict:
 
 
 def refresh_all_sources(db: Session, settings: Settings) -> tuple[int, list[str]]:
+    max_age = int(getattr(settings, "scout_max_tip_age_days", 1) or 0)
     purge_stale_web_listings(db)
     n1, s1 = ingest_web_sources(db, settings)
     n2, s2 = ingest_twitter_handles(db, settings)
+    n3, s3 = ingest_tipster_booking_codes(db, settings)
     tz_name = getattr(settings, "app_timezone", None) or "Africa/Lagos"
-    purge_past_scouted_codes(db, tz_name=tz_name)
-    return n1 + n2, list(dict.fromkeys([*s1, *s2]))
+    purge_past_scouted_codes(db, tz_name=tz_name, max_age_days=max_age)
+    return n1 + n2 + n3, list(dict.fromkeys([*s1, *s2, *s3]))
 
 
 def ingest_text_blob(
@@ -487,7 +551,20 @@ DEFAULT_WEB_SOURCES: list[dict[str, str]] = [
         "bookmaker": "bet9ja",
         "label": "SureCodes24 Bet9ja",
     },
+    {
+        "url": "https://livescore24.ng/football-booking-codes-nigeria/",
+        "bookmaker": "sportybet",
+        "label": "LiveScore24",
+    },
 ]
+
+DEFAULT_TWITTER_HANDLES = (
+    "sportybet:SportyBet,"
+    "sportybet:Sambetting_tips,"
+    "sportybet:shandave4luv,"
+    "bet9ja:Bet9jaOfficial,"
+    "both:Flashscore"
+)
 
 
 def configured_web_sources(settings: Settings) -> list[dict[str, str]]:
@@ -523,6 +600,7 @@ def ingest_web_sources(db: Session, settings: Settings) -> tuple[int, list[str]]
     upserted = 0
     used: list[str] = []
     tz_name = getattr(settings, "app_timezone", None) or "Africa/Lagos"
+    max_age = int(getattr(settings, "scout_max_tip_age_days", 1) or 0)
     for src in configured_web_sources(settings):
         url = src["url"]
         label = src.get("label") or "Web"
@@ -556,7 +634,59 @@ def ingest_web_sources(db: Session, settings: Settings) -> tuple[int, list[str]]
                 scouted_at=tip_date,
                 tz_name=tz_name,
                 live_listing=True,
+                max_age_days=max_age,
             )
             if saved is not None:
                 upserted += 1
     return upserted, used
+
+
+def ingest_tipster_booking_codes(db: Session, settings: Settings) -> tuple[int, list[str]]:
+    """Pull pending tipster booking codes into the Scout feed."""
+    from datetime import timedelta
+
+    from sqlalchemy import select
+
+    from app.models.tipster import BookingCode
+    from app.services.scout_codes import scout_keep_since_utc
+
+    tz_name = getattr(settings, "app_timezone", None) or "Africa/Lagos"
+    max_age = int(getattr(settings, "scout_max_tip_age_days", 1) or 0)
+    since = scout_keep_since_utc(tz_name, max_age_days=max_age)
+    # Also accept slightly older pending tipster codes (manual paste lag).
+    since = since - timedelta(days=1)
+
+    rows = list(
+        db.scalars(
+            select(BookingCode)
+            .where(
+                BookingCode.result == "pending",
+                BookingCode.created_at >= since,
+            )
+            .order_by(BookingCode.created_at.desc())
+            .limit(80)
+        ).all()
+    )
+    upserted = 0
+    for bc in rows:
+        code = (bc.code_text or "").strip().upper()
+        if not code or code.startswith("DEMO"):
+            continue
+        book = (bc.bookmaker or "sportybet").strip().lower()
+        saved = upsert_scouted_code(
+            db,
+            code_text=code,
+            bookmaker=book,
+            source="tipster",
+            source_label="Tipster",
+            source_url=None,
+            combined_odds=bc.odds_price,
+            title=f"Tipster · {code}",
+            notes=bc.notes or bc.markets_summary,
+            scouted_at=bc.created_at,
+            tz_name=tz_name,
+            max_age_days=max_age + 1,
+        )
+        if saved is not None:
+            upserted += 1
+    return upserted, (["Tipster"] if upserted else [])
