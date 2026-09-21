@@ -23,6 +23,7 @@ _OPEN_PREFIXES = (
     "/redoc",
     "/openapi.json",
     "/health",
+    "/ready",
 )
 
 _MUTATING = {"POST", "PUT", "PATCH", "DELETE"}
