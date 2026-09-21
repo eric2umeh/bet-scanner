@@ -240,9 +240,14 @@ export type HealthResponse = {
   status: string;
   env?: string;
   version?: string;
-  db_ok?: boolean;
+  /** Present on /ready; /health returns null (no DB ping). */
+  db_ok?: boolean | null;
 };
 
 export function pingHealth() {
   return getJson<HealthResponse>('/health', { timeoutMs: 10000 });
+}
+
+export function pingReady() {
+  return getJson<HealthResponse>('/ready', { timeoutMs: 10000 });
 }
