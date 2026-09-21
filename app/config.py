@@ -90,6 +90,10 @@ class Settings(BaseSettings):
     # Cap in provider is 300. Higher = more evening fixtures, more requests per Load matches.
     # Rough cost: 2 event-list calls + ceil(events/10) odds calls (e.g. 100 ≈ 12 req, 300 ≈ 32).
     odds_api_io_event_limit: int = 100
+    # After each odds sync: drop duplicate snapshots + odds for matches kickoff older than this.
+    # Cuts Supabase Shared Pooler egress (scans re-read the whole odds history otherwise).
+    odds_prune_after_sync: bool = True
+    odds_keep_past_kickoff_hours: int = 48
 
     # BetRelay (optional / often paid) — https://betrelay.com.ng/api-docs
     betrelay_api_key: str = ""
