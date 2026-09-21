@@ -15,7 +15,8 @@ from app.config import Settings, get_settings
 from app.db import get_db
 from app.deps.admin import require_can_load_matches
 from app.models import Odd
-from app.schemas.odd import OddOut, OddsSyncResult
+from app.schemas.odd import OddOut, OddsPruneResult, OddsSyncResult
+from app.services.odds_prune import prune_odds
 from app.services.sync_odds import sync_odds
 
 router = APIRouter(prefix="/odds", tags=["odds"])
@@ -38,6 +39,20 @@ def sync_odds_endpoint(
     if not result.get("ok", True):
         raise HTTPException(status_code=400, detail=result["message"])
     return OddsSyncResult(**result)
+
+
+@router.post(
+    "/prune",
+    response_model=OddsPruneResult,
+    summary="Drop duplicate + past-match odds (cuts Supabase egress)",
+)
+def prune_odds_endpoint(
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    _admin=Depends(require_can_load_matches),
+) -> OddsPruneResult:
+    """Keep latest snapshot per key; remove odds for matches kickoff > retention."""
+    return OddsPruneResult(**prune_odds(db, settings))
 
 
 @router.get(
