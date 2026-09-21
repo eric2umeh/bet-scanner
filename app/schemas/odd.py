@@ -25,3 +25,13 @@ class OddsSyncResult(BaseModel):
     ok: bool = True
     by_market: dict[str, int] = {}
     by_book: dict[str, int] = {}
+    pruned: int = 0
+
+
+class OddsPruneResult(BaseModel):
+    deleted_duplicates: int
+    deleted_past_match: int
+    deleted_total: int
+    keep_past_kickoff_hours: int
+    message: str
+    ok: bool = True
